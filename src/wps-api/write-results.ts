@@ -44,6 +44,10 @@ function clearRange(sheet: WpsSheet, address: string): void {
   range.ClearContents();
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 export function rangeAddress(startRow: number, startCol: number, rowCount: number, colCount: number): string {
   assertPositiveInteger(startRow, "起始行号");
   assertPositiveInteger(startCol, "起始列号");
@@ -71,11 +75,11 @@ export function writeMatrixBulkOrChunks(
     return;
   }
 
+  const address = rangeAddress(startRow, startCol, values.length, width);
   try {
-    const address = rangeAddress(startRow, startCol, values.length, width);
     assignRangeValue(sheet.Range(address), values);
     return;
-  } catch {
+  } catch (fullWriteError) {
     const safeChunkRows = normalizeChunkRows(chunkRows);
     for (let rowOffset = 0; rowOffset < values.length; rowOffset += safeChunkRows) {
       const chunk = values.slice(rowOffset, rowOffset + safeChunkRows);
@@ -84,7 +88,15 @@ export function writeMatrixBulkOrChunks(
         continue;
       }
       const chunkAddress = rangeAddress(startRow + rowOffset, startCol, chunk.length, chunkWidth);
-      assignRangeValue(sheet.Range(chunkAddress), chunk);
+      try {
+        assignRangeValue(sheet.Range(chunkAddress), chunk);
+      } catch (chunkWriteError) {
+        const chunkNumber = Math.floor(rowOffset / safeChunkRows) + 1;
+        throw new Error(
+          `整块写入失败：${address}；${errorMessage(fullWriteError)}。` +
+            `分块写入失败：第 ${chunkNumber} 块 ${chunkAddress}；${errorMessage(chunkWriteError)}`
+        );
+      }
     }
   }
 }

@@ -8,6 +8,7 @@ export interface RecordedWrite {
 export interface FakeSheet extends WpsSheet {
   writes: RecordedWrite[];
   clears: string[];
+  failWriteAddresses: Set<string>;
   failNextBulkWrite: boolean;
   usedRangeValue2ReadCount: number;
 }
@@ -25,6 +26,7 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
     },
     writes: [],
     clears: [],
+    failWriteAddresses: new Set<string>(),
     failNextBulkWrite: false,
     usedRangeValue2ReadCount: 0,
     Range(address: string): WpsRange {
@@ -36,6 +38,9 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
           if (sheet.failNextBulkWrite && isMatrix(value)) {
             sheet.failNextBulkWrite = false;
             throw new Error("bulk write failed");
+          }
+          if (sheet.failWriteAddresses.has(address)) {
+            throw new Error(`range write failed: ${address}`);
           }
           sheet.writes.push({ address, value });
         }

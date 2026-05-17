@@ -1,10 +1,47 @@
 import { describe, expect, it } from "vitest";
 import { MAX_OUTPUT_CLEAR_ROW, MAX_PRECHECK_CLEAR_ROW, OA_REQUIRED_HEADERS } from "../../src/constants";
+import type { ScrapVarianceGlobal, WpsApplication, WpsSheet, WpsSheets } from "../../src/types/wps";
 import { readSheetTable } from "../../src/wps-api/read-sheet-data";
-import { clearPrecheckOutput, clearQueryOutput, writeMatrixBulkOrChunks } from "../../src/wps-api/write-results";
+import { ensureSheet, getApplication, getSheets } from "../../src/wps-api/workbook";
+import {
+  clearPrecheckOutput,
+  clearQueryOutput,
+  rangeAddress,
+  writeMatrixBulkOrChunks
+} from "../../src/wps-api/write-results";
 import { createFakeSheet } from "./fakes";
 
+function createSheetCollection(sheets: WpsSheet[]): WpsSheets {
+  return {
+    get Count(): number {
+      return sheets.length;
+    },
+    Item(index: number): WpsSheet {
+      return sheets[index - 1];
+    },
+    Add(): WpsSheet {
+      const sheet = createFakeSheet(`Sheet${sheets.length + 1}`);
+      sheets.push(sheet);
+      return sheet;
+    }
+  };
+}
+
 describe("WPS adapter bulk reads and writes", () => {
+  it("builds range addresses for columns beyond Z", () => {
+    expect(rangeAddress(1, 27, 1, 2)).toBe("AA1:AB1");
+  });
+
+  it("rejects invalid range address inputs before attempting fallback writes", () => {
+    const sheet = createFakeSheet("查询结果");
+
+    expect(() => writeMatrixBulkOrChunks(sheet, 0, 1, [["A"]])).toThrow("起始行号 必须是正整数");
+    expect(() => rangeAddress(1, 0, 1, 1)).toThrow("起始列号 必须是正整数");
+    expect(() => rangeAddress(1, 1, 0, 1)).toThrow("行数 必须是正整数");
+    expect(() => rangeAddress(1, 1, 1, 0)).toThrow("列数 必须是正整数");
+    expect(sheet.writes).toEqual([]);
+  });
+
   it("reads UsedRange.Value2 once and parses table by automatic header detection", () => {
     const usedRange = [
       ["导出时间", "2026-05-17"],
@@ -63,5 +100,64 @@ describe("WPS adapter bulk reads and writes", () => {
       { address: "A9:A10", value: [["A"], [1]] },
       { address: "A11:A12", value: [[2], [3]] }
     ]);
+  });
+
+  it("throws full and chunk write context when chunk fallback also fails", () => {
+    const sheet = createFakeSheet("查询结果");
+    sheet.failNextBulkWrite = true;
+    sheet.failWriteAddresses.add("A9:A10");
+
+    expect(() => writeMatrixBulkOrChunks(sheet, 9, 1, [["A"], [1], [2], [3]], 2)).toThrow(
+      /整块写入失败.*bulk write failed.*分块写入失败.*第 1 块.*A9:A10.*range write failed: A9:A10/s
+    );
+  });
+});
+
+describe("WPS workbook adapter", () => {
+  it("throws a readable error when Application is missing", () => {
+    expect(() => getApplication({} as ScrapVarianceGlobal)).toThrow("当前环境没有 WPS Application 对象");
+  });
+
+  it("prefers ActiveWorkbook.Worksheets over other sheet collections", () => {
+    const preferred = createSheetCollection([createFakeSheet("preferred")]);
+    const app: WpsApplication = {
+      ActiveWorkbook: {
+        Worksheets: preferred,
+        Sheets: createSheetCollection([createFakeSheet("active-sheets")])
+      },
+      Worksheets: createSheetCollection([createFakeSheet("app-worksheets")]),
+      Sheets: createSheetCollection([createFakeSheet("app-sheets")])
+    };
+
+    expect(getSheets(app)).toBe(preferred);
+  });
+
+  it("falls back through ActiveWorkbook.Sheets, app.Worksheets, and app.Sheets", () => {
+    const activeSheets = createSheetCollection([createFakeSheet("active-sheets")]);
+    const appWorksheets = createSheetCollection([createFakeSheet("app-worksheets")]);
+    const appSheets = createSheetCollection([createFakeSheet("app-sheets")]);
+
+    expect(getSheets({ ActiveWorkbook: { Sheets: activeSheets }, Worksheets: appWorksheets, Sheets: appSheets })).toBe(
+      activeSheets
+    );
+    expect(getSheets({ ActiveWorkbook: {}, Worksheets: appWorksheets, Sheets: appSheets })).toBe(appWorksheets);
+    expect(getSheets({ ActiveWorkbook: {}, Sheets: appSheets })).toBe(appSheets);
+  });
+
+  it("returns existing sheets and adds named missing sheets through injected root", () => {
+    const sheets = [createFakeSheet("Existing")];
+    const root = {
+      Application: {
+        ActiveWorkbook: {
+          Worksheets: createSheetCollection(sheets)
+        }
+      }
+    } satisfies ScrapVarianceGlobal;
+
+    expect(ensureSheet("Existing", root)).toBe(sheets[0]);
+
+    const added = ensureSheet("Created", root);
+    expect(added.Name).toBe("Created");
+    expect(sheets.map((sheet) => sheet.Name)).toEqual(["Existing", "Created"]);
   });
 });
