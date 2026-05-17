@@ -44,6 +44,37 @@
     "OA和ERP都有，数量一致",
   ];
 
+  var SUMMARY_HEADERS = [
+    "公司简称",
+    "一级部门",
+    "二级部门",
+    "OA数量合计",
+    "ERP实发数量合计",
+    "数量差额",
+    "OA实际预算金额mx合计",
+    "ERP总成本合计",
+    "金额差额",
+    "差异类型摘要",
+  ];
+
+  var DETAIL_HEADERS = [
+    "差异类型",
+    "OA表单编号",
+    "ERP出库单号",
+    "物料编码",
+    "物料名称",
+    "公司简称",
+    "一级部门",
+    "二级部门",
+    "OA数量合计",
+    "ERP实发数量合计",
+    "数量差额",
+    "OA实际预算金额mx合计",
+    "ERP总成本合计",
+    "金额差额",
+    "备注",
+  ];
+
   function normalizeText(value) {
     if (value === null || value === undefined) {
       return "";
@@ -622,16 +653,367 @@
     return result;
   }
 
+  function summaryRowsToValues(summaryRows) {
+    var rows = summaryRows || [];
+    var values = [SUMMARY_HEADERS];
+    var index;
+    var row;
+
+    for (index = 0; index < rows.length; index += 1) {
+      row = rows[index] || {};
+      values.push([
+        row.company,
+        row.dept1,
+        row.dept2,
+        row.oaQuantity,
+        row.erpQuantity,
+        row.quantityDiff,
+        row.oaAmount,
+        row.erpCost,
+        row.amountDiff,
+        row.differenceSummary,
+      ]);
+    }
+
+    return values;
+  }
+
+  function detailRowsToValues(detailRows) {
+    var rows = detailRows || [];
+    var values = [DETAIL_HEADERS];
+    var index;
+    var row;
+
+    for (index = 0; index < rows.length; index += 1) {
+      row = rows[index] || {};
+      values.push([
+        row.differenceType,
+        row.formNumber,
+        row.erpDocNumbers,
+        row.itemCode,
+        row.itemName,
+        row.company,
+        row.dept1,
+        row.dept2,
+        row.oaQuantity,
+        row.erpQuantity,
+        row.quantityDiff,
+        row.oaAmount,
+        row.erpCost,
+        row.amountDiff,
+        row.remark,
+      ]);
+    }
+
+    return values;
+  }
+
+  function getApplication() {
+    if (!root.Application) {
+      throw new Error("当前环境没有 WPS Application 对象，请在 WPS JS 宏环境中运行。");
+    }
+    return root.Application;
+  }
+
+  function getSheets(app) {
+    var activeWorkbook = app.ActiveWorkbook || {};
+
+    // WPS 不同版本会暴露 Worksheets 或 Sheets，这里只收敛入口差异。
+    return (
+      activeWorkbook.Worksheets ||
+      activeWorkbook.Sheets ||
+      app.Worksheets ||
+      app.Sheets
+    );
+  }
+
+  function findSheetByName(sheetName) {
+    var app = getApplication();
+    var sheets = getSheets(app);
+    var index;
+    var sheet;
+
+    for (index = 1; index <= sheets.Count; index += 1) {
+      sheet = sheets.Item(index);
+      if (sheet.Name === sheetName) {
+        return sheet;
+      }
+    }
+
+    return null;
+  }
+
+  function getSheetByName(sheetName) {
+    var sheet = findSheetByName(sheetName);
+
+    if (!sheet) {
+      throw new Error("找不到工作表：" + sheetName);
+    }
+
+    return sheet;
+  }
+
+  function ensureSheet(sheetName) {
+    var app;
+    var sheets;
+    var sheet = findSheetByName(sheetName);
+
+    if (sheet) {
+      return sheet;
+    }
+
+    app = getApplication();
+    sheets = getSheets(app);
+    sheet = sheets.Add();
+    sheet.Name = sheetName;
+    return sheet;
+  }
+
+  function isArray(value) {
+    return Object.prototype.toString.call(value) === "[object Array]";
+  }
+
+  function normalizeMatrix(values) {
+    if (isArray(values)) {
+      if (values.length === 0) {
+        return [];
+      }
+      if (isArray(values[0])) {
+        return values;
+      }
+      return [values];
+    }
+    return [[values]];
+  }
+
+  function readUsedRangeValues(sheet) {
+    var usedRange = sheet.UsedRange;
+    var values;
+
+    if (!usedRange) {
+      return [];
+    }
+
+    values = usedRange.Value2;
+    if (values === undefined) {
+      values = usedRange.Value;
+    }
+    if (values === undefined || values === null) {
+      return [];
+    }
+    return normalizeMatrix(values);
+  }
+
+  function isBlankValue(value) {
+    return value === null || value === undefined || normalizeText(value) === "";
+  }
+
+  function rowsFromValues(values, headerRowIndex) {
+    var matrix = normalizeMatrix(values);
+    var headers = matrix[headerRowIndex - 1] || [];
+    var rows = [];
+    var rowIndex;
+    var colIndex;
+    var dataRow;
+    var outputRow;
+    var header;
+    var hasValue;
+
+    for (rowIndex = headerRowIndex; rowIndex < matrix.length; rowIndex += 1) {
+      dataRow = matrix[rowIndex] || [];
+      outputRow = {};
+      hasValue = false;
+
+      for (colIndex = 0; colIndex < headers.length; colIndex += 1) {
+        header = normalizeText(headers[colIndex]);
+        if (!header) {
+          continue;
+        }
+
+        outputRow[header] = dataRow[colIndex];
+        if (!isBlankValue(dataRow[colIndex])) {
+          hasValue = true;
+        }
+      }
+
+      if (hasValue) {
+        rows.push(outputRow);
+      }
+    }
+
+    return rows;
+  }
+
+  function readSheetData(sheetName, headerRowIndex) {
+    var sheet = getSheetByName(sheetName);
+    var values = readUsedRangeValues(sheet);
+
+    return rowsFromValues(values, headerRowIndex);
+  }
+
+  function requireColumns(rows, requiredColumns, sheetName) {
+    var columns = rows && rows[0] ? rows[0] : null;
+    var missing = [];
+    var index;
+    var columnName;
+
+    if (!rows || rows.length === 0) {
+      throw new Error("工作表没有数据：" + sheetName);
+    }
+
+    for (index = 0; index < requiredColumns.length; index += 1) {
+      columnName = requiredColumns[index];
+      if (!Object.prototype.hasOwnProperty.call(columns, columnName)) {
+        missing.push(columnName);
+      }
+    }
+
+    if (missing.length > 0) {
+      throw new Error(sheetName + " 缺少关键列：" + missing.join("、"));
+    }
+  }
+
+  function validateRequiredColumns(oaRows, erpRows) {
+    requireColumns(oaRows, Object.values(CONFIG.oaHeaders), CONFIG.sheets.oa);
+    requireColumns(erpRows, Object.values(CONFIG.erpHeaders), CONFIG.sheets.erp);
+  }
+
+  function setCell(sheet, address, value) {
+    sheet.Range(address).Value = value;
+  }
+
+  function writeMatrix(sheet, startRow, startCol, values) {
+    var rowIndex;
+    var colIndex;
+    var row;
+
+    for (rowIndex = 0; rowIndex < values.length; rowIndex += 1) {
+      row = values[rowIndex] || [];
+      for (colIndex = 0; colIndex < row.length; colIndex += 1) {
+        sheet.Cells.Item(startRow + rowIndex, startCol + colIndex).Value =
+          row[colIndex];
+      }
+    }
+  }
+
+  function clearPanelOutput(sheet) {
+    var range = sheet.Range("A8:O20000");
+
+    if (range.ClearContents) {
+      range.ClearContents();
+      return;
+    }
+    range.Value = "";
+  }
+
   function setupQueryPanel() {
-    throw new Error("当前版本仅包含核心计算；Task 3 将添加 WPS 查询面板。");
+    var sheet = ensureSheet(CONFIG.sheets.panel);
+
+    setCell(sheet, "A1", "报废差异查询");
+    setCell(sheet, "A2", "公司简称");
+    setCell(sheet, "A3", "一级部门");
+    setCell(sheet, "A4", "二级部门");
+    setCell(sheet, "A5", "开始日期");
+    setCell(sheet, "A6", "结束日期");
+    setCell(sheet, "A7", "运行函数");
+    setCell(sheet, "B7", "runScrapVarianceQuery");
+
+    return sheet;
+  }
+
+  function getRangeValue(sheet, address) {
+    var range = sheet.Range(address);
+
+    if (range.Value2 !== undefined) {
+      return range.Value2;
+    }
+    return range.Value;
+  }
+
+  function getMatrixValue(matrix, rowIndex, colIndex) {
+    if (matrix[rowIndex] && isArray(matrix[rowIndex])) {
+      return matrix[rowIndex][colIndex];
+    }
+    if (matrix.length === 1 && isArray(matrix[0])) {
+      return matrix[0][rowIndex];
+    }
+    return undefined;
+  }
+
+  function readFiltersFromPanel(sheet) {
+    var values = normalizeMatrix(getRangeValue(sheet, "B2:B6"));
+
+    return parseFilters({
+      company: getMatrixValue(values, 0, 0),
+      dept1: getMatrixValue(values, 1, 0),
+      dept2: getMatrixValue(values, 2, 0),
+      startDate: getMatrixValue(values, 3, 0),
+      endDate: getMatrixValue(values, 4, 0),
+    });
+  }
+
+  function writeErrorToPanel(message) {
+    var sheet = ensureSheet(CONFIG.sheets.panel);
+
+    clearPanelOutput(sheet);
+    setCell(sheet, "A8", "错误");
+    setCell(sheet, "B8", message);
+  }
+
+  function writeResults(summaryRows, detailRows) {
+    var sheet = ensureSheet(CONFIG.sheets.panel);
+    var summaryValues = summaryRowsToValues(summaryRows);
+    var detailValues = detailRowsToValues(detailRows);
+    var detailStartRow = 11 + summaryValues.length;
+
+    clearPanelOutput(sheet);
+    setCell(sheet, "A8", "汇总差异");
+    writeMatrix(sheet, 9, 1, summaryValues);
+    setCell(sheet, "A" + detailStartRow, "明细差异");
+    writeMatrix(sheet, detailStartRow + 1, 1, detailValues);
   }
 
   function runScrapVarianceQuery() {
-    throw new Error("当前版本仅包含核心计算；Task 3 将添加 WPS 面板查询。");
+    var panel;
+    var filters;
+    var oaRows;
+    var erpRows;
+    var allOaFormNumbers;
+    var oaGroupedRows;
+    var erpRowsForOa;
+    var erpOnlyRows;
+    var detailRows;
+    var summaryRows;
+
+    try {
+      panel = setupQueryPanel();
+      filters = readFiltersFromPanel(panel);
+      oaRows = readSheetData(CONFIG.sheets.oa, 3);
+      erpRows = readSheetData(CONFIG.sheets.erp, 1);
+      validateRequiredColumns(oaRows, erpRows);
+
+      allOaFormNumbers = buildAllOaFormNumberSet(oaRows);
+      oaGroupedRows = buildOaRows(oaRows, filters);
+      if (Object.keys(oaGroupedRows).length === 0) {
+        clearPanelOutput(panel);
+        setCell(panel, "A8", "查询条件没有匹配到 OA 数据。");
+        return;
+      }
+
+      erpRowsForOa = buildErpRowsForOa(erpRows, oaGroupedRows);
+      erpOnlyRows = buildErpOnlyRows(erpRows, allOaFormNumbers, filters);
+      detailRows = compareRows(oaGroupedRows, erpRowsForOa, erpOnlyRows);
+      summaryRows = buildSummaryRows(detailRows);
+      writeResults(summaryRows, detailRows);
+    } catch (error) {
+      writeErrorToPanel(error && error.message ? error.message : String(error));
+    }
   }
 
   var ScrapVarianceCore = {
     CONFIG: CONFIG,
+    SUMMARY_HEADERS: SUMMARY_HEADERS,
+    DETAIL_HEADERS: DETAIL_HEADERS,
     normalizeText: normalizeText,
     normalizeNumber: normalizeNumber,
     normalizeDateKey: normalizeDateKey,
@@ -647,6 +1029,11 @@
     buildDifference: buildDifference,
     compareRows: compareRows,
     buildSummaryRows: buildSummaryRows,
+    summaryRowsToValues: summaryRowsToValues,
+    detailRowsToValues: detailRowsToValues,
+    normalizeMatrix: normalizeMatrix,
+    rowsFromValues: rowsFromValues,
+    validateRequiredColumns: validateRequiredColumns,
   };
 
   root.ScrapVarianceCore = ScrapVarianceCore;

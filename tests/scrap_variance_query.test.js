@@ -490,3 +490,64 @@ test("buildSummaryRows de-duplicates difference types, uses priority order, and 
     "OA有申请，ERP无出库、ERP出库对应OA未在当前OA数据中找到、OA和ERP都有，但物料明细不一致、OA和ERP都有，但数量不同、OA和ERP都有，数量一致"
   );
 });
+
+test("summaryRowsToValues and detailRowsToValues render stable worksheet tables", () => {
+  const summaryRows = [
+    {
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      oaQuantity: 8,
+      erpQuantity: 4,
+      quantityDiff: 4,
+      oaAmount: 80,
+      erpCost: 44,
+      amountDiff: 36,
+      differenceSummary: "OA和ERP都有，但数量不同",
+    },
+  ];
+
+  const detailRows = [
+    {
+      differenceType: "OA和ERP都有，但数量不同",
+      formNumber: "CHBF1",
+      erpDocNumbers: "QOUT1",
+      itemCode: "MAT-A",
+      itemName: "物料A",
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      oaQuantity: 5,
+      erpQuantity: 4,
+      quantityDiff: 1,
+      oaAmount: 50,
+      erpCost: 44,
+      amountDiff: 6,
+      remark: "",
+    },
+  ];
+
+  const summaryValues = core.summaryRowsToValues(summaryRows);
+  const detailValues = core.detailRowsToValues(detailRows);
+
+  assert.equal(summaryValues[0][0], "公司简称");
+  assert.equal(summaryValues[1][0], "数控");
+  assert.equal(summaryValues[1][5], 4);
+  assert.equal(detailValues[0][0], "差异类型");
+  assert.equal(detailValues[1][1], "CHBF1");
+  assert.equal(detailValues[1][2], "QOUT1");
+});
+
+test("rowsFromValues parses rows below a selected header row", () => {
+  const values = [
+    ["导出条件", "2026-05"],
+    ["制表人", "系统"],
+    ["表单编号", "数量", ""],
+    ["CHBF1", 2, "ignored"],
+    ["", "", ""],
+  ];
+
+  const rows = core.rowsFromValues(values, 3);
+
+  assert.deepEqual(rows, [{ 表单编号: "CHBF1", 数量: 2 }]);
+});
