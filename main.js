@@ -1,5 +1,18 @@
-document.write('<script src="./src/utils/runtime.js"></script>');
-document.write('<script src="./src/wps-api/runtime.js"></script>');
-document.write('<script src="./src/macros/scrap-variance-precheck.js"></script>');
-document.write('<script src="./src/macros/scrap-variance-query.js"></script>');
-document.write('<script src="./ribbon.js"></script>');
+"use strict";
+(() => {
+  // src/main.ts
+  function getRoot() {
+    return globalThis;
+  }
+  function createRibbon() {
+    return {
+      OnAddinLoad(ribbonUi) {
+        getRoot().ScrapVarianceRibbonUi = ribbonUi;
+      },
+      OnAction() {
+        throw new Error("ribbon handlers are not implemented yet");
+      }
+    };
+  }
+  getRoot().ribbon = createRibbon();
+})();
