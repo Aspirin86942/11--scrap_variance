@@ -68,7 +68,7 @@ A8:O200000
 A8:Q200000
 ```
 
-仍然必须是一次 `Range(...).ClearContents()`，不允许逐格清理。
+仍然必须是一次 `Range(address).ClearContents()`，不允许逐格清理。
 
 ## 数据流
 
@@ -89,7 +89,9 @@ A8:Q200000
 - 不增加任何 WPS 单元格逐格读取。
 - 不增加任何逐行逐格结果写入。
 - 日期聚合在现有 OA / ERP 单次遍历中完成，不增加额外全表遍历。
-- 每个聚合行使用小数组保存日期，并在加入时去重；日期数量通常远小于明细行数。
+- 第一版低内存实现中，每个聚合行只保存最终日期展示字符串，不额外保存日期数组或 `Set`。
+- 日期去重使用固定分隔符的字符串 token 检查；日期格式固定为 `YYYY-MM-DD`，可以避免误判子串。
+- ERP 出库单号聚合也保持最终展示字符串，不再额外保存单号数组；输出行为保持逗号拼接。
 - 不引入新的日期库或 UI 库。
 
 ## 测试策略
@@ -121,12 +123,22 @@ A8:Q200000
 // 输出：
 // - detailRows: 带 oaDate / erpDate 的明细差异行
 
-function addUniqueDate(targetDates: string[], rawDate: unknown): void {
-  // 为什么这样做：统一复用现有日期标准化，避免同一天出现多种展示格式
-  const dateKey = normalizeDateKey(rawDate);
-  if (dateKey && !targetDates.includes(dateKey)) {
-    targetDates.push(dateKey);
+function appendUniqueDateText(currentText: string, dateKey: string): string {
+  // 为什么这样做：第一版优先降低内存占用，每个聚合行只保存最终展示字符串
+  if (!dateKey) return currentText;
+  if (!currentText) return dateKey;
+
+  // dateKey 固定是 YYYY-MM-DD，按 token 边界判断即可避免额外 Set/数组
+  if (
+    currentText === dateKey ||
+    currentText.startsWith(`${dateKey}、`) ||
+    currentText.endsWith(`、${dateKey}`) ||
+    currentText.includes(`、${dateKey}、`)
+  ) {
+    return currentText;
   }
+
+  return `${currentText}、${dateKey}`;
 }
 
 function buildOaRows(oaRows, filters): Map<string, OaAggRow> {
@@ -140,7 +152,7 @@ function buildOaRows(oaRows, filters): Map<string, OaAggRow> {
     const key = `${formNumber}||${materialCode}`;
     const agg = getOrCreateOaAggRow(result, key);
 
-    addUniqueDate(agg.dates, row["申请日期"]);
+    agg.oaDate = appendUniqueDateText(agg.oaDate, dateKey);
     agg.quantity = addDecimal(agg.quantity, row["数量"]);
     agg.amount = addDecimal(agg.amount, row["实际预算金额mx"]);
   }
@@ -148,11 +160,11 @@ function buildOaRows(oaRows, filters): Map<string, OaAggRow> {
   return result;
 }
 
-function addErpRowToGroup(result, row, sourceFormNumber, materialCode): void {
+function addErpRowToGroup(result, row, sourceFormNumber, materialCode, dateKey): void {
   const key = `${sourceFormNumber}||${materialCode}`;
   const agg = getOrCreateErpAggRow(result, key);
 
-  addUniqueDate(agg.dates, row["日期"]);
+  agg.erpDate = appendUniqueDateText(agg.erpDate, dateKey);
   agg.quantity = addDecimal(agg.quantity, row["实发数量"]);
   agg.cost = addDecimal(agg.cost, row["总成本"]);
   addUniqueDocNumber(agg.erpDocNumbers, row["单据编号"]);
@@ -168,8 +180,8 @@ function compareRows(oaMap, erpForOaMap, erpOnlyMap): DetailRow[] {
     detailRows.push({
       differenceType: classifyDifference(oa, erp),
       formNumber: oa?.formNumber ?? erp?.sourceFormNumber ?? "",
-      oaDate: (oa?.dates ?? []).join("、"),
-      erpDate: (erp?.dates ?? []).join("、"),
+      oaDate: oa?.oaDate ?? "",
+      erpDate: erp?.erpDate ?? "",
       // 其他字段保持现有逻辑
     });
   }
@@ -179,7 +191,7 @@ function compareRows(oaMap, erpForOaMap, erpOnlyMap): DetailRow[] {
       differenceType: "ERP出库对应OA未在当前OA数据中找到",
       formNumber: erp.sourceFormNumber,
       oaDate: "",
-      erpDate: erp.dates.join("、"),
+      erpDate: erp.erpDate,
       // 其他字段保持现有逻辑
     });
   }
