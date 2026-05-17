@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<customUI xmlns="http://schemas.microsoft.com/office/2006/01/customui" onLoad="ribbon.OnAddinLoad">
+  <ribbon>
+    <tabs>
+      <tab id="tabScrapVariance" label="报废差异工具">
+        <group id="grpScrapVariance" label="报废差异工具">
+          <button id="btnPrecheck" label="预验证数据" size="large" onAction="ribbon.OnAction" />
+          <button id="btnInitQueryPanel" label="初始化查询面板" size="large" onAction="ribbon.OnAction" />
+          <button id="btnRunQuery" label="执行差异查询" size="large" onAction="ribbon.OnAction" />
+        </group>
+      </tab>
+    </tabs>
+  </ribbon>
+</customUI>

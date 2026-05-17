@@ -4,7 +4,13 @@ const path = require("node:path");
 const test = require("node:test");
 const vm = require("node:vm");
 
-const sourcePath = path.join(__dirname, "..", "src", "scrap_variance_query.js");
+const sourcePath = path.join(
+  __dirname,
+  "..",
+  "src",
+  "macros",
+  "scrap-variance-query.js"
+);
 const source = fs.readFileSync(sourcePath, "utf-8");
 
 function loadMacroSource() {

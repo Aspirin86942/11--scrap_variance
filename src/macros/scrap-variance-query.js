@@ -1091,3 +1091,11 @@ function runScrapVarianceQuery() {
 function 查询_Click() {
   runScrapVarianceQuery();
 }
+
+if (typeof window !== "undefined") {
+  window.ScrapVarianceQuery = {
+    setupQueryPanel: setupQueryPanel,
+    runScrapVarianceQuery: runScrapVarianceQuery,
+    查询_Click: 查询_Click
+  };
+}

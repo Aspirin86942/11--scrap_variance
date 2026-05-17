@@ -786,3 +786,10 @@ function runScrapVariancePrecheck() {
 function 预验证_Click() {
   runScrapVariancePrecheck();
 }
+
+if (typeof window !== "undefined") {
+  window.ScrapVariancePrecheck = {
+    runScrapVariancePrecheck: runScrapVariancePrecheck,
+    预验证_Click: 预验证_Click
+  };
+}

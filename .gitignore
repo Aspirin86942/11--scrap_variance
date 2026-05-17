@@ -1,4 +1,7 @@
 .worktrees/
+node_modules/
+dist/
+npm-debug.log*
 存货报废流程-erp&oa对比表.xlsx
 存货报废流程-erp&oa对比表.xlsm
 .~存货报废流程-erp&oa对比表.xlsm
