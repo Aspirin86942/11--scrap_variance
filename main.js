@@ -5,12 +5,14 @@ precheckResult:"\u9884\u9A8C\u8BC1\u7ED3\u679C"};var OA_REQUIRED_HEADERS=["\u886
 "\u7269\u6599\u7F16\u7801","\u7269\u6599\u540D\u79F0","\u5B9E\u53D1\u6570\u91CF","\u603B\u6210\u672C"];var SUMMARY_HEADERS=["\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8",
 "\u4E8C\u7EA7\u90E8\u95E8","OA\u6570\u91CF\u5408\u8BA1","ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1","\u6570\u91CF\u5DEE\u989D","OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1",
 "ERP\u603B\u6210\u672C\u5408\u8BA1","\u91D1\u989D\u5DEE\u989D","\u5DEE\u5F02\u7C7B\u578B\u6458\u8981"];var DETAIL_HEADERS=["\u5DEE\u5F02\u7C7B\u578B","OA\u8868\u5355\u7F16\u53F7",
-"ERP\u51FA\u5E93\u5355\u53F7","\u7269\u6599\u7F16\u7801","\u7269\u6599\u540D\u79F0","\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8",
-"OA\u6570\u91CF\u5408\u8BA1","ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1","\u6570\u91CF\u5DEE\u989D","OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1","ERP\u603B\u6210\u672C\
-\u5408\u8BA1","\u91D1\u989D\u5DEE\u989D","\u5907\u6CE8"];var DIFFERENCE_TYPE_PRIORITY=["OA\u6709\u7533\u8BF7\uFF0CERP\u65E0\u51FA\u5E93","ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230",
+"OA\u7533\u8BF7\u65E5\u671F","ERP\u51FA\u5E93\u5355\u53F7","ERP\u65E5\u671F","\u7269\u6599\u7F16\u7801","\u7269\u6599\u540D\u79F0","\u516C\u53F8\u7B80\u79F0","\u4E00\
+\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8","OA\u6570\u91CF\u5408\u8BA1","ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1","\u6570\u91CF\u5DEE\u989D","OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1",
+"ERP\u603B\u6210\u672C\u5408\u8BA1","\u91D1\u989D\u5DEE\u989D","\u5907\u6CE8"];var DIFFERENCE_TYPE_PRIORITY=["OA\u6709\u7533\u8BF7\uFF0CERP\u65E0\u51FA\u5E93","ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230",
 "OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u7269\u6599\u660E\u7EC6\u4E0D\u4E00\u81F4","OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u6570\u91CF\u4E0D\u540C","OA\u548CERP\u90FD\u6709\uFF0C\u6570\u91CF\u4E00\u81F4"];
-var MAX_HEADER_SCAN_ROWS=20;var MIN_OA_HEADER_MATCH_COUNT=5;var MIN_ERP_HEADER_MATCH_COUNT=5;var MAX_OUTPUT_CLEAR_ROW=2e5;var MAX_PRECHECK_CLEAR_ROW=2e5;var WRITE_CHUNK_ROWS=1e3;function normalizeText(value){if(value===null||value===void 0){return""}return String(value).trim()}function isBlankValue(value){return value===null||value===void 0||
-normalizeText(value)===""}var HeaderDetectionError=class _HeaderDetectionError extends Error{constructor(result){super(result.message);this.name="HeaderDetectionError";this.result=result;
+var MAX_HEADER_SCAN_ROWS=20;var MIN_OA_HEADER_MATCH_COUNT=5;var MIN_ERP_HEADER_MATCH_COUNT=5;var MAX_OUTPUT_CLEAR_ROW=2e5;var MAX_PRECHECK_CLEAR_ROW=2e5;var WRITE_CHUNK_ROWS=1e3;function normalizeText(value){if(value===null||value===void 0){return""}return String(value).trim()}function appendUniqueJoinedText(currentText,nextText,delimiter="\
+\u3001"){const current=normalizeText(currentText);const next=normalizeText(nextText);if(!next){return current}if(!current){return next}if(current===next||current.
+startsWith(`${next}${delimiter}`)||current.endsWith(`${delimiter}${next}`)||current.includes(`${delimiter}${next}${delimiter}`)){return current}return`${current}${delimiter}${next}`}
+function isBlankValue(value){return value===null||value===void 0||normalizeText(value)===""}var HeaderDetectionError=class _HeaderDetectionError extends Error{constructor(result){super(result.message);this.name="HeaderDetectionError";this.result=result;
 Object.setPrototypeOf(this,_HeaderDetectionError.prototype)}};function rowNumberFor(index,usedRangeStartRow){if(typeof usedRangeStartRow==="number"&&Number.isFinite(
 usedRangeStartRow)){return usedRangeStartRow+index}return`\u76F8\u5BF9 UsedRange \u7B2C ${index+1} \u884C`}function buildCandidate(row,rowIndex,requiredHeaders,usedRangeStartRow){
 const requiredSet=new Set(requiredHeaders);const seenRequired=new Set;const columnIndex={};const duplicateRequiredHeaders=[];let duplicateRequiredCount=0;let nonBlankCount=0;
@@ -254,7 +256,7 @@ sheet.Range(address),values);return}catch(fullWriteError){const safeChunkRows=no
 safeChunkRows){const chunk=values.slice(rowOffset,rowOffset+safeChunkRows);const chunkWidth=matrixWidth(chunk);if(chunkWidth===0){continue}const chunkAddress=rangeAddress(
 startRow+rowOffset,startCol,chunk.length,chunkWidth);try{assignRangeValue(sheet.Range(chunkAddress),chunk)}catch(chunkWriteError){const chunkNumber=Math.floor(rowOffset/
 safeChunkRows)+1;throw new Error(`\u6574\u5757\u5199\u5165\u5931\u8D25\uFF1A${address}\uFF1B${errorMessage3(fullWriteError)}\u3002\u5206\u5757\u5199\u5165\u5931\u8D25\uFF1A\u7B2C ${chunkNumber}\
- \u5757 ${chunkAddress}\uFF1B${errorMessage3(chunkWriteError)}`)}}}}function clearQueryOutput(sheet){clearRange(sheet,`A8:O${MAX_OUTPUT_CLEAR_ROW}`)}function clearPrecheckOutput(sheet){
+ \u5757 ${chunkAddress}\uFF1B${errorMessage3(chunkWriteError)}`)}}}}function clearQueryOutput(sheet){clearRange(sheet,`A8:Q${MAX_OUTPUT_CLEAR_ROW}`)}function clearPrecheckOutput(sheet){
 clearRange(sheet,`A1:H${MAX_PRECHECK_CLEAR_ROW}`)}function assertPrecheckOutputLimit(issueRowCount){const lastIssueRow=4+issueRowCount-1;if(lastIssueRow>MAX_PRECHECK_CLEAR_ROW){throw new Error(`\u9884\u9A8C\u8BC1\u7ED3\u679C\u9700\u8981\u5199\u5230\u7B2C ${lastIssueRow}\
  \u884C\uFF0C\u8D85\u8FC7\u5F53\u524D\u6E05\u7406\u4E0A\u9650 MAX_PRECHECK_CLEAR_ROW=${MAX_PRECHECK_CLEAR_ROW}\u3002\u8BF7\u8C03\u6574 MAX_PRECHECK_CLEAR_ROW \u540E\u91CD\u65B0\u8FD0\u884C\u3002`)}}
 function writePrecheckResults(issues,root2){const sheet=ensureSheet(SHEET_NAMES.precheckResult,root2);const status=issues.length===0?"\u672A\u53D1\u73B0\u9884\u9A8C\u8BC1\u95EE\u9898":
@@ -278,23 +280,24 @@ dateKey,activeFilters)){continue}if(!matchesOrgFilters(row["\u516C\u53F8\u7B80\u
 continue}const formNumber=normalizeText(row["\u8868\u5355\u7F16\u53F7"]);const itemCode=normalizeText(row["\u7269\u6599\u4EE3\u7801"]);if(!formNumber||!itemCode){
 continue}const key=makeDetailKey(formNumber,itemCode);const existing=result.get(key);if(!existing){result.set(key,{formNumber,itemCode,itemName:normalizeText(row["\
 \u7269\u6599\u540D\u79F0"]),company:normalizeText(row["\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(row["\
-\u4E8C\u7EA7\u90E8\u95E8"]),quantity:zeroDecimal(),amount:zeroDecimal()})}const target=result.get(key);if(!target){throw new Error(`OA \u805A\u5408\u5931\u8D25\uFF1A${key}`)}
-target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u6570\u91CF"],"\u6570\u91CF"));target.amount=addDecimal(target.amount,parseDecimal2(row["\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"],
-"\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"))}return result}function collectSelectedOaForms(oaGroupedRows){const result=new Set;for(const row of(oaGroupedRows!=null?
-oaGroupedRows:new Map).values()){if(row.formNumber){result.add(row.formNumber)}}return result}function addErpRowToGroup(result,row,sourceFormNumber,itemCode){const key=makeDetailKey(sourceFormNumber,itemCode);const docNumber=normalizeText(row["\u5355\u636E\u7F16\u53F7"]);
-const existing=result.get(key);if(!existing){result.set(key,{sourceFormNumber,formNumber:sourceFormNumber,itemCode,itemName:normalizeText(row["\u7269\u6599\u540D\u79F0"]),
-company:normalizeText(row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(row["\u4E8C\u7EA7\u90E8\u95E8"]),
-quantity:zeroDecimal(),cost:zeroDecimal(),erpDocNumbers:[]})}const target=result.get(key);if(!target){throw new Error(`ERP \u805A\u5408\u5931\u8D25\uFF1A${key}`)}
-target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u5B9E\u53D1\u6570\u91CF"],"\u5B9E\u53D1\u6570\u91CF"));target.cost=addDecimal(target.cost,parseDecimal2(
-row["\u603B\u6210\u672C"],"\u603B\u6210\u672C"));if(docNumber&&!target.erpDocNumbers.includes(docNumber)){target.erpDocNumbers.push(docNumber)}}function buildErpRowsForOa(erpRows,oaGroupedRows){
-const result=new Map;const selectedForms=collectSelectedOaForms(oaGroupedRows);for(const row of erpRows!=null?erpRows:[]){const sourceFormNumber=normalizeText(row["\
-\u6E90\u5355\u5355\u53F7"]);const itemCode=normalizeText(row["\u7269\u6599\u7F16\u7801"]);if(!sourceFormNumber||!itemCode||!selectedForms.has(sourceFormNumber)){
-continue}normalizeDateKey(row["\u65E5\u671F"]);addErpRowToGroup(result,row,sourceFormNumber,itemCode)}return result}function buildErpOnlyRows(erpRows,currentOaFormNumbers,filters){
-const result=new Map;const activeFormNumbers=currentOaFormNumbers!=null?currentOaFormNumbers:new Set;const activeFilters=filters!=null?filters:parseFilters();for(const row of erpRows!=
+\u4E8C\u7EA7\u90E8\u95E8"]),oaDate:"",quantity:zeroDecimal(),amount:zeroDecimal()})}const target=result.get(key);if(!target){throw new Error(`OA \u805A\u5408\u5931\u8D25\uFF1A${key}`)}
+target.oaDate=appendUniqueJoinedText(target.oaDate,dateKey);target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u6570\u91CF"],"\u6570\u91CF"));target.
+amount=addDecimal(target.amount,parseDecimal2(row["\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"],"\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"))}return result}function collectSelectedOaForms(oaGroupedRows){
+const result=new Set;for(const row of(oaGroupedRows!=null?oaGroupedRows:new Map).values()){if(row.formNumber){result.add(row.formNumber)}}return result}function addErpRowToGroup(result,row,sourceFormNumber,itemCode,dateKey){const key=makeDetailKey(sourceFormNumber,itemCode);const docNumber=normalizeText(row["\u5355\u636E\
+\u7F16\u53F7"]);const existing=result.get(key);if(!existing){result.set(key,{sourceFormNumber,formNumber:sourceFormNumber,itemCode,itemName:normalizeText(row["\u7269\
+\u6599\u540D\u79F0"]),company:normalizeText(row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(
+row["\u4E8C\u7EA7\u90E8\u95E8"]),erpDate:"",quantity:zeroDecimal(),cost:zeroDecimal(),erpDocNumbers:""})}const target=result.get(key);if(!target){throw new Error(
+`ERP \u805A\u5408\u5931\u8D25\uFF1A${key}`)}target.erpDate=appendUniqueJoinedText(target.erpDate,dateKey);target.erpDocNumbers=appendUniqueJoinedText(target.erpDocNumbers,
+docNumber,",");target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u5B9E\u53D1\u6570\u91CF"],"\u5B9E\u53D1\u6570\u91CF"));target.cost=addDecimal(target.
+cost,parseDecimal2(row["\u603B\u6210\u672C"],"\u603B\u6210\u672C"))}function buildErpRowsForOa(erpRows,oaGroupedRows){const result=new Map;const selectedForms=collectSelectedOaForms(
+oaGroupedRows);for(const row of erpRows!=null?erpRows:[]){const sourceFormNumber=normalizeText(row["\u6E90\u5355\u5355\u53F7"]);const itemCode=normalizeText(row["\
+\u7269\u6599\u7F16\u7801"]);if(!sourceFormNumber||!itemCode||!selectedForms.has(sourceFormNumber)){continue}const dateKey=normalizeDateKey(row["\u65E5\u671F"]);
+addErpRowToGroup(result,row,sourceFormNumber,itemCode,dateKey)}return result}function buildErpOnlyRows(erpRows,currentOaFormNumbers,filters){const result=new Map;
+const activeFormNumbers=currentOaFormNumbers!=null?currentOaFormNumbers:new Set;const activeFilters=filters!=null?filters:parseFilters();for(const row of erpRows!=
 null?erpRows:[]){const dateKey=normalizeDateKey(row["\u65E5\u671F"]);if(!isDateInRange(dateKey,activeFilters)){continue}if(!matchesOrgFilters(row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"],
 row["\u4E00\u7EA7\u90E8\u95E8"],row["\u4E8C\u7EA7\u90E8\u95E8"],activeFilters)){continue}const sourceFormNumber=normalizeText(row["\u6E90\u5355\u5355\u53F7"]);const itemCode=normalizeText(
 row["\u7269\u6599\u7F16\u7801"]);if(!sourceFormNumber||!itemCode||activeFormNumbers.has(sourceFormNumber)){continue}addErpRowToGroup(result,row,sourceFormNumber,
-itemCode)}return result}function makeSummaryKey(row){return`${normalizeText(row.company)}||${normalizeText(row.dept1)}||${normalizeText(row.dept2)}`}function buildSummaryRows(detailRows){
+itemCode,dateKey)}return result}function makeSummaryKey(row){return`${normalizeText(row.company)}||${normalizeText(row.dept1)}||${normalizeText(row.dept2)}`}function buildSummaryRows(detailRows){
 const grouped=new Map;for(const row of detailRows!=null?detailRows:[]){const key=makeSummaryKey(row);let summary=grouped.get(key);if(!summary){summary={company:normalizeText(
 row.company),dept1:normalizeText(row.dept1),dept2:normalizeText(row.dept2),oaQuantity:0,erpQuantity:0,quantityDiff:0,oaAmount:0,erpCost:0,amountDiff:0,differenceSummary:"",
 differenceTypes:new Set};grouped.set(key,summary)}summary.oaQuantity=decimalToNumber2(addDecimal(parseDecimal2(summary.oaQuantity,"OA\u6570\u91CF\u5408\u8BA1"),
@@ -308,27 +311,27 @@ decimalToNumber2(subtractDecimal(parseDecimal2(summary.oaAmount,"OA\u5B9E\u9645\
 summary.differenceSummary=DIFFERENCE_TYPE_PRIORITY.filter(type=>summary.differenceTypes.has(type)).join("\u3001");const{differenceTypes:_differenceTypes,...row}=summary;
 result.push(row)}return result}function summaryRowsToValues(summaryRows){return[[...SUMMARY_HEADERS],...(summaryRows!=null?summaryRows:[]).map(row=>[row.company,
 row.dept1,row.dept2,row.oaQuantity,row.erpQuantity,row.quantityDiff,row.oaAmount,row.erpCost,row.amountDiff,row.differenceSummary])]}function detailRowsToValues(detailRows){
-return[[...DETAIL_HEADERS],...(detailRows!=null?detailRows:[]).map(row=>[row.differenceType,row.formNumber,row.erpDocNumbers,row.itemCode,row.itemName,row.company,
-row.dept1,row.dept2,row.oaQuantity,row.erpQuantity,row.quantityDiff,row.oaAmount,row.erpCost,row.amountDiff,row.remark])]}function unionKeys(left,right){const result=[];const seen=new Set;for(const key of(left!=null?left:new Map).keys()){seen.add(key);result.push(key)}for(const key of(right!=
-null?right:new Map).keys()){if(!seen.has(key)){seen.add(key);result.push(key)}}return result}function buildFormNumberSet(groupedRows){const result=new Set;for(const[
-key,row]of(groupedRows!=null?groupedRows:new Map).entries()){const formNumber=normalizeText(row.formNumber||row.sourceFormNumber||key.split("||")[0]);if(formNumber){
-result.add(formNumber)}}return result}function buildDifference(differenceType,oa,erp){var _a;const formNumber=normalizeText((oa==null?void 0:oa.formNumber)||(erp==
-null?void 0:erp.formNumber)||(erp==null?void 0:erp.sourceFormNumber));const itemCode=normalizeText((oa==null?void 0:oa.itemCode)||(erp==null?void 0:erp.itemCode));
-const itemName=normalizeText((oa==null?void 0:oa.itemName)||(erp==null?void 0:erp.itemName));const company=normalizeText((oa==null?void 0:oa.company)||(erp==null?
-void 0:erp.company));const dept1=normalizeText((oa==null?void 0:oa.dept1)||(erp==null?void 0:erp.dept1));const dept2=normalizeText((oa==null?void 0:oa.dept2)||(erp==
-null?void 0:erp.dept2));const oaQuantity=oa?decimalToNumber2(oa.quantity):0;const erpQuantity=erp?decimalToNumber2(erp.quantity):0;const oaAmount=oa?decimalToNumber2(
-oa.amount):0;const erpCost=erp?decimalToNumber2(erp.cost):0;return{differenceType,formNumber,erpDocNumbers:(_a=erp==null?void 0:erp.erpDocNumbers.join(","))!=null?
-_a:"",itemCode,itemName,company,dept1,dept2,oaQuantity,erpQuantity,quantityDiff:decimalToNumber2(subtractDecimal(parseDecimal2(oaQuantity,"OA\u6570\u91CF\u5408\u8BA1"),
-parseDecimal2(erpQuantity,"ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1"))),oaAmount,erpCost,amountDiff:decimalToNumber2(subtractDecimal(parseDecimal2(oaAmount,"OA\u5B9E\u9645\
-\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1"),parseDecimal2(erpCost,"ERP\u603B\u6210\u672C\u5408\u8BA1"))),remark:differenceType==="ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230"?
-"\u8BF7\u7528 ERP \u6E90\u5355\u5355\u53F7\u56DE OA \u7CFB\u7EDF\u8865\u67E5\u3002":""}}function compareRows(oaRows,erpRowsForOa,erpOnlyRows){const details=[];const keys=unionKeys(
-oaRows,erpRowsForOa);const erpFormNumbers=buildFormNumberSet(erpRowsForOa);const activeOaRows=oaRows!=null?oaRows:new Map;const activeErpRowsForOa=erpRowsForOa!=
-null?erpRowsForOa:new Map;const activeErpOnlyRows=erpOnlyRows!=null?erpOnlyRows:new Map;for(const key of keys){const oa=activeOaRows.get(key);const erp=activeErpRowsForOa.
-get(key);const formNumber=normalizeText((oa==null?void 0:oa.formNumber)||key.split("||")[0]);let differenceType;if(oa&&!erp&&!erpFormNumbers.has(formNumber)){differenceType=
-"OA\u6709\u7533\u8BF7\uFF0CERP\u65E0\u51FA\u5E93"}else if(!oa||!erp){differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u7269\u6599\u660E\u7EC6\u4E0D\u4E00\u81F4"}else if(decimalToNumber2(
-oa.quantity)!==decimalToNumber2(erp.quantity)){differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u6570\u91CF\u4E0D\u540C"}else{differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u6570\u91CF\u4E00\u81F4"}
-details.push(buildDifference(differenceType,oa,erp))}for(const erp of activeErpOnlyRows.values()){details.push(buildDifference("ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230",
-void 0,erp))}return details}function setupQueryPanel(root2){const sheet=ensureSheet(SHEET_NAMES.panel,root2);writeMatrixBulkOrChunks(sheet,1,1,[["\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2"],["\u516C\
+return[[...DETAIL_HEADERS],...(detailRows!=null?detailRows:[]).map(row=>[row.differenceType,row.formNumber,row.oaDate,row.erpDocNumbers,row.erpDate,row.itemCode,
+row.itemName,row.company,row.dept1,row.dept2,row.oaQuantity,row.erpQuantity,row.quantityDiff,row.oaAmount,row.erpCost,row.amountDiff,row.remark])]}function buildFormNumberSet(groupedRows){const result=new Set;for(const[key,row]of(groupedRows!=null?groupedRows:new Map).entries()){const formNumber=normalizeText(
+row.formNumber||row.sourceFormNumber||key.split("||")[0]);if(formNumber){result.add(formNumber)}}return result}function buildDifference(differenceType,oa,erp){var _a,
+_b,_c;const formNumber=normalizeText((oa==null?void 0:oa.formNumber)||(erp==null?void 0:erp.formNumber)||(erp==null?void 0:erp.sourceFormNumber));const itemCode=normalizeText(
+(oa==null?void 0:oa.itemCode)||(erp==null?void 0:erp.itemCode));const itemName=normalizeText((oa==null?void 0:oa.itemName)||(erp==null?void 0:erp.itemName));const company=normalizeText(
+(oa==null?void 0:oa.company)||(erp==null?void 0:erp.company));const dept1=normalizeText((oa==null?void 0:oa.dept1)||(erp==null?void 0:erp.dept1));const dept2=normalizeText(
+(oa==null?void 0:oa.dept2)||(erp==null?void 0:erp.dept2));const oaQuantity=oa?decimalToNumber2(oa.quantity):0;const erpQuantity=erp?decimalToNumber2(erp.quantity):
+0;const oaAmount=oa?decimalToNumber2(oa.amount):0;const erpCost=erp?decimalToNumber2(erp.cost):0;return{differenceType,formNumber,oaDate:(_a=oa==null?void 0:oa.
+oaDate)!=null?_a:"",erpDocNumbers:(_b=erp==null?void 0:erp.erpDocNumbers)!=null?_b:"",erpDate:(_c=erp==null?void 0:erp.erpDate)!=null?_c:"",itemCode,itemName,company,
+dept1,dept2,oaQuantity,erpQuantity,quantityDiff:decimalToNumber2(subtractDecimal(parseDecimal2(oaQuantity,"OA\u6570\u91CF\u5408\u8BA1"),parseDecimal2(erpQuantity,
+"ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1"))),oaAmount,erpCost,amountDiff:decimalToNumber2(subtractDecimal(parseDecimal2(oaAmount,"OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1"),
+parseDecimal2(erpCost,"ERP\u603B\u6210\u672C\u5408\u8BA1"))),remark:differenceType==="ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230"?
+"\u8BF7\u7528 ERP \u6E90\u5355\u5355\u53F7\u56DE OA \u7CFB\u7EDF\u8865\u67E5\u3002":""}}function compareRows(oaRows,erpRowsForOa,erpOnlyRows){const details=[];const erpFormNumbers=buildFormNumberSet(
+erpRowsForOa);const activeOaRows=oaRows!=null?oaRows:new Map;const activeErpRowsForOa=erpRowsForOa!=null?erpRowsForOa:new Map;const activeErpOnlyRows=erpOnlyRows!=
+null?erpOnlyRows:new Map;for(const[key,oa]of activeOaRows.entries()){const erp=activeErpRowsForOa.get(key);const formNumber=normalizeText((oa==null?void 0:oa.formNumber)||
+key.split("||")[0]);let differenceType;if(oa&&!erp&&!erpFormNumbers.has(formNumber)){differenceType="OA\u6709\u7533\u8BF7\uFF0CERP\u65E0\u51FA\u5E93"}else if(!oa||
+!erp){differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u7269\u6599\u660E\u7EC6\u4E0D\u4E00\u81F4"}else if(decimalToNumber2(oa.quantity)!==decimalToNumber2(erp.
+quantity)){differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u6570\u91CF\u4E0D\u540C"}else{differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u6570\u91CF\u4E00\u81F4"}
+details.push(buildDifference(differenceType,oa,erp))}for(const[key,erp]of activeErpRowsForOa.entries()){if(activeOaRows.has(key)){continue}details.push(buildDifference(
+"OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u7269\u6599\u660E\u7EC6\u4E0D\u4E00\u81F4",void 0,erp))}for(const erp of activeErpOnlyRows.values()){details.push(buildDifference(
+"ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230",void 0,erp))}return details}function setupQueryPanel(root2){const sheet=ensureSheet(SHEET_NAMES.panel,root2);writeMatrixBulkOrChunks(sheet,1,1,[["\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2"],["\u516C\
 \u53F8\u7B80\u79F0"],["\u4E00\u7EA7\u90E8\u95E8"],["\u4E8C\u7EA7\u90E8\u95E8"],["\u5F00\u59CB\u65E5\u671F"],["\u7ED3\u675F\u65E5\u671F"],["\u8FD0\u884C\u51FD\u6570"]],
 WRITE_CHUNK_ROWS);writeMatrixBulkOrChunks(sheet,7,2,[["runScrapVarianceQuery"]],WRITE_CHUNK_ROWS);return sheet}function errorMessage4(error){return error instanceof Error?error.message:String(error)}function readRangeValue(range){if(range.Value2!==void 0){return range.Value2}
 return range.Value}function normalizePanelDateValue(value){if(value===null||value===void 0||value===0||normalizeText(value)===""){return""}return value}function panelFilterValues(rawValue){
