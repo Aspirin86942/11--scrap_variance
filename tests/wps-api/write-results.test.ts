@@ -88,6 +88,23 @@ describe("WPS adapter bulk reads and writes", () => {
     ]);
   });
 
+  it("fake ranges read values from overlapping matrix writes", () => {
+    const sheet = createFakeSheet("查询面板");
+
+    sheet.rangeValues.set("B2:B6", [["公司原值"], ["部门1"], ["部门2"], ["2026/5/1"], ["2026/5/31"]]);
+    writeMatrixBulkOrChunks(sheet, 1, 1, [
+      ["报废差异查询", ""],
+      ["公司简称", ""],
+      ["一级部门", ""],
+      ["二级部门", ""],
+      ["开始日期", ""],
+      ["结束日期", ""],
+      ["运行函数", "runScrapVarianceQuery"]
+    ]);
+
+    expect(sheet.Range("B2:B6").Value2).toEqual([[""], [""], [""], [""], [""]]);
+  });
+
   it("falls back to chunked bulk range assignments when full write fails", () => {
     const sheet = createFakeSheet("查询结果");
     sheet.failNextBulkWrite = true;

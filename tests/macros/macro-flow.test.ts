@@ -38,7 +38,7 @@ function validErpRow(): Array<string | number> {
 }
 
 describe("TypeScript macro orchestration", () => {
-  it("setupQueryPanel ensures 查询面板 and writes the A1:B7 setup matrix in bulk", () => {
+  it("setupQueryPanel ensures 查询面板 and writes setup labels without touching filter cells", () => {
     const root = makeRoot([]);
 
     const sheet = setupQueryPanel(root) as FakeSheet;
@@ -47,18 +47,32 @@ describe("TypeScript macro orchestration", () => {
     expect(getSheet(root, 1).Name).toBe(SHEET_NAMES.panel);
     expect(sheet.writes).toEqual([
       {
-        address: "A1:B7",
+        address: "A1:A7",
         value: [
-          ["报废差异查询", ""],
-          ["公司简称", ""],
-          ["一级部门", ""],
-          ["二级部门", ""],
-          ["开始日期", ""],
-          ["结束日期", ""],
-          ["运行函数", "runScrapVarianceQuery"]
+          ["报废差异查询"],
+          ["公司简称"],
+          ["一级部门"],
+          ["二级部门"],
+          ["开始日期"],
+          ["结束日期"],
+          ["运行函数"]
         ]
+      },
+      {
+        address: "B7:B7",
+        value: [["runScrapVarianceQuery"]]
       }
     ]);
+  });
+
+  it("setupQueryPanel preserves existing B2:B6 filter values", () => {
+    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    panelSheet.rangeValues.set("B2:B6", [["数控"], ["生产"], ["仓储"], ["2026/5/1"], ["2026/5/31"]]);
+    const root = makeRoot([panelSheet]);
+
+    setupQueryPanel(root);
+
+    expect(panelSheet.Range("B2:B6").Value2).toEqual([["数控"], ["生产"], ["仓储"], ["2026/5/1"], ["2026/5/31"]]);
   });
 
   it("runScrapVariancePrecheck detects OA headers below UsedRange row 1 and writes no-issue status", () => {
@@ -95,6 +109,30 @@ describe("TypeScript macro orchestration", () => {
     expect(output).toContain("汇总差异");
     expect(output).toContain("明细差异");
     expect(output).toContain("OA和ERP都有，数量一致");
+  });
+
+  it("runScrapVarianceQuery keeps non-empty panel filters after setup and applies them", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [
+      [...OA_REQUIRED_HEADERS],
+      validOaRow(),
+      ["F2", "2026/5/1", "装备", "生产", "仓储", "MAT-B", "物料B", 1, 10]
+    ]);
+    const erpSheet = createFakeSheet(SHEET_NAMES.erp, [
+      [...ERP_REQUIRED_HEADERS],
+      validErpRow(),
+      ["OUT2", "2026/5/2", "F2", "装备", "生产", "仓储", "MAT-B", "物料B", 1, 10]
+    ]);
+    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    panelSheet.rangeValues.set("B2:B6", [["数控"], [""], [""], [""], [""]]);
+    const root = makeRoot([oaSheet, erpSheet, panelSheet]);
+
+    runScrapVarianceQuery(root);
+
+    const output = flattenWrites(panelSheet);
+    expect(output).toContain("F1");
+    expect(output).toContain("MAT-A");
+    expect(output).not.toContain("F2");
+    expect(output).not.toContain("MAT-B");
   });
 
   it("runScrapVarianceQuery clears output and writes a no-match message when filters match nothing", () => {

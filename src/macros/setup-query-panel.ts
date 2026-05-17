@@ -11,16 +11,17 @@ export function setupQueryPanel(root?: ScrapVarianceGlobal): WpsSheet {
     1,
     1,
     [
-      ["报废差异查询", ""],
-      ["公司简称", ""],
-      ["一级部门", ""],
-      ["二级部门", ""],
-      ["开始日期", ""],
-      ["结束日期", ""],
-      ["运行函数", "runScrapVarianceQuery"]
+      ["报废差异查询"],
+      ["公司简称"],
+      ["一级部门"],
+      ["二级部门"],
+      ["开始日期"],
+      ["结束日期"],
+      ["运行函数"]
     ],
     WRITE_CHUNK_ROWS
   );
+  writeMatrixBulkOrChunks(sheet, 7, 2, [["runScrapVarianceQuery"]], WRITE_CHUNK_ROWS);
 
   return sheet;
 }
