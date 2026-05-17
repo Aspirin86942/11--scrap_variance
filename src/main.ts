@@ -8,12 +8,14 @@ export function reportRuntimeError(error: unknown): void {
   const root = globalThis as ScrapVarianceGlobal;
   const message = error instanceof Error ? error.message : String(error);
 
-  if (root.alert) {
+  if (typeof root.alert === "function") {
     root.alert(message);
     return;
   }
 
-  root.console?.error(message);
+  if (typeof root.console?.error === "function") {
+    root.console.error(message);
+  }
 }
 
 const root = globalThis as ScrapVarianceGlobal;

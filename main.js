@@ -2516,11 +2516,13 @@
     var _a;
     const root2 = globalThis;
     const message = error instanceof Error ? error.message : String(error);
-    if (root2.alert) {
+    if (typeof root2.alert === "function") {
       root2.alert(message);
       return;
     }
-    (_a = root2.console) == null ? void 0 : _a.error(message);
+    if (typeof ((_a = root2.console) == null ? void 0 : _a.error) === "function") {
+      root2.console.error(message);
+    }
   }
   var root = globalThis;
   root.ribbon = createRibbonHandlers({
