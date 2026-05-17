@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { normalizeDateKey } from "../../src/utils/date";
 import { addDecimal, decimalToNumber2, parseDecimal } from "../../src/utils/decimal";
 import { hasAnyNonBlankRow, normalizeMatrix } from "../../src/utils/matrix";
-import { isBlankValue, normalizeText } from "../../src/utils/text";
+import { appendUniqueJoinedText, isBlankValue, normalizeText } from "../../src/utils/text";
 
 describe("text utilities", () => {
   it("normalizes text and detects blanks", () => {
@@ -11,6 +11,20 @@ describe("text utilities", () => {
     expect(normalizeText("  公司  ")).toBe("公司");
     expect(isBlankValue("   ")).toBe(true);
     expect(isBlankValue("0")).toBe(false);
+  });
+
+  it("appends unique joined tokens with delimiter boundaries", () => {
+    let value = "";
+
+    value = appendUniqueJoinedText(value, "2026-05-01");
+    value = appendUniqueJoinedText(value, "2026-05-01");
+    value = appendUniqueJoinedText(value, "2026-05-02");
+
+    expect(value).toBe("2026-05-01、2026-05-02");
+    expect(appendUniqueJoinedText("Q1,Q2", "Q2", ",")).toBe("Q1,Q2");
+    expect(appendUniqueJoinedText("Q1,Q2", "Q3", ",")).toBe("Q1,Q2,Q3");
+    expect(appendUniqueJoinedText("Q10,Q20", "Q1", ",")).toBe("Q10,Q20,Q1");
+    expect(appendUniqueJoinedText("Q1", "", ",")).toBe("Q1");
   });
 });
 
