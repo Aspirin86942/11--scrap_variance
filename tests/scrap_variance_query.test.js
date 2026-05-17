@@ -1,10 +1,96 @@
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
 const test = require("node:test");
+const vm = require("node:vm");
 
-const {
-  ScrapVarianceCore: core,
-  runScrapVarianceQuery,
-} = require("../src/scrap_variance_query.js");
+const sourcePath = path.join(__dirname, "..", "src", "scrap_variance_query.js");
+const source = fs.readFileSync(sourcePath, "utf-8");
+
+function loadMacroSource() {
+  const context = {};
+
+  vm.createContext(context);
+  vm.runInContext(source, context, { filename: sourcePath });
+  return context;
+}
+
+const macro = loadMacroSource();
+
+function hostValue(value) {
+  if (value === null || value === undefined || typeof value !== "object") {
+    return value;
+  }
+  return JSON.parse(JSON.stringify(value));
+}
+
+function macroFunction(name) {
+  return function (...args) {
+    return hostValue(macro[name](...args));
+  };
+}
+
+const core = {
+  CONFIG: hostValue(macro.getConfig()),
+  SUMMARY_HEADERS: hostValue(macro.getSummaryHeaders()),
+  DETAIL_HEADERS: hostValue(macro.getDetailHeaders()),
+  normalizeText: macroFunction("normalizeText"),
+  normalizeNumber: macroFunction("normalizeNumber"),
+  normalizeDateKey: macroFunction("normalizeDateKey"),
+  parseFilters: macroFunction("parseFilters"),
+  isDateInRange: macroFunction("isDateInRange"),
+  makeDetailKey: macroFunction("makeDetailKey"),
+  buildAllOaFormNumberSet: macroFunction("buildAllOaFormNumberSet"),
+  buildOaRows: macroFunction("buildOaRows"),
+  buildErpRowsForOa: macroFunction("buildErpRowsForOa"),
+  buildErpOnlyRows: macroFunction("buildErpOnlyRows"),
+  unionKeys: macroFunction("unionKeys"),
+  buildFormNumberSet: macroFunction("buildFormNumberSet"),
+  buildDifference: macroFunction("buildDifference"),
+  compareRows: macroFunction("compareRows"),
+  buildSummaryRows: macroFunction("buildSummaryRows"),
+  summaryRowsToValues: macroFunction("summaryRowsToValues"),
+  detailRowsToValues: macroFunction("detailRowsToValues"),
+  normalizeMatrix: macroFunction("normalizeMatrix"),
+  rowsFromValues: macroFunction("rowsFromValues"),
+  normalizePanelDateValue: macroFunction("normalizePanelDateValue"),
+  buildFallbackErrorMessage: macroFunction("buildFallbackErrorMessage"),
+  validateRequiredColumns: macroFunction("validateRequiredColumns"),
+};
+const runScrapVarianceQuery = macro.runScrapVarianceQuery;
+
+test("WPS macro source avoids trailing commas before closing arrays or objects", () => {
+  const trailingCommaBeforeClose = /,\s*(?:\]|\})/;
+
+  assert.equal(
+    trailingCommaBeforeClose.test(source),
+    false,
+    "WPS 宏编译器对旧 JS 语法更敏感，数组或对象最后一项不要保留尾随逗号"
+  );
+});
+
+test("WPS macro source avoids top-level executable wrappers and initializers", () => {
+  assert.doesNotMatch(source, /^\s*\(function\b/m);
+  assert.doesNotMatch(source, /^\s*"use strict";/m);
+  assert.doesNotMatch(
+    source,
+    /^\s*var\s+(?:oaHeaders|erpHeaders|CONFIG|DIFFERENCE_TYPE_PRIORITY|SUMMARY_HEADERS|DETAIL_HEADERS|ScrapVarianceCore)\s*=/m
+  );
+  assert.doesNotMatch(source, /^\s*(?:root\.|module\.exports|if\s*\(\s*typeof\s+module)/m);
+});
+
+test("查询_Click delegates to runScrapVarianceQuery for WPS button binding", () => {
+  const localMacro = loadMacroSource();
+  let called = false;
+
+  localMacro.runScrapVarianceQuery = function () {
+    called = true;
+  };
+
+  assert.equal(typeof localMacro["查询_Click"], "function");
+  localMacro["查询_Click"]();
+  assert.equal(called, true);
+});
 
 function columnNameToNumber(columnName) {
   let result = 0;
@@ -33,9 +119,19 @@ function cellKey(row, col) {
   return row + ":" + col;
 }
 
-function createFakeSheet(name, usedRangeValues, rangeValues) {
+function createFakeSheet(name, usedRangeValues, rangeValues, options) {
   const cells = new Map();
   const presetRangeValues = rangeValues || {};
+  const sheetOptions = options || {};
+
+  function writeCell(position, address, value) {
+    if (position) {
+      cells.set(cellKey(position.row, position.col), value);
+    } else {
+      presetRangeValues[address] = value;
+    }
+  }
+
   const sheet = {
     Name: name,
     UsedRange: {
@@ -54,15 +150,17 @@ function createFakeSheet(name, usedRangeValues, rangeValues) {
           }
           return cells.get(cellKey(position.row, position.col));
         },
+        set Value2(value) {
+          writeCell(position, address, value);
+        },
         get Value() {
           return this.Value2;
         },
         set Value(value) {
-          if (position) {
-            cells.set(cellKey(position.row, position.col), value);
-          } else {
-            presetRangeValues[address] = value;
+          if (sheetOptions.valuePropertyReadOnly) {
+            throw new Error('"Value"只读');
           }
+          writeCell(position, address, value);
         },
         ClearContents() {
           cells.clear();
@@ -72,10 +170,19 @@ function createFakeSheet(name, usedRangeValues, rangeValues) {
     Cells: {
       Item(row, col) {
         return {
+          get Value2() {
+            return cells.get(cellKey(row, col));
+          },
+          set Value2(value) {
+            cells.set(cellKey(row, col), value);
+          },
           get Value() {
             return cells.get(cellKey(row, col));
           },
           set Value(value) {
+            if (sheetOptions.valuePropertyReadOnly) {
+              throw new Error('"Value"只读');
+            }
             cells.set(cellKey(row, col), value);
           },
         };
@@ -742,7 +849,7 @@ test("rowsFromValues parses rows below a selected header row", () => {
 });
 
 test("runScrapVarianceQuery writes ERP-only results when filtered OA rows are empty", () => {
-  const previousApplication = globalThis.Application;
+  const previousApplication = macro.Application;
   const panelSheet = createFakeSheet("查询面板", [], {
     "B2:B6": [
       ["数控"],
@@ -785,7 +892,7 @@ test("runScrapVarianceQuery writes ERP-only results when filtered OA rows are em
   ]);
 
   try {
-    globalThis.Application = createFakeApplication([
+    macro.Application = createFakeApplication([
       panelSheet,
       oaSheet,
       erpSheet,
@@ -798,15 +905,95 @@ test("runScrapVarianceQuery writes ERP-only results when filtered OA rows are em
     assert.match(panelOutput, /ERP出库对应OA未在当前OA数据中找到/);
   } finally {
     if (previousApplication === undefined) {
-      delete globalThis.Application;
+      delete macro.Application;
     } else {
-      globalThis.Application = previousApplication;
+      macro.Application = previousApplication;
+    }
+  }
+});
+
+test("runScrapVarianceQuery writes through Value2 when WPS reports Value as read-only", () => {
+  const previousApplication = macro.Application;
+  const readOnlyValue = { valuePropertyReadOnly: true };
+  const panelSheet = createFakeSheet(
+    "查询面板",
+    [],
+    {
+      "B2:B6": [
+        ["数控"],
+        ["生产运营中心"],
+        ["仓储部"],
+        ["2026/5/1"],
+        ["2026/5/31"],
+      ],
+    },
+    readOnlyValue
+  );
+  const oaSheet = createFakeSheet(
+    "查询OA-存货报废申请单",
+    [
+      ["导出条件"],
+      ["制表人"],
+      core.CONFIG.oaHeaders,
+      [
+        "CHBF_READONLY",
+        "2026/5/2",
+        "数控",
+        "生产运营中心",
+        "仓储部",
+        "MAT-RO",
+        "只读属性物料",
+        2,
+        20,
+      ],
+    ],
+    null,
+    readOnlyValue
+  );
+  const erpSheet = createFakeSheet(
+    "查询ERP-报废明细表",
+    [
+      core.CONFIG.erpHeaders,
+      [
+        "QOUT_READONLY",
+        "2026/5/3",
+        "CHBF_READONLY",
+        "数控",
+        "生产运营中心",
+        "仓储部",
+        "MAT-RO",
+        "只读属性物料",
+        2,
+        18,
+      ],
+    ],
+    null,
+    readOnlyValue
+  );
+
+  try {
+    macro.Application = createFakeApplication([
+      panelSheet,
+      oaSheet,
+      erpSheet,
+    ]);
+
+    assert.doesNotThrow(() => runScrapVarianceQuery());
+
+    const panelOutput = panelSheet.writtenValues().map(String).join("\n");
+    assert.match(panelOutput, /汇总差异/);
+    assert.match(panelOutput, /QOUT_READONLY/);
+  } finally {
+    if (previousApplication === undefined) {
+      delete macro.Application;
+    } else {
+      macro.Application = previousApplication;
     }
   }
 });
 
 test("runScrapVarianceQuery treats ERP rows as ERP-only when source OA is outside current OA filters", () => {
-  const previousApplication = globalThis.Application;
+  const previousApplication = macro.Application;
   const panelSheet = createFakeSheet("查询面板", [], {
     "B2:B6": [
       ["数控"],
@@ -849,7 +1036,7 @@ test("runScrapVarianceQuery treats ERP rows as ERP-only when source OA is outsid
   ]);
 
   try {
-    globalThis.Application = createFakeApplication([
+    macro.Application = createFakeApplication([
       panelSheet,
       oaSheet,
       erpSheet,
@@ -864,15 +1051,15 @@ test("runScrapVarianceQuery treats ERP rows as ERP-only when source OA is outsid
     assert.match(panelOutput, /QOUT_CROSS/);
   } finally {
     if (previousApplication === undefined) {
-      delete globalThis.Application;
+      delete macro.Application;
     } else {
-      globalThis.Application = previousApplication;
+      macro.Application = previousApplication;
     }
   }
 });
 
 test("runScrapVarianceQuery writes no-data message when OA and ERP-only rows are empty", () => {
-  const previousApplication = globalThis.Application;
+  const previousApplication = macro.Application;
   const panelSheet = createFakeSheet("查询面板", [], {
     "B2:B6": [
       ["数控"],
@@ -915,7 +1102,7 @@ test("runScrapVarianceQuery writes no-data message when OA and ERP-only rows are
   ]);
 
   try {
-    globalThis.Application = createFakeApplication([
+    macro.Application = createFakeApplication([
       panelSheet,
       oaSheet,
       erpSheet,
@@ -928,9 +1115,9 @@ test("runScrapVarianceQuery writes no-data message when OA and ERP-only rows are
     assert.doesNotMatch(panelOutput, /ERP出库对应OA未在当前OA数据中找到/);
   } finally {
     if (previousApplication === undefined) {
-      delete globalThis.Application;
+      delete macro.Application;
     } else {
-      globalThis.Application = previousApplication;
+      macro.Application = previousApplication;
     }
   }
 });
