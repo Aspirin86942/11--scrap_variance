@@ -368,6 +368,65 @@ describe("query core", () => {
     expect(summaryRows[0]?.oaAmount).toBe(1.01);
   });
 
+  it("writes OA and ERP dates into detail output columns", () => {
+    const filters = parseFilters({});
+    const oaGrouped = buildOaRows(
+      [
+        { 表单编号: "F-DATE-OUT", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 2, 实际预算金额mx: 20 }
+      ],
+      filters
+    );
+    const erpForOa = buildErpRowsForOa(
+      [
+        { 单据编号: "QOUT1", 日期: "2026/5/3", 源单单号: "F-DATE-OUT", 区分公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料编码: "MAT-A", 物料名称: "物料A", 实发数量: 1, 总成本: 9 },
+        { 单据编号: "QOUT2", 日期: "2026/5/4", 源单单号: "F-DATE-OUT", 区分公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料编码: "MAT-A", 物料名称: "物料A", 实发数量: 1, 总成本: 11 }
+      ],
+      oaGrouped
+    );
+
+    const details = compareRows(oaGrouped, erpForOa, new Map());
+    const values = detailRowsToValues(details);
+
+    expect(values[0]).toEqual([
+      "差异类型",
+      "OA表单编号",
+      "OA申请日期",
+      "ERP出库单号",
+      "ERP日期",
+      "物料编码",
+      "物料名称",
+      "公司简称",
+      "一级部门",
+      "二级部门",
+      "OA数量合计",
+      "ERP实发数量合计",
+      "数量差额",
+      "OA实际预算金额mx合计",
+      "ERP总成本合计",
+      "金额差额",
+      "备注"
+    ]);
+    expect(values[1]).toEqual([
+      "OA和ERP都有，数量一致",
+      "F-DATE-OUT",
+      "2026-05-01",
+      "QOUT1,QOUT2",
+      "2026-05-03、2026-05-04",
+      "MAT-A",
+      "物料A",
+      "数控",
+      "生产",
+      "仓储",
+      2,
+      2,
+      0,
+      20,
+      20,
+      0,
+      ""
+    ]);
+  });
+
   it("builds differences, summary rows, and output matrices with current columns", () => {
     const filters = parseFilters({});
     const oaGrouped = buildOaRows(
@@ -435,7 +494,9 @@ describe("query core", () => {
       [
         "差异类型",
         "OA表单编号",
+        "OA申请日期",
         "ERP出库单号",
+        "ERP日期",
         "物料编码",
         "物料名称",
         "公司简称",

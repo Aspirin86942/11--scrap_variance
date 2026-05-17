@@ -2,27 +2,6 @@ import { type DetailRow, type ErpAggRow, type OaAggRow } from "../types/scrap";
 import { decimalToNumber2, parseDecimal, subtractDecimal } from "../utils/decimal";
 import { normalizeText } from "../utils/text";
 
-function unionKeys(
-  left: Map<string, OaAggRow> | null | undefined,
-  right: Map<string, ErpAggRow> | null | undefined
-): string[] {
-  const result: string[] = [];
-  const seen = new Set<string>();
-
-  for (const key of (left ?? new Map<string, OaAggRow>()).keys()) {
-    seen.add(key);
-    result.push(key);
-  }
-  for (const key of (right ?? new Map<string, ErpAggRow>()).keys()) {
-    if (!seen.has(key)) {
-      seen.add(key);
-      result.push(key);
-    }
-  }
-
-  return result;
-}
-
 function buildFormNumberSet(groupedRows: Map<string, ErpAggRow> | null | undefined): Set<string> {
   const result = new Set<string>();
 
@@ -51,7 +30,9 @@ function buildDifference(differenceType: string, oa?: OaAggRow, erp?: ErpAggRow)
   return {
     differenceType,
     formNumber,
+    oaDate: oa?.oaDate ?? "",
     erpDocNumbers: erp?.erpDocNumbers ?? "",
+    erpDate: erp?.erpDate ?? "",
     itemCode,
     itemName,
     company,
@@ -80,14 +61,12 @@ export function compareRows(
   erpOnlyRows?: Map<string, ErpAggRow> | null
 ): DetailRow[] {
   const details: DetailRow[] = [];
-  const keys = unionKeys(oaRows, erpRowsForOa);
   const erpFormNumbers = buildFormNumberSet(erpRowsForOa);
   const activeOaRows = oaRows ?? new Map<string, OaAggRow>();
   const activeErpRowsForOa = erpRowsForOa ?? new Map<string, ErpAggRow>();
   const activeErpOnlyRows = erpOnlyRows ?? new Map<string, ErpAggRow>();
 
-  for (const key of keys) {
-    const oa = activeOaRows.get(key);
+  for (const [key, oa] of activeOaRows.entries()) {
     const erp = activeErpRowsForOa.get(key);
     const formNumber = normalizeText(oa?.formNumber || key.split("||")[0]);
     let differenceType: string;
@@ -103,6 +82,14 @@ export function compareRows(
     }
 
     details.push(buildDifference(differenceType, oa, erp));
+  }
+
+  for (const [key, erp] of activeErpRowsForOa.entries()) {
+    if (activeOaRows.has(key)) {
+      continue;
+    }
+
+    details.push(buildDifference("OA和ERP都有，但物料明细不一致", undefined, erp));
   }
 
   for (const erp of activeErpOnlyRows.values()) {

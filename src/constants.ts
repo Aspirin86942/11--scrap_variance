@@ -46,7 +46,9 @@ export const SUMMARY_HEADERS = [
 export const DETAIL_HEADERS = [
   "差异类型",
   "OA表单编号",
+  "OA申请日期",
   "ERP出库单号",
+  "ERP日期",
   "物料编码",
   "物料名称",
   "公司简称",

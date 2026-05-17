@@ -54,7 +54,9 @@ export interface ErpAggRow {
 export interface DetailRow {
   differenceType: string;
   formNumber: string;
+  oaDate: string;
   erpDocNumbers: string;
+  erpDate: string;
   itemCode: string;
   itemName: string;
   company: string;

@@ -103,7 +103,9 @@ export function detailRowsToValues(detailRows?: DetailRow[] | null): OutputMatri
     ...(detailRows ?? []).map((row) => [
       row.differenceType,
       row.formNumber,
+      row.oaDate,
       row.erpDocNumbers,
+      row.erpDate,
       row.itemCode,
       row.itemName,
       row.company,
