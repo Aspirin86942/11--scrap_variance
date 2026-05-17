@@ -61,7 +61,10 @@
     }
 
     numberValue = Number(text.replace(/,/g, ""));
-    return isFinite(numberValue) ? numberValue : 0;
+    if (!isFinite(numberValue)) {
+      throw new Error("数值格式不正确：" + value);
+    }
+    return numberValue;
   }
 
   function pad2(value) {
@@ -140,13 +143,21 @@
 
   function parseFilters(input) {
     var source = input || {};
-    return {
+    var filters = {
       company: normalizeText(source.company),
       dept1: normalizeText(source.dept1),
       dept2: normalizeText(source.dept2),
       startDate: normalizeDateKey(source.startDate),
       endDate: normalizeDateKey(source.endDate),
     };
+
+    if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
+      throw new Error(
+        "开始日期不能晚于结束日期：" + filters.startDate + " > " + filters.endDate
+      );
+    }
+
+    return filters;
   }
 
   function isDateInRange(dateKey, filters) {
@@ -356,7 +367,7 @@
 
       sourceFormNumber = normalizeText(row["源单单号"]);
       itemCode = normalizeText(row["物料编码"]);
-      if (!itemCode || formNumberSet[sourceFormNumber]) {
+      if (!sourceFormNumber || !itemCode || formNumberSet[sourceFormNumber]) {
         continue;
       }
 
