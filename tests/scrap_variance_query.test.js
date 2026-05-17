@@ -530,12 +530,68 @@ test("summaryRowsToValues and detailRowsToValues render stable worksheet tables"
   const summaryValues = core.summaryRowsToValues(summaryRows);
   const detailValues = core.detailRowsToValues(detailRows);
 
-  assert.equal(summaryValues[0][0], "公司简称");
-  assert.equal(summaryValues[1][0], "数控");
-  assert.equal(summaryValues[1][5], 4);
-  assert.equal(detailValues[0][0], "差异类型");
-  assert.equal(detailValues[1][1], "CHBF1");
-  assert.equal(detailValues[1][2], "QOUT1");
+  assert.deepEqual(summaryValues, [
+    [
+      "公司简称",
+      "一级部门",
+      "二级部门",
+      "OA数量合计",
+      "ERP实发数量合计",
+      "数量差额",
+      "OA实际预算金额mx合计",
+      "ERP总成本合计",
+      "金额差额",
+      "差异类型摘要",
+    ],
+    [
+      "数控",
+      "生产运营中心",
+      "仓储部",
+      8,
+      4,
+      4,
+      80,
+      44,
+      36,
+      "OA和ERP都有，但数量不同",
+    ],
+  ]);
+  assert.deepEqual(detailValues, [
+    [
+      "差异类型",
+      "OA表单编号",
+      "ERP出库单号",
+      "物料编码",
+      "物料名称",
+      "公司简称",
+      "一级部门",
+      "二级部门",
+      "OA数量合计",
+      "ERP实发数量合计",
+      "数量差额",
+      "OA实际预算金额mx合计",
+      "ERP总成本合计",
+      "金额差额",
+      "备注",
+    ],
+    [
+      "OA和ERP都有，但数量不同",
+      "CHBF1",
+      "QOUT1",
+      "MAT-A",
+      "物料A",
+      "数控",
+      "生产运营中心",
+      "仓储部",
+      5,
+      4,
+      1,
+      50,
+      44,
+      6,
+      "",
+    ],
+  ]);
 });
 
 test("rowsFromValues parses rows below a selected header row", () => {
