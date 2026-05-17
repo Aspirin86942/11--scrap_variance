@@ -36,6 +36,14 @@
     erpHeaders: erpHeaders,
   };
 
+  var DIFFERENCE_TYPE_PRIORITY = [
+    "OA有申请，ERP无出库",
+    "ERP出库对应OA未在当前OA数据中找到",
+    "OA和ERP都有，但物料明细不一致",
+    "OA和ERP都有，但数量不同",
+    "OA和ERP都有，数量一致",
+  ];
+
   function normalizeText(value) {
     if (value === null || value === undefined) {
       return "";
@@ -535,8 +543,10 @@
   }
 
   function addSummaryType(summary, differenceType) {
-    if (differenceType && summary._differenceTypes.indexOf(differenceType) === -1) {
-      summary._differenceTypes.push(differenceType);
+    var type = normalizeText(differenceType);
+
+    if (type) {
+      summary._differenceTypes[type] = true;
     }
   }
 
@@ -548,6 +558,8 @@
     var row;
     var key;
     var summary;
+    var typeIndex;
+    var summaryTypes;
     var result = [];
 
     for (index = 0; index < rows.length; index += 1) {
@@ -571,7 +583,7 @@
           erpCost: 0,
           amountDiff: 0,
           differenceSummary: "",
-          _differenceTypes: [],
+          _differenceTypes: {},
         };
         order.push(key);
       }
@@ -588,9 +600,21 @@
 
     for (index = 0; index < order.length; index += 1) {
       summary = grouped[order[index]];
+      summaryTypes = [];
       summary.quantityDiff = round2(summary.oaQuantity - summary.erpQuantity);
       summary.amountDiff = round2(summary.oaAmount - summary.erpCost);
-      summary.differenceSummary = summary._differenceTypes.join("、");
+
+      for (
+        typeIndex = 0;
+        typeIndex < DIFFERENCE_TYPE_PRIORITY.length;
+        typeIndex += 1
+      ) {
+        if (summary._differenceTypes[DIFFERENCE_TYPE_PRIORITY[typeIndex]]) {
+          summaryTypes.push(DIFFERENCE_TYPE_PRIORITY[typeIndex]);
+        }
+      }
+
+      summary.differenceSummary = summaryTypes.join("、");
       delete summary._differenceTypes;
       result.push(summary);
     }
