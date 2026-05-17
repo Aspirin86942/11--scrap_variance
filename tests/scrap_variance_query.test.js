@@ -607,3 +607,20 @@ test("rowsFromValues parses rows below a selected header row", () => {
 
   assert.deepEqual(rows, [{ 表单编号: "CHBF1", 数量: 2 }]);
 });
+
+test("normalizePanelDateValue treats empty panel date values as blank filters", () => {
+  assert.equal(core.normalizePanelDateValue(0), "");
+  assert.equal(core.normalizePanelDateValue(45000), 45000);
+  assert.equal(core.normalizePanelDateValue(null), "");
+  assert.equal(core.normalizePanelDateValue(""), "");
+});
+
+test("buildFallbackErrorMessage preserves original and panel write errors", () => {
+  const message = core.buildFallbackErrorMessage(
+    "原始错误",
+    new Error("面板失败")
+  );
+
+  assert.match(message, /原始错误/);
+  assert.match(message, /面板失败/);
+});

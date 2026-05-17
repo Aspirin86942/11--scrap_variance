@@ -874,8 +874,8 @@
   }
 
   function validateRequiredColumns(oaRows, erpRows) {
-    requireColumns(oaRows, Object.values(CONFIG.oaHeaders), CONFIG.sheets.oa);
-    requireColumns(erpRows, Object.values(CONFIG.erpHeaders), CONFIG.sheets.erp);
+    requireColumns(oaRows, CONFIG.oaHeaders, CONFIG.sheets.oa);
+    requireColumns(erpRows, CONFIG.erpHeaders, CONFIG.sheets.erp);
   }
 
   function setCell(sheet, address, value) {
@@ -940,6 +940,18 @@
     return undefined;
   }
 
+  function normalizePanelDateValue(value) {
+    if (
+      value === null ||
+      value === undefined ||
+      value === 0 ||
+      normalizeText(value) === ""
+    ) {
+      return "";
+    }
+    return value;
+  }
+
   function readFiltersFromPanel(sheet) {
     var values = normalizeMatrix(getRangeValue(sheet, "B2:B6"));
 
@@ -947,8 +959,8 @@
       company: getMatrixValue(values, 0, 0),
       dept1: getMatrixValue(values, 1, 0),
       dept2: getMatrixValue(values, 2, 0),
-      startDate: getMatrixValue(values, 3, 0),
-      endDate: getMatrixValue(values, 4, 0),
+      startDate: normalizePanelDateValue(getMatrixValue(values, 3, 0)),
+      endDate: normalizePanelDateValue(getMatrixValue(values, 4, 0)),
     });
   }
 
@@ -958,6 +970,23 @@
     clearPanelOutput(sheet);
     setCell(sheet, "A8", "错误");
     setCell(sheet, "B8", message);
+  }
+
+  function buildFallbackErrorMessage(originalMessage, panelError) {
+    var writeErrorMessage =
+      panelError && panelError.message ? panelError.message : String(panelError);
+
+    return (
+      originalMessage + "; 同时写入查询面板失败：" + writeErrorMessage
+    );
+  }
+
+  function safeWriteErrorToPanel(message) {
+    try {
+      writeErrorToPanel(message);
+    } catch (writeError) {
+      throw new Error(buildFallbackErrorMessage(message, writeError));
+    }
   }
 
   function writeResults(summaryRows, detailRows) {
@@ -1006,7 +1035,9 @@
       summaryRows = buildSummaryRows(detailRows);
       writeResults(summaryRows, detailRows);
     } catch (error) {
-      writeErrorToPanel(error && error.message ? error.message : String(error));
+      safeWriteErrorToPanel(
+        error && error.message ? error.message : String(error)
+      );
     }
   }
 
@@ -1033,6 +1064,8 @@
     detailRowsToValues: detailRowsToValues,
     normalizeMatrix: normalizeMatrix,
     rowsFromValues: rowsFromValues,
+    normalizePanelDateValue: normalizePanelDateValue,
+    buildFallbackErrorMessage: buildFallbackErrorMessage,
     validateRequiredColumns: validateRequiredColumns,
   };
 
