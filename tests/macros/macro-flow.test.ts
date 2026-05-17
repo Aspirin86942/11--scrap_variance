@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { ERP_REQUIRED_HEADERS, OA_REQUIRED_HEADERS, SHEET_NAMES } from "../../src/constants";
-// @ts-expect-error Vitest must bypass the legacy same-name .js macro and load the new TypeScript module.
-import { runScrapVariancePrecheck } from "../../src/macros/scrap-variance-precheck.ts";
-// @ts-expect-error Vitest must bypass the legacy same-name .js macro and load the new TypeScript module.
-import { runScrapVarianceQuery } from "../../src/macros/scrap-variance-query.ts";
+import { runScrapVariancePrecheck } from "../../src/macros/scrap-variance-precheck";
+import { runScrapVarianceQuery } from "../../src/macros/scrap-variance-query";
 import { setupQueryPanel } from "../../src/macros/setup-query-panel";
 import type { OutputMatrix } from "../../src/types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../../src/types/wps";

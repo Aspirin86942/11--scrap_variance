@@ -38,14 +38,18 @@ describe("WPS add-in generated bundle", () => {
     expect(source).toContain("ribbon");
   });
 
-  it("uses a safe placeholder report instead of throwing from the ribbon action", () => {
+  it("bundles the real ribbon handlers instead of the temporary placeholder", () => {
     const source = readText("main.js");
     const entry = readText("src/main.ts");
+    const handlers = readText("src/ribbon/handlers.ts");
 
     expect(source).not.toContain("ribbon handlers are not implemented yet");
-    expect(source).not.toContain("throw new Error");
-    expect(source).toContain("reportPlaceholder");
-    expect(entry).toContain("加载项入口尚未完成");
+    expect(source).not.toContain("加载项入口尚未完成");
+    expect(source).toContain("btnPrecheck");
+    expect(source).toContain("btnInitQueryPanel");
+    expect(source).toContain("btnRunQuery");
+    expect(handlers).toContain("未知功能区按钮");
+    expect(entry).toContain("reportRuntimeError");
   });
 
   it("keeps committed main.js in sync with the esbuild output", () => {

@@ -1,31 +1,27 @@
-import type { RibbonApi, ScrapVarianceGlobal } from "./types/wps";
+import { runScrapVariancePrecheck } from "./macros/scrap-variance-precheck";
+import { runScrapVarianceQuery } from "./macros/scrap-variance-query";
+import { setupQueryPanel } from "./macros/setup-query-panel";
+import { createRibbonHandlers } from "./ribbon/handlers";
+import type { ScrapVarianceGlobal } from "./types/wps";
 
-function getRoot(): ScrapVarianceGlobal {
-  return globalThis as ScrapVarianceGlobal;
-}
-
-function reportPlaceholder(message: string): void {
-  const root = getRoot();
+export function reportRuntimeError(error: unknown): void {
+  const root = globalThis as ScrapVarianceGlobal;
+  const message = error instanceof Error ? error.message : String(error);
 
   if (root.alert) {
     root.alert(message);
     return;
   }
 
-  if (root.console) {
-    root.console.error(message);
-  }
+  root.console?.error(message);
 }
 
-export function createRibbon(): RibbonApi {
-  return {
-    OnAddinLoad(ribbonUi: unknown): void {
-      getRoot().ScrapVarianceRibbonUi = ribbonUi;
-    },
-    OnAction(): void {
-      reportPlaceholder("加载项入口尚未完成：TypeScript 迁移骨架已加载，请继续完成后续任务。");
-    }
-  };
-}
+const root = globalThis as ScrapVarianceGlobal;
 
-getRoot().ribbon = createRibbon();
+root.ribbon = createRibbonHandlers({
+  root,
+  runPrecheck: () => runScrapVariancePrecheck(root),
+  setupQueryPanel: () => setupQueryPanel(root),
+  runQuery: () => runScrapVarianceQuery(root),
+  reportError: reportRuntimeError
+});
