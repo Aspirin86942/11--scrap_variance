@@ -781,6 +781,70 @@ test("runScrapVarianceQuery writes ERP-only results when filtered OA rows are em
   }
 });
 
+test("runScrapVarianceQuery writes no-data message when OA and ERP-only rows are empty", () => {
+  const previousApplication = globalThis.Application;
+  const panelSheet = createFakeSheet("查询面板", [], {
+    "B2:B6": [
+      ["数控"],
+      ["生产运营中心"],
+      ["仓储部"],
+      ["2026/5/1"],
+      ["2026/5/31"],
+    ],
+  });
+  const oaSheet = createFakeSheet("查询OA-存货报废申请单", [
+    ["导出条件"],
+    ["制表人"],
+    core.CONFIG.oaHeaders,
+    [
+      "CHBF_OTHER",
+      "2026/4/2",
+      "数控",
+      "生产运营中心",
+      "仓储部",
+      "MAT-X",
+      "物料X",
+      1,
+      10,
+    ],
+  ]);
+  const erpSheet = createFakeSheet("查询ERP-报废明细表", [
+    core.CONFIG.erpHeaders,
+    [
+      "QOUT_OLD",
+      "2026/4/3",
+      "CHBF999",
+      "数控",
+      "生产运营中心",
+      "仓储部",
+      "MAT-Z",
+      "物料Z",
+      7,
+      77,
+    ],
+  ]);
+
+  try {
+    globalThis.Application = createFakeApplication([
+      panelSheet,
+      oaSheet,
+      erpSheet,
+    ]);
+
+    runScrapVarianceQuery();
+
+    const panelOutput = panelSheet.writtenValues().map(String).join("\n");
+    assert.match(panelOutput, /查询条件没有匹配到 OA 数据。/);
+    assert.doesNotMatch(panelOutput, /ERP出库对应OA未在当前OA数据中找到/);
+  } finally {
+    if (previousApplication === undefined) {
+      delete globalThis.Application;
+    } else {
+      globalThis.Application = previousApplication;
+    }
+  }
+});
+
 test("normalizePanelDateValue treats empty panel date values as blank filters", () => {
   assert.equal(core.normalizePanelDateValue(0), "");
   assert.equal(core.normalizePanelDateValue(45000), 45000);
