@@ -16,6 +16,7 @@ function exists(relativePath) {
 
 test("WPS add-in project files and directories exist", () => {
   assert.equal(exists("package.json"), true);
+  assert.equal(exists("index.html"), true);
   assert.equal(exists("main.js"), true);
   assert.equal(exists("ribbon.xml"), true);
   assert.equal(exists("ribbon.js"), true);
@@ -27,9 +28,17 @@ test("WPS add-in project files and directories exist", () => {
 test("package.json exposes wpsjs dev script and test script", () => {
   const packageJson = JSON.parse(readText("package.json"));
 
+  assert.equal(packageJson.addonType, "et");
   assert.equal(packageJson.scripts.dev, "wpsjs debug");
   assert.equal(packageJson.scripts.test, "node --test tests/*.test.js");
   assert.equal(packageJson.devDependencies.wpsjs, "^2.2.3");
+});
+
+test("index.html loads main.js as the WPS add-in entry page", () => {
+  const source = readText("index.html");
+
+  assert.match(source, /<meta charset="utf-8">/);
+  assert.match(source, /src="\.\/main\.js"/);
 });
 
 test("main.js loads helpers, macro modules, and ribbon entrypoints", () => {

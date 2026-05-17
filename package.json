@@ -1,6 +1,7 @@
 {
   "name": "scrap-variance-wps-addin",
   "version": "0.1.0",
+  "addonType": "et",
   "private": true,
   "description": "WPS add-in for OA and ERP scrap variance checks.",
   "scripts": {
