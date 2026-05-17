@@ -1,7 +1,116 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { ScrapVarianceCore: core } = require("../src/scrap_variance_query.js");
+const {
+  ScrapVarianceCore: core,
+  runScrapVarianceQuery,
+} = require("../src/scrap_variance_query.js");
+
+function columnNameToNumber(columnName) {
+  let result = 0;
+
+  for (const char of columnName) {
+    result = result * 26 + char.charCodeAt(0) - 64;
+  }
+
+  return result;
+}
+
+function cellAddressToPosition(address) {
+  const match = address.match(/^([A-Z]+)(\d+)$/);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    row: Number(match[2]),
+    col: columnNameToNumber(match[1]),
+  };
+}
+
+function cellKey(row, col) {
+  return row + ":" + col;
+}
+
+function createFakeSheet(name, usedRangeValues, rangeValues) {
+  const cells = new Map();
+  const presetRangeValues = rangeValues || {};
+  const sheet = {
+    Name: name,
+    UsedRange: {
+      Value2: usedRangeValues,
+    },
+    Range(address) {
+      const position = cellAddressToPosition(address);
+
+      return {
+        get Value2() {
+          if (Object.prototype.hasOwnProperty.call(presetRangeValues, address)) {
+            return presetRangeValues[address];
+          }
+          if (!position) {
+            return undefined;
+          }
+          return cells.get(cellKey(position.row, position.col));
+        },
+        get Value() {
+          return this.Value2;
+        },
+        set Value(value) {
+          if (position) {
+            cells.set(cellKey(position.row, position.col), value);
+          } else {
+            presetRangeValues[address] = value;
+          }
+        },
+        ClearContents() {
+          cells.clear();
+        },
+      };
+    },
+    Cells: {
+      Item(row, col) {
+        return {
+          get Value() {
+            return cells.get(cellKey(row, col));
+          },
+          set Value(value) {
+            cells.set(cellKey(row, col), value);
+          },
+        };
+      },
+    },
+    writtenValues() {
+      return Array.from(cells.values());
+    },
+  };
+
+  return sheet;
+}
+
+function createFakeApplication(sheets) {
+  const sheetList = sheets.slice();
+  const collection = {
+    get Count() {
+      return sheetList.length;
+    },
+    Item(index) {
+      return sheetList[index - 1];
+    },
+    Add() {
+      const sheet = createFakeSheet("Sheet" + (sheetList.length + 1), []);
+      sheetList.push(sheet);
+      return sheet;
+    },
+  };
+
+  return {
+    ActiveWorkbook: {
+      Worksheets: collection,
+    },
+  };
+}
 
 test("normalizeNumber keeps valid numeric inputs and rejects invalid text", () => {
   assert.equal(core.normalizeNumber(null), 0);
@@ -606,6 +715,70 @@ test("rowsFromValues parses rows below a selected header row", () => {
   const rows = core.rowsFromValues(values, 3);
 
   assert.deepEqual(rows, [{ 表单编号: "CHBF1", 数量: 2 }]);
+});
+
+test("runScrapVarianceQuery writes ERP-only results when filtered OA rows are empty", () => {
+  const previousApplication = globalThis.Application;
+  const panelSheet = createFakeSheet("查询面板", [], {
+    "B2:B6": [
+      ["数控"],
+      ["生产运营中心"],
+      ["仓储部"],
+      ["2026/5/1"],
+      ["2026/5/31"],
+    ],
+  });
+  const oaSheet = createFakeSheet("查询OA-存货报废申请单", [
+    ["导出条件"],
+    ["制表人"],
+    core.CONFIG.oaHeaders,
+    [
+      "CHBF_OTHER",
+      "2026/5/2",
+      "其他",
+      "生产运营中心",
+      "仓储部",
+      "MAT-X",
+      "物料X",
+      1,
+      10,
+    ],
+  ]);
+  const erpSheet = createFakeSheet("查询ERP-报废明细表", [
+    core.CONFIG.erpHeaders,
+    [
+      "QOUT999",
+      "2026/5/3",
+      "CHBF999",
+      "数控",
+      "生产运营中心",
+      "仓储部",
+      "MAT-Z",
+      "物料Z",
+      7,
+      77,
+    ],
+  ]);
+
+  try {
+    globalThis.Application = createFakeApplication([
+      panelSheet,
+      oaSheet,
+      erpSheet,
+    ]);
+
+    runScrapVarianceQuery();
+
+    const panelOutput = panelSheet.writtenValues().map(String).join("\n");
+    assert.doesNotMatch(panelOutput, /查询条件没有匹配到 OA 数据。/);
+    assert.match(panelOutput, /ERP出库对应OA未在当前OA数据中找到/);
+  } finally {
+    if (previousApplication === undefined) {
+      delete globalThis.Application;
+    } else {
+      globalThis.Application = previousApplication;
+    }
+  }
 });
 
 test("normalizePanelDateValue treats empty panel date values as blank filters", () => {

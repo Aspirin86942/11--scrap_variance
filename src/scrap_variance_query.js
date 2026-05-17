@@ -1023,14 +1023,17 @@
 
       allOaFormNumbers = buildAllOaFormNumberSet(oaRows);
       oaGroupedRows = buildOaRows(oaRows, filters);
-      if (Object.keys(oaGroupedRows).length === 0) {
+      erpRowsForOa = buildErpRowsForOa(erpRows, oaGroupedRows);
+      erpOnlyRows = buildErpOnlyRows(erpRows, allOaFormNumbers, filters);
+      if (
+        Object.keys(oaGroupedRows).length === 0 &&
+        Object.keys(erpOnlyRows).length === 0
+      ) {
         clearPanelOutput(panel);
         setCell(panel, "A8", "查询条件没有匹配到 OA 数据。");
         return;
       }
 
-      erpRowsForOa = buildErpRowsForOa(erpRows, oaGroupedRows);
-      erpOnlyRows = buildErpOnlyRows(erpRows, allOaFormNumbers, filters);
       detailRows = compareRows(oaGroupedRows, erpRowsForOa, erpOnlyRows);
       summaryRows = buildSummaryRows(detailRows);
       writeResults(summaryRows, detailRows);
