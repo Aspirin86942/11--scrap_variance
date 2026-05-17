@@ -46,6 +46,8 @@
   function normalizeNumber(value) {
     var text;
     var numberValue;
+    var plainNumericPattern = /^[-+]?(?:\d+|\d*\.\d+)$/;
+    var commaNumericPattern = /^[-+]?\d{1,3}(?:,\d{3})+(?:\.\d+)?$/;
 
     if (value === null || value === undefined) {
       return 0;
@@ -58,6 +60,10 @@
     text = normalizeText(value);
     if (text === "") {
       return 0;
+    }
+
+    if (!plainNumericPattern.test(text) && !commaNumericPattern.test(text)) {
+      throw new Error("数值格式不正确：" + value);
     }
 
     numberValue = Number(text.replace(/,/g, ""));

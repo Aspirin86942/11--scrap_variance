@@ -8,11 +8,23 @@ test("normalizeNumber keeps valid numeric inputs and rejects invalid text", () =
   assert.equal(core.normalizeNumber(undefined), 0);
   assert.equal(core.normalizeNumber(""), 0);
   assert.equal(core.normalizeNumber(12.5), 12.5);
+  assert.equal(core.normalizeNumber("1,234"), 1234);
   assert.equal(core.normalizeNumber("1,234.56"), 1234.56);
   assert.throws(
     () => core.normalizeNumber("abc"),
     /数值格式不正确：abc/
   );
+});
+
+test("normalizeNumber rejects malformed comma numeric text", () => {
+  const malformedValues = [",", ",,", "1,", ",1", "1,,2"];
+
+  for (const value of malformedValues) {
+    assert.throws(
+      () => core.normalizeNumber(value),
+      new RegExp("数值格式不正确：" + value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    );
+  }
 });
 
 test("normalizeDateKey normalizes supported date values and rejects invalid dates", () => {
