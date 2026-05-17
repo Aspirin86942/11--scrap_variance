@@ -33,8 +33,11 @@ describe("WPS add-in generated bundle", () => {
     const source = readText("main.js");
 
     expect(source).not.toContain("document.write");
+    expect(source).not.toContain("src/macros");
     expect(source).not.toContain("src/macros/scrap-variance-query.js");
     expect(source).not.toContain("ribbon.js");
+    expect(source).not.toContain("require(");
+    expect(source).not.toContain("process.");
     expect(source).toContain("ribbon");
   });
 
@@ -57,6 +60,10 @@ describe("WPS add-in generated bundle", () => {
       entryPoints: [resolve(repoRoot, "src/main.ts")],
       bundle: true,
       format: "iife",
+      legalComments: "none",
+      lineLimit: 160,
+      mainFields: ["module", "main"],
+      minifyWhitespace: true,
       target: "es2018",
       write: false
     });
