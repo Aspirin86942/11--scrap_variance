@@ -176,13 +176,25 @@ const MIN_ERP_HEADER_MATCH_COUNT = 5;
 规则：
 
 1. `wps-api/read-sheet-data.ts` 通过 `UsedRange.Value2` 一次性读取矩阵。
-2. `utils/matrix.ts` 将 WPS 返回值标准化为二维数组，兼容数组矩阵、单行数组、单值和数字键对象矩阵。
-3. `core/header-detection.ts` 扫描矩阵前 `MAX_HEADER_SCAN_ROWS` 行。
-4. 表头标准化只做 `trim`。
-5. 字段名必须完全一致，不做别名，不去掉中间空格，不忽略换行。
-6. 每个候选行统计命中的必需字段数，选择命中数最多的一行。
-7. 命中数达到对应最低阈值时，返回表头行、字段索引和数据起始行。
-8. 命中数不足时，返回一条“无法识别表头”的阻断错误。
+2. 读取 `UsedRange` 失败时，返回一条“读取工作表失败”的阻断错误，错误中保留 WPS 原始异常信息。
+3. `UsedRange` 不存在、`Value2` 为 `null`/`undefined`、标准化后没有任何非空行时，返回一条“工作表为空或 UsedRange 无数据”的阻断错误。
+4. `utils/matrix.ts` 将 WPS 返回值标准化为二维数组，兼容数组矩阵、单行数组、单值和数字键对象矩阵。
+5. `core/header-detection.ts` 扫描矩阵前 `MAX_HEADER_SCAN_ROWS` 行。
+6. 表头标准化只做 `trim`。
+7. 字段名必须完全一致，不做别名，不去掉中间空格，不忽略换行。
+8. 每个候选行统计命中的必需字段数，选择命中数最多的一行。
+9. 命中数达到对应最低阈值时，返回表头行、字段索引和数据起始行。
+10. 命中数不足时，返回一条“无法识别表头”的阻断错误。
+
+候选表头行评分和 tie-break 规则必须固定，避免实现时出现随机选择：
+
+1. 优先选择“命中的不同必需字段数”最高的行。
+2. 若命中数相同，优先选择必需字段重复次数更少的行。
+3. 若仍相同，优先选择非空单元格数量更多的行，因为真实表头通常覆盖完整表格列。
+4. 若前三项仍无法区分，并且候选行都完整命中全部必需字段，则选择扫描范围内更靠前的行，适配导出表中重复出现表头的情况。
+5. 若前三项仍无法区分，并且最高命中数没有覆盖全部必需字段，则返回一条“表头识别不唯一”的阻断错误，提示用户检查扫描范围内是否存在多行相似表头。
+
+表头错误中的行号优先使用 `UsedRange.Row + 候选矩阵行偏移` 计算真实工作表行号；如果当前 WPS 版本没有暴露 `UsedRange.Row`，则使用矩阵内相对行号，并在错误信息中标明“相对 UsedRange”。
 
 如果表头能识别，但仍缺少个别必需字段，则按缺失字段输出错误。只有完全无法定位真实表头时，才使用单条阻断错误，避免当前那种 19 条缺列误报。
 
@@ -256,15 +268,18 @@ const MIN_ERP_HEADER_MATCH_COUNT = 5;
 ```json
 {
   "scripts": {
-    "build": "esbuild src/main.ts --bundle --format=iife --target=es2018 --outfile=main.js",
-    "build:prod": "esbuild src/main.ts --bundle --format=iife --target=es2018 --minify --outfile=main.js",
+    "typecheck": "tsc --noEmit",
+    "bundle": "esbuild src/main.ts --bundle --format=iife --target=es2018 --outfile=main.js",
+    "bundle:prod": "esbuild src/main.ts --bundle --format=iife --target=es2018 --minify --outfile=main.js",
+    "build": "npm run typecheck && npm run bundle",
+    "build:prod": "npm run typecheck && npm run bundle:prod",
     "test": "vitest run",
     "dev": "npm run build && wpsjs debug"
   }
 }
 ```
 
-`main.js` 是生成产物，但继续提交到 git。每次 TypeScript 源码变化后，必须同步执行构建，避免源码与 WPS 实际入口漂移。
+`build` 和 `dev` 都必须在打包或启动 WPS 调试前执行 `tsc --noEmit`。`main.js` 是生成产物，但继续提交到 git。每次 TypeScript 源码变化后，必须同步执行构建，避免源码与 WPS 实际入口漂移。
 
 ## 测试
 
@@ -279,6 +294,9 @@ const MIN_ERP_HEADER_MATCH_COUNT = 5;
 - Decimal 数字标准化、聚合和两位小数输出。
 - 表头自动识别成功。
 - 表头自动识别失败时只输出一条阻断错误。
+- 表头候选行分数相同时按固定 tie-break 规则选择。
+- 表头候选行无法唯一判断时输出“表头识别不唯一”阻断错误。
+- 空表、空 `UsedRange`、`UsedRange.Value2` 为 `null`/`undefined` 时输出明确错误。
 - OA 聚合。
 - ERP 已匹配 OA 聚合。
 - ERP-only 口径。
@@ -308,6 +326,7 @@ const MIN_ERP_HEADER_MATCH_COUNT = 5;
 - `btnInitQueryPanel` 调用初始化查询面板。
 - `btnRunQuery` 调用执行差异查询。
 - 未知按钮抛出可读错误。
+- `npm run build` 先执行 `tsc --noEmit`，再生成根目录 `main.js`。
 - `npm run build` 能生成根目录 `main.js`。
 - `main.js` 不再通过 `document.write` 加载多个源码文件。
 - `window.ribbon.OnAction` 与 `ribbon.xml` 使用的入口匹配。
@@ -317,7 +336,7 @@ const MIN_ERP_HEADER_MATCH_COUNT = 5;
 更新 `docs/wps-js-usage.md`：
 
 - 标明旧的复制宏方式废弃。
-- 写清 `npm install`、`npm run build`、`npm run dev`。
+- 写清 `npm install`、`npm run typecheck`、`npm run build`、`npm run dev`。
 - 写清 `main.js` 是生成产物但会提交。
 - 写清预验证自动识别表头，字段名必须完全一致，只允许前后空格差异。
 - 写清性能约束：批量读、整块或分块批量写、固定范围清理。
@@ -365,7 +384,7 @@ function onRibbonAction(control: RibbonControl): void {
 
 function readDomainTable(sheetName: string, requiredHeaders: string[], minMatchCount: number): ParsedTable {
   const sheet = getSheetByName(sheetName);
-  const matrix = normalizeMatrix(sheet.UsedRange.Value2);
+  const matrix = readUsedRangeMatrix(sheet);
   const headerResult = detectHeaderRow(matrix, requiredHeaders, minMatchCount);
 
   if (!headerResult.ok) {
@@ -374,6 +393,27 @@ function readDomainTable(sheetName: string, requiredHeaders: string[], minMatchC
   }
 
   return parseRowsByHeaderIndex(matrix, headerResult.headerRowIndex, headerResult.columnIndex);
+}
+
+function readUsedRangeMatrix(sheet: WpsSheet): Matrix {
+  try {
+    const usedRange = sheet.UsedRange;
+
+    if (!usedRange || usedRange.Value2 === null || usedRange.Value2 === undefined) {
+      throw new EmptyUsedRangeError(sheet.Name);
+    }
+
+    const matrix = normalizeMatrix(usedRange.Value2);
+
+    if (!hasAnyNonBlankRow(matrix)) {
+      throw new EmptyUsedRangeError(sheet.Name);
+    }
+
+    return matrix;
+  } catch (error) {
+    // 为什么这样做：读取失败、空表和表头缺失是不同根因，后续错误信息不能混成“缺少关键列”。
+    throw buildUsedRangeReadError(sheet.Name, error);
+  }
 }
 
 function runScrapVariancePrecheck(): void {
