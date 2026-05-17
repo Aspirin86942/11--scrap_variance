@@ -60,8 +60,11 @@ export function normalizeMatrix(values: unknown): WpsMatrix {
     if (values.length === 0) {
       return [];
     }
-    if (isArray(values[0])) {
+    if (values.every(isArray)) {
       return values as WpsMatrix;
+    }
+    if (values.some(isArray)) {
+      return values.map((row): WpsCellValue[] => (isArray(row) ? (row as WpsCellValue[]) : [row as WpsCellValue]));
     }
     return [values as WpsCellValue[]];
   }

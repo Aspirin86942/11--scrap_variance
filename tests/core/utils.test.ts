@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { normalizeDateKey } from "../../src/utils/date";
 import { addDecimal, decimalToNumber2, parseDecimal } from "../../src/utils/decimal";
-import { normalizeMatrix } from "../../src/utils/matrix";
+import { hasAnyNonBlankRow, normalizeMatrix } from "../../src/utils/matrix";
 import { isBlankValue, normalizeText } from "../../src/utils/text";
 
 describe("text utilities", () => {
@@ -57,5 +57,13 @@ describe("matrix utilities", () => {
       ["表单编号", "数量"],
       ["F001", 3]
     ]);
+  });
+
+  it("normalizes mixed array rows to arrays", () => {
+    expect(normalizeMatrix([["A"], "B"])).toEqual([["A"], ["B"]]);
+  });
+
+  it("checks mixed array rows for non-blank values without throwing", () => {
+    expect(hasAnyNonBlankRow(normalizeMatrix([["A"], "B"]))).toBe(true);
   });
 });
