@@ -8,8 +8,9 @@ import {
   SHEET_NAMES,
   WRITE_CHUNK_ROWS
 } from "../constants";
-import { buildPrecheckIssues, buildSystemErrorIssue, issueRowsToValues } from "../core/precheck";
-import type { PrecheckIssue } from "../types/scrap";
+import { HeaderDetectionError } from "../core/header-detection";
+import { buildHeaderDetectionIssue, buildPrecheckIssues, buildSystemErrorIssue, issueRowsToValues } from "../core/precheck";
+import type { ParsedTable, PrecheckIssue } from "../types/scrap";
 import type { ScrapVarianceGlobal } from "../types/wps";
 import { readSheetTable } from "../wps-api/read-sheet-data";
 import { ensureSheet, getSheetByName } from "../wps-api/workbook";
@@ -46,25 +47,46 @@ export function writePrecheckResults(issues: PrecheckIssue[], root?: ScrapVarian
   writeMatrixBulkOrChunks(sheet, 4, 1, issueValues, WRITE_CHUNK_ROWS);
 }
 
+function readPrecheckTable(
+  source: "OA" | "ERP",
+  sheet: ReturnType<typeof getSheetByName>,
+  requiredHeaders: string[],
+  minMatchCount: number,
+  headerIssues: PrecheckIssue[]
+): ParsedTable | null {
+  try {
+    return readSheetTable(sheet, requiredHeaders, minMatchCount, MAX_HEADER_SCAN_ROWS);
+  } catch (error) {
+    if (error instanceof HeaderDetectionError) {
+      headerIssues.push(buildHeaderDetectionIssue(source, error.result));
+      return null;
+    }
+    throw error;
+  }
+}
+
 export function runScrapVariancePrecheck(root?: ScrapVarianceGlobal): void {
   let issues: PrecheckIssue[];
 
   try {
     const oaSheet = getSheetByName(SHEET_NAMES.oa, root);
     const erpSheet = getSheetByName(SHEET_NAMES.erp, root);
-    const oaTable = readSheetTable(
+    const headerIssues: PrecheckIssue[] = [];
+    const oaTable = readPrecheckTable(
+      "OA",
       oaSheet,
       [...OA_REQUIRED_HEADERS],
       MIN_OA_HEADER_MATCH_COUNT,
-      MAX_HEADER_SCAN_ROWS
+      headerIssues
     );
-    const erpTable = readSheetTable(
+    const erpTable = readPrecheckTable(
+      "ERP",
       erpSheet,
       [...ERP_REQUIRED_HEADERS],
       MIN_ERP_HEADER_MATCH_COUNT,
-      MAX_HEADER_SCAN_ROWS
+      headerIssues
     );
-    issues = buildPrecheckIssues(oaTable, erpTable);
+    issues = headerIssues.length > 0 ? headerIssues : buildPrecheckIssues(oaTable, erpTable);
   } catch (error) {
     issues = [buildSystemErrorIssue(error)];
   }

@@ -27,6 +27,14 @@ function flattenWrites(sheet: FakeSheet): string[] {
   );
 }
 
+function precheckIssueRows(sheet: FakeSheet): OutputMatrix {
+  const issueWrite = sheet.writes.find((write) => write.address === "A4:H5");
+  if (!issueWrite || !Array.isArray(issueWrite.value)) {
+    throw new Error("missing precheck issue write");
+  }
+  return issueWrite.value as OutputMatrix;
+}
+
 function validOaRow(): Array<string | number> {
   return ["F1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10];
 }
@@ -149,7 +157,7 @@ describe("TypeScript macro orchestration", () => {
     });
   });
 
-  it("runScrapVariancePrecheck converts read errors into one system issue row", () => {
+  it("runScrapVariancePrecheck keeps OA header detection failures as one OA issue row", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [["没有表头"]]);
     const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
     const root = makeRoot([oaSheet, erpSheet]);
@@ -158,8 +166,32 @@ describe("TypeScript macro orchestration", () => {
 
     const resultSheet = getSheet(root, 3) as FakeSheet;
     const output = flattenWrites(resultSheet);
+    const rows = precheckIssueRows(resultSheet);
+    const issue = rows[1];
     expect(output).toContain("发现 1 条预验证问题");
-    expect(output).toContain("系统");
-    expect(output).toContain("预验证执行失败");
+    expect(rows).toHaveLength(2);
+    expect(issue?.[1]).toBe("OA");
+    expect(issue?.[3]).toBe("表头");
+    expect(issue?.[5]).toBe("无法识别表头");
+    expect(issue?.[1]).not.toBe("系统");
+    expect(issue?.[5]).not.toBe("预验证执行失败");
+  });
+
+  it("runScrapVariancePrecheck keeps ERP ambiguous header detection failures as one ERP issue row", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
+    const partialErpHeaders = ["单据编号", "日期", "源单单号", "区分公司简称", "一级部门"];
+    const erpSheet = createFakeSheet(SHEET_NAMES.erp, [partialErpHeaders, partialErpHeaders]);
+    const root = makeRoot([oaSheet, erpSheet]);
+
+    runScrapVariancePrecheck(root);
+
+    const resultSheet = getSheet(root, 3) as FakeSheet;
+    const rows = precheckIssueRows(resultSheet);
+    const issue = rows[1];
+    expect(rows).toHaveLength(2);
+    expect(issue?.[1]).toBe("ERP");
+    expect(issue?.[3]).toBe("表头");
+    expect(issue?.[5]).toBe("表头识别不唯一");
+    expect(issue?.[1]).not.toBe("系统");
   });
 });
