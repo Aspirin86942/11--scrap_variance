@@ -79,4 +79,38 @@ describe("detectHeaderRow", () => {
       expect(result.headerRowNumber).toBe("相对 UsedRange 第 1 行");
     }
   });
+
+  it("rejects full-match header rows with duplicate required headers", () => {
+    const result = detectHeaderRow(
+      [
+        [
+          "表单编号",
+          "申请日期",
+          "公司简称",
+          "一级部门",
+          "二级部门",
+          "物料代码",
+          "物料名称",
+          "数量",
+          "实际预算金额mx",
+          "数量"
+        ],
+        ["F001", "2026/5/1", "数控", "生产运营中心", "仓储部", "MAT-A", "物料A", 2, 20, 999]
+      ],
+      [...OA_REQUIRED_HEADERS],
+      {
+        minMatchCount: 5,
+        maxScanRows: 20,
+        usedRangeStartRow: 3
+      }
+    );
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.issueType).toBe("关键列重复");
+      expect(result.headerRowNumber).toBe(3);
+      expect(result.message).toContain("第 3 行");
+      expect(result.message).toContain("重复必需字段：数量");
+    }
+  });
 });

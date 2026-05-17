@@ -18,16 +18,28 @@ export interface HeaderDetectionSuccess {
 
 export interface HeaderDetectionFailure {
   ok: false;
-  issueType: "无法识别表头" | "表头识别不唯一";
+  issueType: "无法识别表头" | "表头识别不唯一" | "关键列重复";
   message: string;
   headerRowIndex: number;
   headerRowNumber: number | string;
   matchedCount: number;
   requiredCount: number;
   missingHeaders: string[];
+  duplicateHeaders: string[];
 }
 
 export type HeaderDetectionResult = HeaderDetectionSuccess | HeaderDetectionFailure;
+
+export class HeaderDetectionError extends Error {
+  readonly result: HeaderDetectionFailure;
+
+  constructor(result: HeaderDetectionFailure) {
+    super(result.message);
+    this.name = "HeaderDetectionError";
+    this.result = result;
+    Object.setPrototypeOf(this, HeaderDetectionError.prototype);
+  }
+}
 
 interface Candidate {
   rowIndex: number;
@@ -36,6 +48,7 @@ interface Candidate {
   columnIndex: Record<string, number>;
   matchedHeaders: Set<string>;
   duplicateRequiredCount: number;
+  duplicateRequiredHeaders: string[];
   nonBlankCount: number;
 }
 
@@ -55,6 +68,7 @@ function buildCandidate(
   const requiredSet = new Set(requiredHeaders);
   const seenRequired = new Set<string>();
   const columnIndex: Record<string, number> = {};
+  const duplicateRequiredHeaders: string[] = [];
   let duplicateRequiredCount = 0;
   let nonBlankCount = 0;
 
@@ -66,6 +80,9 @@ function buildCandidate(
     if (requiredSet.has(header)) {
       if (Object.prototype.hasOwnProperty.call(columnIndex, header)) {
         duplicateRequiredCount += 1;
+        if (!duplicateRequiredHeaders.includes(header)) {
+          duplicateRequiredHeaders.push(header);
+        }
       } else {
         columnIndex[header] = colIndex;
       }
@@ -81,6 +98,7 @@ function buildCandidate(
     columnIndex,
     matchedHeaders: seenRequired,
     duplicateRequiredCount,
+    duplicateRequiredHeaders,
     nonBlankCount
   };
 }
@@ -106,18 +124,33 @@ function missingHeaders(requiredHeaders: string[], candidate: Candidate | undefi
   return requiredHeaders.filter((header) => !candidate.matchedHeaders.has(header));
 }
 
+function rowNumberLabel(rowNumber: number | string): string {
+  return typeof rowNumber === "number" ? `第 ${rowNumber} 行` : rowNumber;
+}
+
 function failure(
-  issueType: "无法识别表头" | "表头识别不唯一",
+  issueType: "无法识别表头" | "表头识别不唯一" | "关键列重复",
   requiredHeaders: string[],
   candidate: Candidate | undefined,
   scannedRows: number
 ): HeaderDetectionFailure {
   const matchedCount = candidate?.matchedHeaders.size ?? 0;
   const rowNumber = candidate?.rowNumber ?? "相对 UsedRange 第 1 行";
-  const message =
-    issueType === "表头识别不唯一"
-      ? `表头识别不唯一：已扫描 UsedRange 前 ${scannedRows} 行，多个候选行最多命中 ${matchedCount}/${requiredHeaders.length} 个必需字段。`
-      : `无法识别表头：已扫描 UsedRange 前 ${scannedRows} 行，最多命中 ${matchedCount}/${requiredHeaders.length} 个必需字段。`;
+  const missing = missingHeaders(requiredHeaders, candidate);
+  const duplicateHeaders = candidate?.duplicateRequiredHeaders ?? [];
+  const candidateContext = `候选行：${rowNumberLabel(rowNumber)}。`;
+  const missingContext = missing.length > 0 ? `缺失字段：${missing.join("、")}。` : "";
+  const duplicateContext =
+    duplicateHeaders.length > 0 ? `重复必需字段：${duplicateHeaders.join("、")}。` : "";
+  let message: string;
+
+  if (issueType === "关键列重复") {
+    message = `关键列重复：${candidateContext}${duplicateContext}请删除或重命名重复列后重试。`;
+  } else if (issueType === "表头识别不唯一") {
+    message = `表头识别不唯一：已扫描 UsedRange 前 ${scannedRows} 行，多个候选行最多命中 ${matchedCount}/${requiredHeaders.length} 个必需字段。${candidateContext}${missingContext}`;
+  } else {
+    message = `无法识别表头：已扫描 UsedRange 前 ${scannedRows} 行，最多命中 ${matchedCount}/${requiredHeaders.length} 个必需字段。${candidateContext}${missingContext}`;
+  }
 
   return {
     ok: false,
@@ -127,7 +160,8 @@ function failure(
     headerRowNumber: rowNumber,
     matchedCount,
     requiredCount: requiredHeaders.length,
-    missingHeaders: missingHeaders(requiredHeaders, candidate)
+    missingHeaders: missing,
+    duplicateHeaders
   };
 }
 
@@ -153,6 +187,10 @@ export function detectHeaderRow(
   }
 
   const selected = tied.length > 1 ? tied.sort((left, right) => left.rowIndex - right.rowIndex)[0] : best;
+  if (selected.duplicateRequiredCount > 0) {
+    return failure("关键列重复", requiredHeaders, selected, scanRows);
+  }
+
   return {
     ok: true,
     headerRowIndex: selected.rowIndex,

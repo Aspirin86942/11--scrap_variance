@@ -1,7 +1,7 @@
 import type { ParsedTable, RawRow } from "../types/scrap";
 import type { WpsCellValue, WpsMatrix } from "../types/wps";
 import { isBlankValue, normalizeText } from "../utils/text";
-import { detectHeaderRow, type HeaderDetectionOptions } from "./header-detection";
+import { detectHeaderRow, HeaderDetectionError, type HeaderDetectionOptions } from "./header-detection";
 
 function worksheetRowNumber(rowIndex: number, usedRangeStartRow: number | undefined): number | string {
   if (typeof usedRangeStartRow === "number" && Number.isFinite(usedRangeStartRow)) {
@@ -17,7 +17,7 @@ export function parseTableFromMatrix(
 ): ParsedTable {
   const headerResult = detectHeaderRow(matrix, requiredHeaders, options);
   if (!headerResult.ok) {
-    throw new Error(headerResult.message);
+    throw new HeaderDetectionError(headerResult);
   }
 
   const rows: RawRow[] = [];
