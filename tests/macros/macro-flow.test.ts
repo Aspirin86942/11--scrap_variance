@@ -1,0 +1,129 @@
+import { describe, expect, it } from "vitest";
+import { ERP_REQUIRED_HEADERS, OA_REQUIRED_HEADERS, SHEET_NAMES } from "../../src/constants";
+// @ts-expect-error Vitest must bypass the legacy same-name .js macro and load the new TypeScript module.
+import { runScrapVariancePrecheck } from "../../src/macros/scrap-variance-precheck.ts";
+// @ts-expect-error Vitest must bypass the legacy same-name .js macro and load the new TypeScript module.
+import { runScrapVarianceQuery } from "../../src/macros/scrap-variance-query.ts";
+import { setupQueryPanel } from "../../src/macros/setup-query-panel";
+import type { OutputMatrix } from "../../src/types/scrap";
+import type { ScrapVarianceGlobal, WpsSheet } from "../../src/types/wps";
+import { createFakeApplication, createFakeSheet, type FakeSheet } from "../wps-api/fakes";
+
+function makeRoot(sheets: FakeSheet[]): ScrapVarianceGlobal {
+  return {
+    Application: createFakeApplication(sheets)
+  };
+}
+
+function getSheet(root: ScrapVarianceGlobal, index: number): WpsSheet {
+  const sheet = root.Application?.ActiveWorkbook?.Worksheets?.Item(index);
+  if (!sheet) {
+    throw new Error(`missing fake sheet ${index}`);
+  }
+  return sheet;
+}
+
+function flattenWrites(sheet: FakeSheet): string[] {
+  return sheet.writes.flatMap((write) =>
+    Array.isArray(write.value) ? (write.value as OutputMatrix).flat().map(String) : [String(write.value)]
+  );
+}
+
+function validOaRow(): Array<string | number> {
+  return ["F1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10];
+}
+
+function validErpRow(): Array<string | number> {
+  return ["OUT1", "2026/5/2", "F1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10];
+}
+
+describe("TypeScript macro orchestration", () => {
+  it("setupQueryPanel ensures 查询面板 and writes the A1:B7 setup matrix in bulk", () => {
+    const root = makeRoot([]);
+
+    const sheet = setupQueryPanel(root) as FakeSheet;
+
+    expect(sheet.Name).toBe(SHEET_NAMES.panel);
+    expect(getSheet(root, 1).Name).toBe(SHEET_NAMES.panel);
+    expect(sheet.writes).toEqual([
+      {
+        address: "A1:B7",
+        value: [
+          ["报废差异查询", ""],
+          ["公司简称", ""],
+          ["一级部门", ""],
+          ["二级部门", ""],
+          ["开始日期", ""],
+          ["结束日期", ""],
+          ["运行函数", "runScrapVarianceQuery"]
+        ]
+      }
+    ]);
+  });
+
+  it("runScrapVariancePrecheck detects OA headers below UsedRange row 1 and writes no-issue status", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [
+      ["导出条件"],
+      ["制表人"],
+      [...OA_REQUIRED_HEADERS],
+      validOaRow()
+    ]);
+    const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
+    const root = makeRoot([oaSheet, erpSheet]);
+
+    runScrapVariancePrecheck(root);
+
+    const resultSheet = getSheet(root, 3) as FakeSheet;
+    const output = flattenWrites(resultSheet);
+    expect(resultSheet.Name).toBe(SHEET_NAMES.precheckResult);
+    expect(resultSheet.clears).toEqual(["A1:H200000"]);
+    expect(output).not.toContain("缺少关键列");
+    expect(output).toContain("未发现预验证问题");
+  });
+
+  it("runScrapVarianceQuery reads tables and writes summary plus detail matrices", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
+    const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
+    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    panelSheet.rangeValues.set("B2:B6", [[""], [""], [""], [""], [""]]);
+    const root = makeRoot([oaSheet, erpSheet, panelSheet]);
+
+    runScrapVarianceQuery(root);
+
+    const output = flattenWrites(panelSheet);
+    expect(panelSheet.clears).toEqual(["A8:O200000"]);
+    expect(output).toContain("汇总差异");
+    expect(output).toContain("明细差异");
+    expect(output).toContain("OA和ERP都有，数量一致");
+  });
+
+  it("runScrapVarianceQuery clears output and writes a no-match message when filters match nothing", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
+    const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
+    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    panelSheet.rangeValues.set("B2:B6", [["不存在公司"], [""], [""], [0], [null]]);
+    const root = makeRoot([oaSheet, erpSheet, panelSheet]);
+
+    runScrapVarianceQuery(root);
+
+    expect(panelSheet.clears).toEqual(["A8:O200000"]);
+    expect(panelSheet.writes).toContainEqual({
+      address: "A8:A8",
+      value: [["查询条件没有匹配到 OA 数据。"]]
+    });
+  });
+
+  it("runScrapVariancePrecheck converts read errors into one system issue row", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [["没有表头"]]);
+    const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
+    const root = makeRoot([oaSheet, erpSheet]);
+
+    runScrapVariancePrecheck(root);
+
+    const resultSheet = getSheet(root, 3) as FakeSheet;
+    const output = flattenWrites(resultSheet);
+    expect(output).toContain("发现 1 条预验证问题");
+    expect(output).toContain("系统");
+    expect(output).toContain("预验证执行失败");
+  });
+});
