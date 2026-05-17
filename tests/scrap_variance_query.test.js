@@ -854,6 +854,24 @@ test("rowsFromValues parses rows below a selected header row", () => {
   assert.deepEqual(rows, [{ 表单编号: "CHBF1", 数量: 2 }]);
 });
 
+test("rowsFromValues accepts WPS add-in numeric object matrices", () => {
+  const rows = core.rowsFromValues(
+    {
+      1: { 1: "单据编号", 2: "日期", 3: "源单单号" },
+      2: { 1: "QOUT1", 2: "2026/5/1", 3: "CHBF1" },
+    },
+    1
+  );
+
+  assert.deepEqual(rows, [
+    {
+      单据编号: "QOUT1",
+      日期: "2026/5/1",
+      源单单号: "CHBF1",
+    },
+  ]);
+});
+
 test("runScrapVarianceQuery writes ERP-only results when filtered OA rows are empty", () => {
   const previousApplication = macro.Application;
   const panelSheet = createFakeSheet("查询面板", [], {

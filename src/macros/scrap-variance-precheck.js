@@ -65,7 +65,86 @@ function isArray(value) {
   return Object.prototype.toString.call(value) === "[object Array]";
 }
 
+function isNumericKey(key) {
+  return /^\d+$/.test(String(key));
+}
+
+function sortedNumericKeys(value) {
+  var keys = [];
+  var key;
+
+  if (!value || typeof value !== "object") {
+    return keys;
+  }
+
+  for (key in value) {
+    if (
+      Object.prototype.hasOwnProperty.call(value, key) &&
+      isNumericKey(key)
+    ) {
+      keys.push(Number(key));
+    }
+  }
+
+  keys.sort(function (left, right) {
+    return left - right;
+  });
+  return keys;
+}
+
+function numericObjectToArray(value) {
+  var keys = sortedNumericKeys(value);
+  var result = [];
+  var offset;
+  var index;
+  var numericKey;
+
+  if (keys.length === 0) {
+    return null;
+  }
+
+  offset = keys[0] === 0 ? 0 : 1;
+  for (index = 0; index < keys.length; index += 1) {
+    numericKey = keys[index];
+    result[numericKey - offset] = value[String(numericKey)];
+  }
+
+  return result;
+}
+
+function numericObjectToMatrix(value) {
+  var rowKeys = sortedNumericKeys(value);
+  var firstRow;
+  var rows = [];
+  var index;
+  var rowValue;
+  var rowArray;
+
+  if (rowKeys.length === 0) {
+    return null;
+  }
+
+  firstRow = value[String(rowKeys[0])];
+  if (
+    firstRow &&
+    typeof firstRow === "object" &&
+    (isArray(firstRow) || sortedNumericKeys(firstRow).length > 0)
+  ) {
+    for (index = 0; index < rowKeys.length; index += 1) {
+      rowValue = value[String(rowKeys[index])];
+      rowArray = isArray(rowValue) ? rowValue : numericObjectToArray(rowValue);
+      rows.push(rowArray || [rowValue]);
+    }
+    return rows;
+  }
+
+  rowArray = numericObjectToArray(value);
+  return rowArray ? [rowArray] : null;
+}
+
 function normalizeMatrix(values) {
+  var objectMatrix;
+
   if (isArray(values)) {
     if (values.length === 0) {
       return [];
@@ -75,6 +154,14 @@ function normalizeMatrix(values) {
     }
     return [values];
   }
+
+  if (values && typeof values === "object") {
+    objectMatrix = numericObjectToMatrix(values);
+    if (objectMatrix) {
+      return objectMatrix;
+    }
+  }
+
   return [[values]];
 }
 

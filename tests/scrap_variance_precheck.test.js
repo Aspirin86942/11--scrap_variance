@@ -105,6 +105,28 @@ test("rowsFromValues returns headers and Excel row numbers from a selected heade
   ]);
 });
 
+test("rowsFromValues accepts WPS add-in numeric object matrices", () => {
+  const table = core.rowsFromValues(
+    {
+      1: { 1: "导出条件" },
+      2: { 1: "制表人" },
+      3: { 1: "表单编号", 2: "申请日期", 3: "数量" },
+      4: { 1: "CHBF1", 2: "2026/5/1", 3: 2 },
+    },
+    3
+  );
+
+  assert.deepEqual(table.headers, ["表单编号", "申请日期", "数量"]);
+  assert.deepEqual(table.rows, [
+    {
+      _rowNumber: 4,
+      表单编号: "CHBF1",
+      申请日期: "2026/5/1",
+      数量: 2,
+    },
+  ]);
+});
+
 test("validateRequiredHeaders reports missing columns as errors", () => {
   const issues = core.validateRequiredHeaders("OA", ["表单编号"], [
     "表单编号",
