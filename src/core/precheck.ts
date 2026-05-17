@@ -4,6 +4,29 @@ import { parseDecimal } from "../utils/decimal";
 import { isBlankValue, normalizeText } from "../utils/text";
 
 const PRECHECK_RESULT_HEADERS = ["级别", "数据源", "行号", "字段名", "原值", "问题类型", "原因", "处理建议"];
+const OA_REQUIRED_HEADERS = [
+  "表单编号",
+  "申请日期",
+  "公司简称",
+  "一级部门",
+  "二级部门",
+  "物料代码",
+  "物料名称",
+  "数量",
+  "实际预算金额mx"
+];
+const ERP_REQUIRED_HEADERS = [
+  "单据编号",
+  "日期",
+  "源单单号",
+  "区分公司简称",
+  "一级部门",
+  "二级部门",
+  "物料编码",
+  "物料名称",
+  "实发数量",
+  "总成本"
+];
 
 function getRows(table: ParsedTable | null | undefined): RawRow[] {
   return table?.rows ?? [];
@@ -11,6 +34,11 @@ function getRows(table: ParsedTable | null | undefined): RawRow[] {
 
 function hasHeader(table: ParsedTable | null | undefined, fieldName: string): boolean {
   return (table?.headers ?? []).some((header) => normalizeText(header) === fieldName);
+}
+
+function findMissingHeaders(table: ParsedTable | null | undefined, requiredHeaders: string[]): string[] {
+  const headerSet = new Set((table?.headers ?? []).map((header) => normalizeText(header)).filter(Boolean));
+  return requiredHeaders.filter((header) => !headerSet.has(header));
 }
 
 function errorMessage(error: unknown): string {
@@ -72,6 +100,20 @@ export function buildSystemErrorIssue(error: unknown): PrecheckIssue {
     errorMessage(error),
     "检查工作簿、工作表名称或宏运行环境。"
   );
+}
+
+function buildMissingRequiredHeaderIssue(
+  source: "OA" | "ERP",
+  table: ParsedTable | null | undefined,
+  missingHeaders: string[],
+  requiredCount: number
+): PrecheckIssue {
+  return buildHeaderDetectionIssue(source, {
+    issueType: "缺少关键列",
+    message: `${source} 表缺少关键列：缺失 ${missingHeaders.length}/${requiredCount} 个必需字段，无法继续预验证行级数据。`,
+    missingHeaders,
+    headerRowNumber: table?.headerRowNumber ?? ""
+  });
 }
 
 function validateDateColumn(source: "OA" | "ERP", rows: RawRow[], fieldName: string): PrecheckIssue[] {
@@ -270,6 +312,23 @@ export function buildPrecheckIssues(
   const issues: PrecheckIssue[] = [];
   const oaRows = getRows(oaTable);
   const erpRows = getRows(erpTable);
+  const missingHeaderIssues: PrecheckIssue[] = [];
+  const missingOaHeaders = findMissingHeaders(oaTable, OA_REQUIRED_HEADERS);
+  const missingErpHeaders = findMissingHeaders(erpTable, ERP_REQUIRED_HEADERS);
+
+  if (missingOaHeaders.length > 0) {
+    missingHeaderIssues.push(
+      buildMissingRequiredHeaderIssue("OA", oaTable, missingOaHeaders, OA_REQUIRED_HEADERS.length)
+    );
+  }
+  if (missingErpHeaders.length > 0) {
+    missingHeaderIssues.push(
+      buildMissingRequiredHeaderIssue("ERP", erpTable, missingErpHeaders, ERP_REQUIRED_HEADERS.length)
+    );
+  }
+  if (missingHeaderIssues.length > 0) {
+    return missingHeaderIssues;
+  }
 
   appendValidationIfHeaderExists(issues, oaTable, "申请日期", (rows, fieldName) =>
     validateDateColumn("OA", rows, fieldName)
