@@ -53,6 +53,7 @@ describe("query core", () => {
     const grouped = buildOaRows(rows, filters);
 
     expect([...grouped.keys()]).toEqual(["CHBF2026050001||MAT-A"]);
+    expect(grouped.get("CHBF2026050001||MAT-A")?.oaDate).toBe("2026-05-01");
     expect(grouped.get("CHBF2026050001||MAT-A")?.quantity.toString()).toBe("0.3");
     expect(grouped.get("CHBF2026050001||MAT-A")?.amount.toString()).toBe("25.3");
   });
@@ -124,8 +125,31 @@ describe("query core", () => {
     const erpOnly = buildErpOnlyRows(erpRows, collectSelectedOaForms(oaGrouped), filters);
 
     expect(erpForOa.get("CHBF2026050001||MAT-A")?.quantity.toString()).toBe("2");
-    expect(erpForOa.get("CHBF2026050001||MAT-A")?.erpDocNumbers).toEqual(["QOUT1", "QOUT2"]);
+    expect(erpForOa.get("CHBF2026050001||MAT-A")?.erpDocNumbers).toBe("QOUT1,QOUT2");
+    expect(erpForOa.get("CHBF2026050001||MAT-A")?.erpDate).toBe("2026-05-03、2026-05-04");
     expect([...erpOnly.keys()]).toEqual(["CHBF9999999999||MAT-Z"]);
+    expect(erpOnly.get("CHBF9999999999||MAT-Z")?.erpDate).toBe("2026-05-04");
+  });
+
+  it("deduplicates aggregate dates without changing the grouping key", () => {
+    const filters = parseFilters({
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026-05-01",
+      endDate: "2026-05-31"
+    });
+    const grouped = buildOaRows(
+      [
+        { 表单编号: "F-DATE", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 1, 实际预算金额mx: 10 },
+        { 表单编号: "F-DATE", 申请日期: "2026-05-01", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 2, 实际预算金额mx: 20 },
+        { 表单编号: "F-DATE", 申请日期: "2026/5/2", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 3, 实际预算金额mx: 30 }
+      ],
+      filters
+    );
+
+    expect(grouped.get("F-DATE||MAT-A")?.oaDate).toBe("2026-05-01、2026-05-02");
+    expect(grouped.get("F-DATE||MAT-A")?.quantity.toString()).toBe("6");
   });
 
   it("rejects invalid ERP dates for matched OA forms", () => {
@@ -294,7 +318,7 @@ describe("query core", () => {
       oaGrouped
     );
 
-    expect(erpForOa.get("F-DOC||MAT-A")?.erpDocNumbers).toEqual(["Q2", "Q1"]);
+    expect(erpForOa.get("F-DOC||MAT-A")?.erpDocNumbers).toBe("Q2,Q1");
     expect(compareRows(oaGrouped, erpForOa, new Map())[0]?.erpDocNumbers).toBe("Q2,Q1");
   });
 

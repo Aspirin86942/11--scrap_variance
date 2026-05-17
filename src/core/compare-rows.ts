@@ -51,7 +51,7 @@ function buildDifference(differenceType: string, oa?: OaAggRow, erp?: ErpAggRow)
   return {
     differenceType,
     formNumber,
-    erpDocNumbers: erp?.erpDocNumbers.join(",") ?? "",
+    erpDocNumbers: erp?.erpDocNumbers ?? "",
     itemCode,
     itemName,
     company,

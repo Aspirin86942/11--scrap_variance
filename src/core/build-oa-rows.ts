@@ -1,7 +1,7 @@
 import { type OaAggRow, type QueryFilters, type RawRow } from "../types/scrap";
 import { normalizeDateKey } from "../utils/date";
 import { addDecimal, parseDecimal, zeroDecimal } from "../utils/decimal";
-import { normalizeText } from "../utils/text";
+import { appendUniqueJoinedText, normalizeText } from "../utils/text";
 
 export function parseFilters(
   input: Partial<QueryFilters> | Record<string, unknown> | null | undefined = {}
@@ -91,6 +91,7 @@ export function buildOaRows(
         company: normalizeText(row["公司简称"]),
         dept1: normalizeText(row["一级部门"]),
         dept2: normalizeText(row["二级部门"]),
+        oaDate: "",
         quantity: zeroDecimal(),
         amount: zeroDecimal()
       });
@@ -100,6 +101,7 @@ export function buildOaRows(
     if (!target) {
       throw new Error(`OA 聚合失败：${key}`);
     }
+    target.oaDate = appendUniqueJoinedText(target.oaDate, dateKey);
     target.quantity = addDecimal(target.quantity, parseDecimal(row["数量"], "数量"));
     target.amount = addDecimal(target.amount, parseDecimal(row["实际预算金额mx"], "实际预算金额mx"));
   }

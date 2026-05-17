@@ -32,6 +32,7 @@ export interface OaAggRow {
   company: string;
   dept1: string;
   dept2: string;
+  oaDate: string;
   quantity: Decimal;
   amount: Decimal;
 }
@@ -44,9 +45,10 @@ export interface ErpAggRow {
   company: string;
   dept1: string;
   dept2: string;
+  erpDate: string;
   quantity: Decimal;
   cost: Decimal;
-  erpDocNumbers: string[];
+  erpDocNumbers: string;
 }
 
 export interface DetailRow {

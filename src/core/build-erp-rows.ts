@@ -1,14 +1,15 @@
 import { type ErpAggRow, type OaAggRow, type QueryFilters, type RawRow } from "../types/scrap";
 import { normalizeDateKey } from "../utils/date";
 import { addDecimal, parseDecimal, zeroDecimal } from "../utils/decimal";
-import { normalizeText } from "../utils/text";
+import { appendUniqueJoinedText, normalizeText } from "../utils/text";
 import { collectSelectedOaForms, isDateInRange, makeDetailKey, matchesOrgFilters, parseFilters } from "./build-oa-rows";
 
 function addErpRowToGroup(
   result: Map<string, ErpAggRow>,
   row: RawRow,
   sourceFormNumber: string,
-  itemCode: string
+  itemCode: string,
+  dateKey: string
 ): void {
   const key = makeDetailKey(sourceFormNumber, itemCode);
   const docNumber = normalizeText(row["单据编号"]);
@@ -23,9 +24,10 @@ function addErpRowToGroup(
       company: normalizeText(row["区分公司简称"]),
       dept1: normalizeText(row["一级部门"]),
       dept2: normalizeText(row["二级部门"]),
+      erpDate: "",
       quantity: zeroDecimal(),
       cost: zeroDecimal(),
-      erpDocNumbers: []
+      erpDocNumbers: ""
     });
   }
 
@@ -33,11 +35,10 @@ function addErpRowToGroup(
   if (!target) {
     throw new Error(`ERP 聚合失败：${key}`);
   }
+  target.erpDate = appendUniqueJoinedText(target.erpDate, dateKey);
+  target.erpDocNumbers = appendUniqueJoinedText(target.erpDocNumbers, docNumber, ",");
   target.quantity = addDecimal(target.quantity, parseDecimal(row["实发数量"], "实发数量"));
   target.cost = addDecimal(target.cost, parseDecimal(row["总成本"], "总成本"));
-  if (docNumber && !target.erpDocNumbers.includes(docNumber)) {
-    target.erpDocNumbers.push(docNumber);
-  }
 }
 
 export function buildErpRowsForOa(
@@ -53,8 +54,8 @@ export function buildErpRowsForOa(
     if (!sourceFormNumber || !itemCode || !selectedForms.has(sourceFormNumber)) {
       continue;
     }
-    normalizeDateKey(row["日期"]);
-    addErpRowToGroup(result, row, sourceFormNumber, itemCode);
+    const dateKey = normalizeDateKey(row["日期"]);
+    addErpRowToGroup(result, row, sourceFormNumber, itemCode, dateKey);
   }
 
   return result;
@@ -84,7 +85,7 @@ export function buildErpOnlyRows(
       continue;
     }
 
-    addErpRowToGroup(result, row, sourceFormNumber, itemCode);
+    addErpRowToGroup(result, row, sourceFormNumber, itemCode, dateKey);
   }
 
   return result;
