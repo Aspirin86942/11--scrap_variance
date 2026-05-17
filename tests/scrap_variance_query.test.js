@@ -36,6 +36,14 @@ test("normalizeDateKey normalizes supported date values and rejects invalid date
     () => core.normalizeDateKey("2026/2/30"),
     /日期格式不正确/
   );
+  assert.throws(
+    () => core.normalizeDateKey("2026-05-01abc"),
+    /日期格式不正确/
+  );
+  assert.throws(
+    () => core.normalizeDateKey("2026/5/1foo"),
+    /日期格式不正确/
+  );
 });
 
 test("parseFilters rejects a start date later than the end date", () => {
