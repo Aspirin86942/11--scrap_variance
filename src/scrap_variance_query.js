@@ -379,16 +379,17 @@
         continue;
       }
 
+      normalizeDateKey(row["日期"]);
       addErpRowToGroup(result, row, sourceFormNumber, itemCode);
     }
 
     return result;
   }
 
-  function buildErpOnlyRows(erpRows, allOaFormNumbers, filters) {
+  function buildErpOnlyRows(erpRows, currentOaFormNumbers, filters) {
     var result = {};
     var rows = erpRows || [];
-    var formNumberSet = allOaFormNumbers || {};
+    var formNumberSet = currentOaFormNumbers || {};
     var index;
     var row;
     var dateKey;
@@ -1009,7 +1010,7 @@
     var filters;
     var oaRows;
     var erpRows;
-    var allOaFormNumbers;
+    var currentOaFormNumbers;
     var oaGroupedRows;
     var erpRowsForOa;
     var erpOnlyRows;
@@ -1023,10 +1024,10 @@
       erpRows = readSheetData(CONFIG.sheets.erp, 1);
       validateRequiredColumns(oaRows, erpRows);
 
-      allOaFormNumbers = buildAllOaFormNumberSet(oaRows);
       oaGroupedRows = buildOaRows(oaRows, filters);
+      currentOaFormNumbers = collectSelectedOaForms(oaGroupedRows);
       erpRowsForOa = buildErpRowsForOa(erpRows, oaGroupedRows);
-      erpOnlyRows = buildErpOnlyRows(erpRows, allOaFormNumbers, filters);
+      erpOnlyRows = buildErpOnlyRows(erpRows, currentOaFormNumbers, filters);
       if (
         Object.keys(oaGroupedRows).length === 0 &&
         Object.keys(erpOnlyRows).length === 0

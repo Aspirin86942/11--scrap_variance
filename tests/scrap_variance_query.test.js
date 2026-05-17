@@ -259,6 +259,30 @@ test("buildErpRowsForOa groups ERP rows only for selected OA forms", () => {
   ]);
 });
 
+test("buildErpRowsForOa rejects invalid ERP dates for matched OA forms", () => {
+  const oaGrouped = {
+    "CHBF2026050001||MAT-A": {
+      formNumber: "CHBF2026050001",
+      itemCode: "MAT-A",
+    },
+  };
+  const rows = [
+    {
+      单据编号: "QOUT_BAD",
+      日期: "BAD_DATE",
+      源单单号: "CHBF2026050001",
+      物料编码: "MAT-A",
+      实发数量: 2,
+      总成本: 20,
+    },
+  ];
+
+  assert.throws(
+    () => core.buildErpRowsForOa(rows, oaGrouped),
+    /日期格式不正确：BAD_DATE/,
+  );
+});
+
 test("buildErpOnlyRows keeps ERP rows whose source OA is not in the full OA export", () => {
   const filters = core.parseFilters({
     company: "数控",
@@ -772,6 +796,72 @@ test("runScrapVarianceQuery writes ERP-only results when filtered OA rows are em
     const panelOutput = panelSheet.writtenValues().map(String).join("\n");
     assert.doesNotMatch(panelOutput, /查询条件没有匹配到 OA 数据。/);
     assert.match(panelOutput, /ERP出库对应OA未在当前OA数据中找到/);
+  } finally {
+    if (previousApplication === undefined) {
+      delete globalThis.Application;
+    } else {
+      globalThis.Application = previousApplication;
+    }
+  }
+});
+
+test("runScrapVarianceQuery treats ERP rows as ERP-only when source OA is outside current OA filters", () => {
+  const previousApplication = globalThis.Application;
+  const panelSheet = createFakeSheet("查询面板", [], {
+    "B2:B6": [
+      ["数控"],
+      ["生产运营中心"],
+      ["仓储部"],
+      ["2026/5/1"],
+      ["2026/5/31"],
+    ],
+  });
+  const oaSheet = createFakeSheet("查询OA-存货报废申请单", [
+    ["导出条件"],
+    ["制表人"],
+    core.CONFIG.oaHeaders,
+    [
+      "CHBF_CROSS",
+      "2026/4/30",
+      "数控",
+      "生产运营中心",
+      "仓储部",
+      "MAT-CROSS",
+      "跨期物料",
+      1,
+      10,
+    ],
+  ]);
+  const erpSheet = createFakeSheet("查询ERP-报废明细表", [
+    core.CONFIG.erpHeaders,
+    [
+      "QOUT_CROSS",
+      "2026/5/3",
+      "CHBF_CROSS",
+      "数控",
+      "生产运营中心",
+      "仓储部",
+      "MAT-CROSS",
+      "跨期物料",
+      1,
+      10,
+    ],
+  ]);
+
+  try {
+    globalThis.Application = createFakeApplication([
+      panelSheet,
+      oaSheet,
+      erpSheet,
+    ]);
+
+    runScrapVarianceQuery();
+
+    const panelOutput = panelSheet.writtenValues().map(String).join("\n");
+    assert.doesNotMatch(panelOutput, /查询条件没有匹配到 OA 数据。/);
+    assert.match(panelOutput, /ERP出库对应OA未在当前OA数据中找到/);
+    assert.match(panelOutput, /CHBF_CROSS/);
+    assert.match(panelOutput, /QOUT_CROSS/);
   } finally {
     if (previousApplication === undefined) {
       delete globalThis.Application;
