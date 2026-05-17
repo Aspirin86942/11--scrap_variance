@@ -3,17 +3,17 @@ import { decimalToNumber2, parseDecimal, subtractDecimal } from "../utils/decima
 import { normalizeText } from "../utils/text";
 
 function unionKeys(
-  left: Map<string, OaAggRow>,
-  right: Map<string, ErpAggRow>
+  left: Map<string, OaAggRow> | null | undefined,
+  right: Map<string, ErpAggRow> | null | undefined
 ): string[] {
   const result: string[] = [];
   const seen = new Set<string>();
 
-  for (const key of left.keys()) {
+  for (const key of (left ?? new Map<string, OaAggRow>()).keys()) {
     seen.add(key);
     result.push(key);
   }
-  for (const key of right.keys()) {
+  for (const key of (right ?? new Map<string, ErpAggRow>()).keys()) {
     if (!seen.has(key)) {
       seen.add(key);
       result.push(key);
@@ -23,10 +23,10 @@ function unionKeys(
   return result;
 }
 
-function buildFormNumberSet(groupedRows: Map<string, ErpAggRow>): Set<string> {
+function buildFormNumberSet(groupedRows: Map<string, ErpAggRow> | null | undefined): Set<string> {
   const result = new Set<string>();
 
-  for (const [key, row] of groupedRows.entries()) {
+  for (const [key, row] of (groupedRows ?? new Map<string, ErpAggRow>()).entries()) {
     const formNumber = normalizeText(row.formNumber || row.sourceFormNumber || key.split("||")[0]);
     if (formNumber) {
       result.add(formNumber);
@@ -75,17 +75,20 @@ function buildDifference(differenceType: string, oa?: OaAggRow, erp?: ErpAggRow)
 }
 
 export function compareRows(
-  oaRows: Map<string, OaAggRow>,
-  erpRowsForOa: Map<string, ErpAggRow>,
-  erpOnlyRows: Map<string, ErpAggRow>
+  oaRows?: Map<string, OaAggRow> | null,
+  erpRowsForOa?: Map<string, ErpAggRow> | null,
+  erpOnlyRows?: Map<string, ErpAggRow> | null
 ): DetailRow[] {
   const details: DetailRow[] = [];
   const keys = unionKeys(oaRows, erpRowsForOa);
   const erpFormNumbers = buildFormNumberSet(erpRowsForOa);
+  const activeOaRows = oaRows ?? new Map<string, OaAggRow>();
+  const activeErpRowsForOa = erpRowsForOa ?? new Map<string, ErpAggRow>();
+  const activeErpOnlyRows = erpOnlyRows ?? new Map<string, ErpAggRow>();
 
   for (const key of keys) {
-    const oa = oaRows.get(key);
-    const erp = erpRowsForOa.get(key);
+    const oa = activeOaRows.get(key);
+    const erp = activeErpRowsForOa.get(key);
     const formNumber = normalizeText(oa?.formNumber || key.split("||")[0]);
     let differenceType: string;
 
@@ -102,7 +105,7 @@ export function compareRows(
     details.push(buildDifference(differenceType, oa, erp));
   }
 
-  for (const erp of erpOnlyRows.values()) {
+  for (const erp of activeErpOnlyRows.values()) {
     details.push(buildDifference("ERP出库对应OA未在当前OA数据中找到", undefined, erp));
   }
 

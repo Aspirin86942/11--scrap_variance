@@ -11,10 +11,10 @@ function makeSummaryKey(row: DetailRow): string {
   return `${normalizeText(row.company)}||${normalizeText(row.dept1)}||${normalizeText(row.dept2)}`;
 }
 
-export function buildSummaryRows(detailRows: DetailRow[]): SummaryRow[] {
+export function buildSummaryRows(detailRows?: DetailRow[] | null): SummaryRow[] {
   const grouped = new Map<string, SummaryAccumulator>();
 
-  for (const row of detailRows) {
+  for (const row of detailRows ?? []) {
     const key = makeSummaryKey(row);
     let summary = grouped.get(key);
 
@@ -79,10 +79,10 @@ export function buildSummaryRows(detailRows: DetailRow[]): SummaryRow[] {
   return result;
 }
 
-export function summaryRowsToValues(summaryRows: SummaryRow[]): OutputMatrix {
+export function summaryRowsToValues(summaryRows?: SummaryRow[] | null): OutputMatrix {
   return [
     [...SUMMARY_HEADERS],
-    ...summaryRows.map((row) => [
+    ...(summaryRows ?? []).map((row) => [
       row.company,
       row.dept1,
       row.dept2,
@@ -97,10 +97,10 @@ export function summaryRowsToValues(summaryRows: SummaryRow[]): OutputMatrix {
   ];
 }
 
-export function detailRowsToValues(detailRows: DetailRow[]): OutputMatrix {
+export function detailRowsToValues(detailRows?: DetailRow[] | null): OutputMatrix {
   return [
     [...DETAIL_HEADERS],
-    ...detailRows.map((row) => [
+    ...(detailRows ?? []).map((row) => [
       row.differenceType,
       row.formNumber,
       row.erpDocNumbers,

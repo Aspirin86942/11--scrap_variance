@@ -2,17 +2,7 @@ import { type ErpAggRow, type OaAggRow, type QueryFilters, type RawRow } from ".
 import { normalizeDateKey } from "../utils/date";
 import { addDecimal, parseDecimal, zeroDecimal } from "../utils/decimal";
 import { normalizeText } from "../utils/text";
-import { isDateInRange, makeDetailKey, matchesOrgFilters } from "./build-oa-rows";
-
-function collectSelectedOaForms(oaGroupedRows: Map<string, OaAggRow>): Set<string> {
-  const forms = new Set<string>();
-  for (const row of oaGroupedRows.values()) {
-    if (row.formNumber) {
-      forms.add(row.formNumber);
-    }
-  }
-  return forms;
-}
+import { collectSelectedOaForms, isDateInRange, makeDetailKey, matchesOrgFilters, parseFilters } from "./build-oa-rows";
 
 function addErpRowToGroup(
   result: Map<string, ErpAggRow>,
@@ -51,13 +41,13 @@ function addErpRowToGroup(
 }
 
 export function buildErpRowsForOa(
-  erpRows: RawRow[],
-  oaGroupedRows: Map<string, OaAggRow>
+  erpRows?: RawRow[] | null,
+  oaGroupedRows?: Map<string, OaAggRow> | null
 ): Map<string, ErpAggRow> {
   const result = new Map<string, ErpAggRow>();
   const selectedForms = collectSelectedOaForms(oaGroupedRows);
 
-  for (const row of erpRows) {
+  for (const row of erpRows ?? []) {
     const sourceFormNumber = normalizeText(row["源单单号"]);
     const itemCode = normalizeText(row["物料编码"]);
     if (!sourceFormNumber || !itemCode || !selectedForms.has(sourceFormNumber)) {
@@ -71,24 +61,26 @@ export function buildErpRowsForOa(
 }
 
 export function buildErpOnlyRows(
-  erpRows: RawRow[],
-  currentOaFormNumbers: Set<string>,
-  filters: QueryFilters
+  erpRows?: RawRow[] | null,
+  currentOaFormNumbers?: Set<string> | null,
+  filters?: QueryFilters | null
 ): Map<string, ErpAggRow> {
   const result = new Map<string, ErpAggRow>();
+  const activeFormNumbers = currentOaFormNumbers ?? new Set<string>();
+  const activeFilters = filters ?? parseFilters();
 
-  for (const row of erpRows) {
+  for (const row of erpRows ?? []) {
     const dateKey = normalizeDateKey(row["日期"]);
-    if (!isDateInRange(dateKey, filters)) {
+    if (!isDateInRange(dateKey, activeFilters)) {
       continue;
     }
-    if (!matchesOrgFilters(row["区分公司简称"], row["一级部门"], row["二级部门"], filters)) {
+    if (!matchesOrgFilters(row["区分公司简称"], row["一级部门"], row["二级部门"], activeFilters)) {
       continue;
     }
 
     const sourceFormNumber = normalizeText(row["源单单号"]);
     const itemCode = normalizeText(row["物料编码"]);
-    if (!sourceFormNumber || !itemCode || currentOaFormNumbers.has(sourceFormNumber)) {
+    if (!sourceFormNumber || !itemCode || activeFormNumbers.has(sourceFormNumber)) {
       continue;
     }
 
