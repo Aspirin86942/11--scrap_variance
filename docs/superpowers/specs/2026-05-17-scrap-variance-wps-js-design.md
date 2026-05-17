@@ -118,7 +118,7 @@ ERP 侧按 `ERP源单单号 + 物料编码` 合并实发数量和总成本。
 
 ### ERP 未匹配 OA 的口径
 
-ERP 中存在出库记录，但 `ERP.源单单号` 在全量 OA 原始数据的 `表单编号` 中找不到时，不直接判定为违规。
+ERP 中存在出库记录，但 `ERP.源单单号` 不在当前筛选后的 OA 结果的 `表单编号` 集合中时，不直接判定为违规。
 
 这类记录输出为：
 
@@ -126,9 +126,9 @@ ERP 中存在出库记录，但 `ERP.源单单号` 在全量 OA 原始数据的 
 ERP出库对应OA未在当前OA数据中找到
 ```
 
-原因是当前 OA 导出数据可能不完整。结果中必须保留 `ERP.源单单号`，方便回 OA 系统补查。
+原因是某条 OA 申请可能真实存在，但落在当前查询的日期、公司或部门范围之外。这种情况下，ERP 行如果落在当前 ERP 查询范围内，仍然应该显示出来供人工调查。结果中必须保留 `ERP.源单单号`，方便回 OA 系统补查。
 
-这类记录使用 `ERP.日期` 判断是否落入查询日期区间，并使用 ERP 侧的公司、部门字段匹配查询条件。判断是否找不到 OA 时必须使用全量 OA 原始表单号集合，不能只用筛选后的 OA 结果，避免把跨期 OA 误报成缺失。
+这类记录使用 `ERP.日期` 判断是否落入查询日期区间，并使用 ERP 侧的公司、部门字段匹配查询条件。判断是否属于 ERP-only 时，必须基于当前筛选后的 OA 结果集合，而不是全量 OA 导出集合；否则会把“当前查询范围内 ERP 有记录，但 OA 申请落在当前范围外”的情况隐藏掉。
 
 ## 差异类型
 
@@ -219,16 +219,16 @@ function runScrapVarianceQuery() {
 
     validateRequiredColumns(oaRawRows, erpRawRows);
 
-    const allOaFormNumbers = buildAllOaFormNumberSet(oaRawRows);
     const oaRows = buildOaRows(oaRawRows, filters);
+    const currentOaFormNumbers = collectSelectedOaForms(oaRows);
 
     // ERP 已匹配 OA 的部分以 OA 表单编号关联，不按 ERP 日期二次过滤。
     // 为什么这样做：避免 OA 申请和 ERP 出库跨期时，被误判为没有出库。
     const erpRowsForOa = buildErpRowsForOa(erpRawRows, oaRows);
 
-    // ERP 找不到当前 OA 原始数据的部分按 ERP 出库日期过滤。
+    // ERP 不在当前筛选 OA 结果中的部分按 ERP 出库日期过滤。
     // 为什么这样做：这类记录没有可用 OA 申请日期，只能用 ERP 日期判断是否属于本次查询范围。
-    const erpOnlyRows = buildErpOnlyRows(erpRawRows, allOaFormNumbers, filters);
+    const erpOnlyRows = buildErpOnlyRows(erpRawRows, currentOaFormNumbers, filters);
 
     const detailRows = compareRows(oaRows, erpRowsForOa, erpOnlyRows);
     const summaryRows = buildSummaryRows(detailRows);

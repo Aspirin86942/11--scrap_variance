@@ -283,7 +283,7 @@ test("buildErpRowsForOa rejects invalid ERP dates for matched OA forms", () => {
   );
 });
 
-test("buildErpOnlyRows keeps ERP rows whose source OA is not in the full OA export", () => {
+test("buildErpOnlyRows keeps ERP rows whose source OA is not in the current filtered OA result", () => {
   const filters = core.parseFilters({
     company: "数控",
     dept1: "生产运营中心",

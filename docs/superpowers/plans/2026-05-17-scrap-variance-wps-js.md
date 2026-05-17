@@ -150,7 +150,7 @@ test("buildErpRowsForOa groups ERP rows only for selected OA forms", () => {
   assert.deepEqual(grouped["CHBF2026050001||MAT-A"].erpDocNumbers, ["QOUT1", "QOUT2"]);
 });
 
-test("buildErpOnlyRows keeps ERP rows whose source OA is not in the full OA export", () => {
+test("buildErpOnlyRows keeps ERP rows whose source OA is not in the current filtered OA result", () => {
   const filters = core.parseFilters({
     company: "数控",
     dept1: "生产运营中心",
@@ -159,7 +159,7 @@ test("buildErpOnlyRows keeps ERP rows whose source OA is not in the full OA expo
     endDate: "2026-05-31",
   });
 
-  const allOaFormNumbers = { CHBF2026050001: true };
+  const currentOaFormNumbers = { CHBF2026050001: true };
   const erpRows = [
     {
       单据编号: "QOUT999",
@@ -187,7 +187,7 @@ test("buildErpOnlyRows keeps ERP rows whose source OA is not in the full OA expo
     },
   ];
 
-  const grouped = core.buildErpOnlyRows(erpRows, allOaFormNumbers, filters);
+  const grouped = core.buildErpOnlyRows(erpRows, currentOaFormNumbers, filters);
 
   assert.deepEqual(Object.keys(grouped), ["CHBF9999999999||MAT-Z"]);
   assert.equal(grouped["CHBF9999999999||MAT-Z"].quantity, 7);
@@ -446,7 +446,7 @@ Create `src/scrap_variance_query.js` with this content:
     return result;
   }
 
-  function buildErpOnlyRows(erpRows, allOaFormNumbers, filters) {
+  function buildErpOnlyRows(erpRows, currentOaFormNumbers, filters) {
     const result = {};
     const headers = CONFIG.erpHeaders;
 
@@ -455,7 +455,7 @@ Create `src/scrap_variance_query.js` with this content:
       const itemCode = normalizeText(row[headers.itemCode]);
       const dateKey = normalizeDateKey(row[headers.date]);
 
-      if (!itemCode || allOaFormNumbers[sourceFormNumber]) {
+      if (!itemCode || currentOaFormNumbers[sourceFormNumber]) {
         continue;
       }
       if (!isDateInRange(dateKey, filters)) {
@@ -1201,10 +1201,10 @@ In `src/scrap_variance_query.js`, insert this block immediately before `function
 
       validateRequiredColumns(oaRowsRaw, erpRowsRaw);
 
-      const allOaFormNumbers = buildAllOaFormNumberSet(oaRowsRaw);
       const oaRows = buildOaRows(oaRowsRaw, filters);
+      const currentOaFormNumbers = collectSelectedOaForms(oaRows);
       const erpRowsForOa = buildErpRowsForOa(erpRowsRaw, oaRows);
-      const erpOnlyRows = buildErpOnlyRows(erpRowsRaw, allOaFormNumbers, filters);
+      const erpOnlyRows = buildErpOnlyRows(erpRowsRaw, currentOaFormNumbers, filters);
       const detailRows = compareRows(oaRows, erpRowsForOa, erpOnlyRows);
       const summaryRows = buildSummaryRows(detailRows);
 
