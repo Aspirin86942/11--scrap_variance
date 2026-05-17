@@ -111,7 +111,7 @@ describe("TypeScript macro orchestration", () => {
     runScrapVarianceQuery(root);
 
     const output = flattenWrites(panelSheet);
-    expect(panelSheet.clears).toEqual(["A8:O200000"]);
+    expect(panelSheet.clears).toEqual(["A8:Q200000"]);
     expect(output).toContain("汇总差异");
     expect(output).toContain("明细差异");
     expect(output).toContain("OA和ERP都有，数量一致");
@@ -150,7 +150,7 @@ describe("TypeScript macro orchestration", () => {
 
     runScrapVarianceQuery(root);
 
-    expect(panelSheet.clears).toEqual(["A8:O200000"]);
+    expect(panelSheet.clears).toEqual(["A8:Q200000"]);
     expect(panelSheet.writes).toContainEqual({
       address: "A8:A8",
       value: [["查询条件没有匹配到 OA 数据。"]]
