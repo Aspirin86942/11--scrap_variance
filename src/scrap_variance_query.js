@@ -385,6 +385,219 @@
     return result;
   }
 
+  function round2(value) {
+    return Math.round(normalizeNumber(value) * 100) / 100;
+  }
+
+  function unionKeys(left, right) {
+    var result = [];
+    var seen = {};
+    var leftKeys = Object.keys(left || {});
+    var rightKeys = Object.keys(right || {});
+    var index;
+    var key;
+
+    for (index = 0; index < leftKeys.length; index += 1) {
+      key = leftKeys[index];
+      if (!seen[key]) {
+        seen[key] = true;
+        result.push(key);
+      }
+    }
+
+    for (index = 0; index < rightKeys.length; index += 1) {
+      key = rightKeys[index];
+      if (!seen[key]) {
+        seen[key] = true;
+        result.push(key);
+      }
+    }
+
+    return result;
+  }
+
+  function buildFormNumberSet(groupedRows) {
+    var result = {};
+    var rows = groupedRows || {};
+    var keys = Object.keys(rows);
+    var index;
+    var row;
+    var formNumber;
+
+    for (index = 0; index < keys.length; index += 1) {
+      row = rows[keys[index]] || {};
+      formNumber = normalizeText(row.formNumber || row.sourceFormNumber);
+      if (!formNumber) {
+        formNumber = normalizeText(keys[index].split("||")[0]);
+      }
+      if (formNumber) {
+        result[formNumber] = true;
+      }
+    }
+
+    return result;
+  }
+
+  function formatErpDocNumbers(erp) {
+    var docNumbers = erp && erp.erpDocNumbers;
+
+    if (!docNumbers) {
+      return "";
+    }
+    if (Object.prototype.toString.call(docNumbers) === "[object Array]") {
+      return docNumbers.join(",");
+    }
+    return normalizeText(docNumbers);
+  }
+
+  function buildDifference(differenceType, oa, erp) {
+    var oaRow = oa || {};
+    var erpRow = erp || {};
+    var formNumber = normalizeText(
+      oaRow.formNumber || erpRow.formNumber || erpRow.sourceFormNumber
+    );
+    var itemCode = normalizeText(oaRow.itemCode || erpRow.itemCode);
+    var itemName = normalizeText(oaRow.itemName || erpRow.itemName);
+    var company = normalizeText(oaRow.company || erpRow.company);
+    var dept1 = normalizeText(oaRow.dept1 || erpRow.dept1);
+    var dept2 = normalizeText(oaRow.dept2 || erpRow.dept2);
+    var oaQuantity = oa ? round2(oaRow.quantity) : 0;
+    var erpQuantity = erp ? round2(erpRow.quantity) : 0;
+    var oaAmount = oa ? round2(oaRow.amount) : 0;
+    var erpCost = erp ? round2(erpRow.cost) : 0;
+    var remark =
+      differenceType === "ERP出库对应OA未在当前OA数据中找到"
+        ? "请用 ERP 源单单号回 OA 系统补查。"
+        : "";
+
+    return {
+      differenceType: differenceType,
+      formNumber: formNumber,
+      erpDocNumbers: formatErpDocNumbers(erp),
+      itemCode: itemCode,
+      itemName: itemName,
+      company: company,
+      dept1: dept1,
+      dept2: dept2,
+      oaQuantity: oaQuantity,
+      erpQuantity: erpQuantity,
+      quantityDiff: round2(oaQuantity - erpQuantity),
+      oaAmount: oaAmount,
+      erpCost: erpCost,
+      amountDiff: round2(oaAmount - erpCost),
+      remark: remark,
+    };
+  }
+
+  function compareRows(oaRows, erpRowsForOa, erpOnlyRows) {
+    var details = [];
+    var keys = unionKeys(oaRows, erpRowsForOa);
+    var erpFormNumbers = buildFormNumberSet(erpRowsForOa);
+    var erpOnlyKeys = Object.keys(erpOnlyRows || {});
+    var index;
+    var key;
+    var oa;
+    var erp;
+    var formNumber;
+    var differenceType;
+
+    for (index = 0; index < keys.length; index += 1) {
+      key = keys[index];
+      oa = oaRows && oaRows[key];
+      erp = erpRowsForOa && erpRowsForOa[key];
+      formNumber = normalizeText((oa && oa.formNumber) || key.split("||")[0]);
+
+      if (oa && !erp && !erpFormNumbers[formNumber]) {
+        differenceType = "OA有申请，ERP无出库";
+      } else if (!oa || !erp) {
+        differenceType = "OA和ERP都有，但物料明细不一致";
+      } else if (round2(oa.quantity) !== round2(erp.quantity)) {
+        differenceType = "OA和ERP都有，但数量不同";
+      } else {
+        differenceType = "OA和ERP都有，数量一致";
+      }
+
+      details.push(buildDifference(differenceType, oa, erp));
+    }
+
+    for (index = 0; index < erpOnlyKeys.length; index += 1) {
+      key = erpOnlyKeys[index];
+      details.push(
+        buildDifference(
+          "ERP出库对应OA未在当前OA数据中找到",
+          null,
+          erpOnlyRows[key]
+        )
+      );
+    }
+
+    return details;
+  }
+
+  function addSummaryType(summary, differenceType) {
+    if (differenceType && summary._differenceTypes.indexOf(differenceType) === -1) {
+      summary._differenceTypes.push(differenceType);
+    }
+  }
+
+  function buildSummaryRows(detailRows) {
+    var rows = detailRows || [];
+    var grouped = {};
+    var order = [];
+    var index;
+    var row;
+    var key;
+    var summary;
+    var result = [];
+
+    for (index = 0; index < rows.length; index += 1) {
+      row = rows[index] || {};
+      key =
+        normalizeText(row.company) +
+        "||" +
+        normalizeText(row.dept1) +
+        "||" +
+        normalizeText(row.dept2);
+
+      if (!grouped[key]) {
+        grouped[key] = {
+          company: normalizeText(row.company),
+          dept1: normalizeText(row.dept1),
+          dept2: normalizeText(row.dept2),
+          oaQuantity: 0,
+          erpQuantity: 0,
+          quantityDiff: 0,
+          oaAmount: 0,
+          erpCost: 0,
+          amountDiff: 0,
+          differenceSummary: "",
+          _differenceTypes: [],
+        };
+        order.push(key);
+      }
+
+      summary = grouped[key];
+      summary.oaQuantity = round2(summary.oaQuantity + normalizeNumber(row.oaQuantity));
+      summary.erpQuantity = round2(
+        summary.erpQuantity + normalizeNumber(row.erpQuantity)
+      );
+      summary.oaAmount = round2(summary.oaAmount + normalizeNumber(row.oaAmount));
+      summary.erpCost = round2(summary.erpCost + normalizeNumber(row.erpCost));
+      addSummaryType(summary, row.differenceType);
+    }
+
+    for (index = 0; index < order.length; index += 1) {
+      summary = grouped[order[index]];
+      summary.quantityDiff = round2(summary.oaQuantity - summary.erpQuantity);
+      summary.amountDiff = round2(summary.oaAmount - summary.erpCost);
+      summary.differenceSummary = summary._differenceTypes.join("、");
+      delete summary._differenceTypes;
+      result.push(summary);
+    }
+
+    return result;
+  }
+
   function setupQueryPanel() {
     throw new Error("当前版本仅包含核心计算；Task 3 将添加 WPS 查询面板。");
   }
@@ -405,6 +618,11 @@
     buildOaRows: buildOaRows,
     buildErpRowsForOa: buildErpRowsForOa,
     buildErpOnlyRows: buildErpOnlyRows,
+    unionKeys: unionKeys,
+    buildFormNumberSet: buildFormNumberSet,
+    buildDifference: buildDifference,
+    compareRows: compareRows,
+    buildSummaryRows: buildSummaryRows,
   };
 
   root.ScrapVarianceCore = ScrapVarianceCore;

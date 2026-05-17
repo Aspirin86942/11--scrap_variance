@@ -220,3 +220,140 @@ test("buildErpOnlyRows skips ERP rows with blank source OA form number", () => {
 
   assert.deepEqual(Object.keys(grouped), []);
 });
+
+test("compareRows emits missing shipment, material mismatch, quantity mismatch, and ERP-only rows", () => {
+  const oaGrouped = {
+    "CHBF1||MAT-A": {
+      formNumber: "CHBF1",
+      itemCode: "MAT-A",
+      itemName: "物料A",
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      quantity: 5,
+      amount: 50,
+    },
+    "CHBF2||MAT-B": {
+      formNumber: "CHBF2",
+      itemCode: "MAT-B",
+      itemName: "物料B",
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      quantity: 3,
+      amount: 30,
+    },
+    "CHBF3||MAT-C": {
+      formNumber: "CHBF3",
+      itemCode: "MAT-C",
+      itemName: "物料C",
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      quantity: 4,
+      amount: 40,
+    },
+  };
+
+  const erpForOa = {
+    "CHBF1||MAT-A": {
+      sourceFormNumber: "CHBF1",
+      formNumber: "CHBF1",
+      itemCode: "MAT-A",
+      itemName: "物料A",
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      quantity: 4,
+      cost: 44,
+      erpDocNumbers: ["QOUT1"],
+    },
+    "CHBF2||MAT-X": {
+      sourceFormNumber: "CHBF2",
+      formNumber: "CHBF2",
+      itemCode: "MAT-X",
+      itemName: "物料X",
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      quantity: 3,
+      cost: 33,
+      erpDocNumbers: ["QOUT2"],
+    },
+  };
+
+  const erpOnlyRows = {
+    "CHBF999||MAT-Z": {
+      sourceFormNumber: "CHBF999",
+      formNumber: "CHBF999",
+      itemCode: "MAT-Z",
+      itemName: "物料Z",
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      quantity: 7,
+      cost: 77,
+      erpDocNumbers: ["QOUT999"],
+    },
+  };
+
+  const details = core.compareRows(oaGrouped, erpForOa, erpOnlyRows);
+
+  assert.equal(
+    details.find((row) => row.formNumber === "CHBF1").differenceType,
+    "OA和ERP都有，但数量不同",
+  );
+  assert.equal(
+    details.find((row) => row.formNumber === "CHBF2" && row.itemCode === "MAT-B").differenceType,
+    "OA和ERP都有，但物料明细不一致",
+  );
+  assert.equal(
+    details.find((row) => row.formNumber === "CHBF2" && row.itemCode === "MAT-X").differenceType,
+    "OA和ERP都有，但物料明细不一致",
+  );
+  assert.equal(
+    details.find((row) => row.formNumber === "CHBF3").differenceType,
+    "OA有申请，ERP无出库",
+  );
+  assert.equal(
+    details.find((row) => row.formNumber === "CHBF999").differenceType,
+    "ERP出库对应OA未在当前OA数据中找到",
+  );
+});
+
+test("buildSummaryRows aggregates quantities, amounts, costs, and difference type summaries", () => {
+  const detailRows = [
+    {
+      differenceType: "OA和ERP都有，但数量不同",
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      oaQuantity: 5,
+      erpQuantity: 4,
+      oaAmount: 50,
+      erpCost: 44,
+    },
+    {
+      differenceType: "OA有申请，ERP无出库",
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      oaQuantity: 3,
+      erpQuantity: 0,
+      oaAmount: 30,
+      erpCost: 0,
+    },
+  ];
+
+  const summary = core.buildSummaryRows(detailRows);
+
+  assert.equal(summary.length, 1);
+  assert.equal(summary[0].company, "数控");
+  assert.equal(summary[0].oaQuantity, 8);
+  assert.equal(summary[0].erpQuantity, 4);
+  assert.equal(summary[0].quantityDiff, 4);
+  assert.equal(summary[0].oaAmount, 80);
+  assert.equal(summary[0].erpCost, 44);
+  assert.equal(summary[0].amountDiff, 36);
+  assert.equal(summary[0].differenceSummary, "OA和ERP都有，但数量不同、OA有申请，ERP无出库");
+});
