@@ -708,6 +708,8 @@
     return values;
   }
 
+  // WPS JS 宏工作表读写集中放在这一段，便于按 WPS 版本调整。
+  // 参考：Application、Sheet.UsedRange、Range.Value / Range.Value2。
   function getApplication() {
     if (!root.Application) {
       throw new Error("当前环境没有 WPS Application 对象，请在 WPS JS 宏环境中运行。");
