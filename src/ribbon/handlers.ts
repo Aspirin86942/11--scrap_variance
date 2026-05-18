@@ -4,6 +4,7 @@ export interface RibbonDependencies {
   runPrecheck(): void;
   setupQueryPanel(): void;
   runQuery(): void;
+  runDiagnostics(): void;
   reportError(error: unknown): void;
   root?: ScrapVarianceGlobal;
 }
@@ -32,6 +33,9 @@ export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonAp
             return;
           case "btnRunQuery":
             dependencies.runQuery();
+            return;
+          case "btnPerformanceDiagnostics":
+            dependencies.runDiagnostics();
             return;
           default:
             throw new Error(`未知功能区按钮：${controlId}`);

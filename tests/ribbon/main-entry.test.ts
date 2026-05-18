@@ -33,6 +33,7 @@ describe("WPS ribbon entrypoint", () => {
     expect(getControlId({ Id: "btnPrecheck" })).toBe("btnPrecheck");
     expect(getControlId({ id: "btnInitQueryPanel" })).toBe("btnInitQueryPanel");
     expect(getControlId({ ID: "btnRunQuery" })).toBe("btnRunQuery");
+    expect(getControlId({ Id: "btnPerformanceDiagnostics" })).toBe("btnPerformanceDiagnostics");
     expect(getControlId({})).toBe("");
   });
 
@@ -40,21 +41,25 @@ describe("WPS ribbon entrypoint", () => {
     const runPrecheck = vi.fn();
     const setupQueryPanel = vi.fn();
     const runQuery = vi.fn();
+    const runDiagnostics = vi.fn();
     const reportError = vi.fn();
     const ribbon = createRibbonHandlers({
       runPrecheck,
       setupQueryPanel,
       runQuery,
+      runDiagnostics,
       reportError
     });
 
     ribbon.OnAction({ Id: "btnPrecheck" });
     ribbon.OnAction({ id: "btnInitQueryPanel" });
     ribbon.OnAction({ ID: "btnRunQuery" });
+    ribbon.OnAction({ Id: "btnPerformanceDiagnostics" });
 
     expect(runPrecheck).toHaveBeenCalledOnce();
     expect(setupQueryPanel).toHaveBeenCalledOnce();
     expect(runQuery).toHaveBeenCalledOnce();
+    expect(runDiagnostics).toHaveBeenCalledOnce();
     expect(reportError).not.toHaveBeenCalled();
   });
 
@@ -64,6 +69,7 @@ describe("WPS ribbon entrypoint", () => {
       runPrecheck: vi.fn(),
       setupQueryPanel: vi.fn(),
       runQuery: vi.fn(),
+      runDiagnostics: vi.fn(),
       reportError
     });
 
@@ -81,6 +87,7 @@ describe("WPS ribbon entrypoint", () => {
       },
       setupQueryPanel: vi.fn(),
       runQuery: vi.fn(),
+      runDiagnostics: vi.fn(),
       reportError
     });
 
@@ -97,6 +104,7 @@ describe("WPS ribbon entrypoint", () => {
       runPrecheck: vi.fn(),
       setupQueryPanel: vi.fn(),
       runQuery: vi.fn(),
+      runDiagnostics: vi.fn(),
       reportError: vi.fn()
     });
 

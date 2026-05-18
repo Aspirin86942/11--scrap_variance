@@ -1,3 +1,4 @@
+import { runPerformanceDiagnostics } from "./macros/performance-diagnostics";
 import { runScrapVariancePrecheck } from "./macros/scrap-variance-precheck";
 import { runScrapVarianceQuery } from "./macros/scrap-variance-query";
 import { setupQueryPanel } from "./macros/setup-query-panel";
@@ -25,5 +26,6 @@ root.ribbon = createRibbonHandlers({
   runPrecheck: () => runScrapVariancePrecheck(root),
   setupQueryPanel: () => setupQueryPanel(root),
   runQuery: () => runScrapVarianceQuery(root),
+  runDiagnostics: () => runPerformanceDiagnostics(root),
   reportError: reportRuntimeError
 });

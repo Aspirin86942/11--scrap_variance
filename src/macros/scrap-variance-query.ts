@@ -8,10 +8,8 @@ import {
   SHEET_NAMES,
   WRITE_CHUNK_ROWS
 } from "../constants";
-import { buildErpOnlyRows, buildErpRowsForOa } from "../core/build-erp-rows";
-import { buildOaRows, collectSelectedOaForms, parseFilters } from "../core/build-oa-rows";
-import { detailRowsToValues, buildSummaryRows, summaryRowsToValues } from "../core/build-summary-rows";
-import { compareRows } from "../core/compare-rows";
+import { parseFilters } from "../core/build-oa-rows";
+import { runQueryCorePipeline } from "../core/query-pipeline";
 import type { QueryFilters } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsCellValue, WpsRange } from "../types/wps";
 import { normalizeMatrix } from "../utils/matrix";
@@ -97,30 +95,23 @@ export function runScrapVarianceQuery(root?: ScrapVarianceGlobal): void {
       MIN_ERP_HEADER_MATCH_COUNT,
       MAX_HEADER_SCAN_ROWS
     );
-    const oaGroupedRows = buildOaRows(oaTable.rows, filters);
-    const currentOaFormNumbers = collectSelectedOaForms(oaGroupedRows);
-    const erpRowsForOa = buildErpRowsForOa(erpTable.rows, oaGroupedRows);
-    const erpOnlyRows = buildErpOnlyRows(erpTable.rows, currentOaFormNumbers, filters);
+    const pipeline = runQueryCorePipeline(oaTable.rows, erpTable.rows, filters);
 
-    if (oaGroupedRows.size === 0 && erpOnlyRows.size === 0) {
+    if (pipeline.oaGroupedRows.size === 0 && pipeline.erpOnlyRows.size === 0) {
       clearQueryOutput(panel);
       writeMatrixBulkOrChunks(panel, 8, 1, [["查询条件没有匹配到 OA 数据。"]], WRITE_CHUNK_ROWS);
       return;
     }
 
-    const detailRows = compareRows(oaGroupedRows, erpRowsForOa, erpOnlyRows);
-    const summaryRows = buildSummaryRows(detailRows);
-    const summaryValues = summaryRowsToValues(summaryRows);
-    const detailValues = detailRowsToValues(detailRows);
-    assertQueryOutputLimit(summaryValues.length, detailValues.length);
+    assertQueryOutputLimit(pipeline.summaryValues.length, pipeline.detailValues.length);
 
     clearQueryOutput(panel);
     writeMatrixBulkOrChunks(panel, 8, 1, [["汇总差异"]], WRITE_CHUNK_ROWS);
-    writeMatrixBulkOrChunks(panel, 9, 1, summaryValues, WRITE_CHUNK_ROWS);
+    writeMatrixBulkOrChunks(panel, 9, 1, pipeline.summaryValues, WRITE_CHUNK_ROWS);
 
-    const detailTitleRow = 9 + summaryValues.length;
+    const detailTitleRow = 9 + pipeline.summaryValues.length;
     writeMatrixBulkOrChunks(panel, detailTitleRow, 1, [["明细差异"]], WRITE_CHUNK_ROWS);
-    writeMatrixBulkOrChunks(panel, detailTitleRow + 1, 1, detailValues, WRITE_CHUNK_ROWS);
+    writeMatrixBulkOrChunks(panel, detailTitleRow + 1, 1, pipeline.detailValues, WRITE_CHUNK_ROWS);
   } catch (error) {
     safeWriteQueryError(errorMessage(error), root);
   }

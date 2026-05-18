@@ -109,6 +109,23 @@ npm run dev
 - 查询输出固定清理 `A8:Q200000`。
 - 预验证输出固定清理 `A1:H200000`。
 
+## 性能基准与诊断
+
+开发环境可以运行 Node benchmark：
+
+```bash
+npm run bench
+npm run bench -- --scale stress
+```
+
+默认 benchmark 跑 `1万 / 5万` 行模拟数据；`--scale stress` 会追加 `20万` 行压力档。报告会写入 `bench-results/latest.json`，该文件是本机结果，不作为稳定产物提交。
+
+`.bench/` 和 `bench-results/latest.json` 是本地生成产物，已配置为忽略文件。
+
+WPS 功能区中的 `性能诊断` 按钮会读取当前工作簿的 OA、ERP 和查询面板条件，并把阶段耗时写入 `性能诊断结果`。诊断不会清空或覆盖 `查询面板` 的正式查询结果。
+
+如果 WPS 环境无法提供可靠内存数据，诊断表会显示 `无确切信息`。
+
 ## 常见提示与错误
 
 - `找不到工作表`：检查原始表名是否被改动。

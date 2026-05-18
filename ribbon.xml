@@ -7,6 +7,7 @@
           <button id="btnPrecheck" label="预验证数据" size="large" onAction="ribbon.OnAction" />
           <button id="btnInitQueryPanel" label="初始化查询面板" size="large" onAction="ribbon.OnAction" />
           <button id="btnRunQuery" label="执行差异查询" size="large" onAction="ribbon.OnAction" />
+          <button id="btnPerformanceDiagnostics" label="性能诊断" size="large" onAction="ribbon.OnAction" />
         </group>
       </tab>
     </tabs>
