@@ -143,41 +143,39 @@ return`${normalizeText(formNumber)}||${normalizeText(itemCode)}`}function buildO
 [];const activeFilters=filters!=null?filters:parseFilters();for(const row of activeRows){const dateKey=normalizeDateKey(row["\u7533\u8BF7\u65E5\u671F"]);if(!isDateInRange(
 dateKey,activeFilters)){continue}if(!matchesOrgFilters(row["\u516C\u53F8\u7B80\u79F0"],row["\u4E00\u7EA7\u90E8\u95E8"],row["\u4E8C\u7EA7\u90E8\u95E8"],activeFilters)){
 continue}const formNumber=normalizeText(row["\u8868\u5355\u7F16\u53F7"]);const itemCode=normalizeText(row["\u7269\u6599\u4EE3\u7801"]);if(!formNumber||!itemCode){
-continue}const key=makeDetailKey(formNumber,itemCode);const existing=result.get(key);if(!existing){result.set(key,{formNumber,itemCode,itemName:normalizeText(row["\
-\u7269\u6599\u540D\u79F0"]),company:normalizeText(row["\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(row["\
-\u4E8C\u7EA7\u90E8\u95E8"]),oaDate:"",quantity:zeroDecimal(),amount:zeroDecimal()})}const target=result.get(key);if(!target){throw new Error(`OA \u805A\u5408\u5931\u8D25\uFF1A${key}`)}
-target.oaDate=appendUniqueJoinedText(target.oaDate,dateKey);target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u6570\u91CF"],"\u6570\u91CF"));target.
-amount=addDecimal(target.amount,parseDecimal2(row["\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"],"\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"))}return result}function collectSelectedOaForms(oaGroupedRows){
-const result=new Set;for(const row of(oaGroupedRows!=null?oaGroupedRows:new Map).values()){if(row.formNumber){result.add(row.formNumber)}}return result}function addErpRowToGroup(result,row,sourceFormNumber,itemCode,dateKey){const key=makeDetailKey(sourceFormNumber,itemCode);const docNumber=normalizeText(row["\u5355\u636E\
-\u7F16\u53F7"]);const existing=result.get(key);if(!existing){result.set(key,{sourceFormNumber,formNumber:sourceFormNumber,itemCode,itemName:normalizeText(row["\u7269\
-\u6599\u540D\u79F0"]),company:normalizeText(row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(
-row["\u4E8C\u7EA7\u90E8\u95E8"]),erpDate:"",quantity:zeroDecimal(),cost:zeroDecimal(),erpDocNumbers:""})}const target=result.get(key);if(!target){throw new Error(
-`ERP \u805A\u5408\u5931\u8D25\uFF1A${key}`)}target.erpDate=appendUniqueJoinedText(target.erpDate,dateKey);target.erpDocNumbers=appendUniqueJoinedText(target.erpDocNumbers,
-docNumber,",");target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u5B9E\u53D1\u6570\u91CF"],"\u5B9E\u53D1\u6570\u91CF"));target.cost=addDecimal(target.
-cost,parseDecimal2(row["\u603B\u6210\u672C"],"\u603B\u6210\u672C"))}function buildErpRowsForOa(erpRows,oaGroupedRows){const result=new Map;const selectedForms=collectSelectedOaForms(
-oaGroupedRows);for(const row of erpRows!=null?erpRows:[]){const sourceFormNumber=normalizeText(row["\u6E90\u5355\u5355\u53F7"]);const itemCode=normalizeText(row["\
-\u7269\u6599\u7F16\u7801"]);if(!sourceFormNumber||!itemCode||!selectedForms.has(sourceFormNumber)){continue}const dateKey=normalizeDateKey(row["\u65E5\u671F"]);
-addErpRowToGroup(result,row,sourceFormNumber,itemCode,dateKey)}return result}function buildErpOnlyRows(erpRows,currentOaFormNumbers,filters){const result=new Map;
-const activeFormNumbers=currentOaFormNumbers!=null?currentOaFormNumbers:new Set;const activeFilters=filters!=null?filters:parseFilters();for(const row of erpRows!=
+continue}const key=makeDetailKey(formNumber,itemCode);let target=result.get(key);if(!target){target={formNumber,itemCode,itemName:normalizeText(row["\u7269\u6599\u540D\u79F0"]),
+company:normalizeText(row["\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(row["\u4E8C\u7EA7\u90E8\u95E8"]),
+oaDate:"",quantity:zeroDecimal(),amount:zeroDecimal()};result.set(key,target)}target.oaDate=appendUniqueJoinedText(target.oaDate,dateKey);target.quantity=addDecimal(
+target.quantity,parseDecimal2(row["\u6570\u91CF"],"\u6570\u91CF"));target.amount=addDecimal(target.amount,parseDecimal2(row["\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"],
+"\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"))}return result}function collectSelectedOaForms(oaGroupedRows){const result=new Set;for(const row of(oaGroupedRows!=null?
+oaGroupedRows:new Map).values()){if(row.formNumber){result.add(row.formNumber)}}return result}function addErpRowToGroup(result,row,sourceFormNumber,itemCode,dateKey){const key=makeDetailKey(sourceFormNumber,itemCode);const docNumber=normalizeText(row["\u5355\u636E\
+\u7F16\u53F7"]);let target=result.get(key);if(!target){target={sourceFormNumber,formNumber:sourceFormNumber,itemCode,itemName:normalizeText(row["\u7269\u6599\u540D\u79F0"]),
+company:normalizeText(row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(row["\u4E8C\u7EA7\u90E8\u95E8"]),
+erpDate:"",quantity:zeroDecimal(),cost:zeroDecimal(),erpDocNumbers:""};result.set(key,target)}target.erpDate=appendUniqueJoinedText(target.erpDate,dateKey);target.
+erpDocNumbers=appendUniqueJoinedText(target.erpDocNumbers,docNumber,",");target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u5B9E\u53D1\u6570\u91CF"],
+"\u5B9E\u53D1\u6570\u91CF"));target.cost=addDecimal(target.cost,parseDecimal2(row["\u603B\u6210\u672C"],"\u603B\u6210\u672C"))}function buildErpRowsForOa(erpRows,oaGroupedRows){
+const result=new Map;const selectedForms=collectSelectedOaForms(oaGroupedRows);for(const row of erpRows!=null?erpRows:[]){const sourceFormNumber=normalizeText(row["\
+\u6E90\u5355\u5355\u53F7"]);const itemCode=normalizeText(row["\u7269\u6599\u7F16\u7801"]);if(!sourceFormNumber||!itemCode||!selectedForms.has(sourceFormNumber)){
+continue}const dateKey=normalizeDateKey(row["\u65E5\u671F"]);addErpRowToGroup(result,row,sourceFormNumber,itemCode,dateKey)}return result}function buildErpOnlyRows(erpRows,currentOaFormNumbers,filters){
+const result=new Map;const activeFormNumbers=currentOaFormNumbers!=null?currentOaFormNumbers:new Set;const activeFilters=filters!=null?filters:parseFilters();for(const row of erpRows!=
 null?erpRows:[]){const dateKey=normalizeDateKey(row["\u65E5\u671F"]);if(!isDateInRange(dateKey,activeFilters)){continue}if(!matchesOrgFilters(row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"],
 row["\u4E00\u7EA7\u90E8\u95E8"],row["\u4E8C\u7EA7\u90E8\u95E8"],activeFilters)){continue}const sourceFormNumber=normalizeText(row["\u6E90\u5355\u5355\u53F7"]);const itemCode=normalizeText(
 row["\u7269\u6599\u7F16\u7801"]);if(!sourceFormNumber||!itemCode||activeFormNumbers.has(sourceFormNumber)){continue}addErpRowToGroup(result,row,sourceFormNumber,
 itemCode,dateKey)}return result}function makeSummaryKey(row){return`${normalizeText(row.company)}||${normalizeText(row.dept1)}||${normalizeText(row.dept2)}`}function buildSummaryRows(detailRows){
 const grouped=new Map;for(const row of detailRows!=null?detailRows:[]){const key=makeSummaryKey(row);let summary=grouped.get(key);if(!summary){summary={company:normalizeText(
-row.company),dept1:normalizeText(row.dept1),dept2:normalizeText(row.dept2),oaQuantity:0,erpQuantity:0,quantityDiff:0,oaAmount:0,erpCost:0,amountDiff:0,differenceSummary:"",
-differenceTypes:new Set};grouped.set(key,summary)}summary.oaQuantity=decimalToNumber2(addDecimal(parseDecimal2(summary.oaQuantity,"OA\u6570\u91CF\u5408\u8BA1"),
-parseDecimal2(row.oaQuantity,"OA\u6570\u91CF\u5408\u8BA1")));summary.erpQuantity=decimalToNumber2(addDecimal(parseDecimal2(summary.erpQuantity,"ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1"),
-parseDecimal2(row.erpQuantity,"ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1")));summary.oaAmount=decimalToNumber2(addDecimal(parseDecimal2(summary.oaAmount,"OA\u5B9E\u9645\u9884\u7B97\u91D1\u989D\
-mx\u5408\u8BA1"),parseDecimal2(row.oaAmount,"OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1")));summary.erpCost=decimalToNumber2(addDecimal(parseDecimal2(
-summary.erpCost,"ERP\u603B\u6210\u672C\u5408\u8BA1"),parseDecimal2(row.erpCost,"ERP\u603B\u6210\u672C\u5408\u8BA1")));const differenceType=normalizeText(row.differenceType);
-if(differenceType){summary.differenceTypes.add(differenceType)}}const result=[];for(const summary of grouped.values()){summary.quantityDiff=decimalToNumber2(subtractDecimal(
-parseDecimal2(summary.oaQuantity,"OA\u6570\u91CF\u5408\u8BA1"),parseDecimal2(summary.erpQuantity,"ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1")));summary.amountDiff=
-decimalToNumber2(subtractDecimal(parseDecimal2(summary.oaAmount,"OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1"),parseDecimal2(summary.erpCost,"ERP\u603B\u6210\u672C\u5408\u8BA1")));
-summary.differenceSummary=DIFFERENCE_TYPE_PRIORITY.filter(type=>summary.differenceTypes.has(type)).join("\u3001");const{differenceTypes:_differenceTypes,...row}=summary;
-result.push(row)}return result}function summaryRowsToValues(summaryRows){return[[...SUMMARY_HEADERS],...(summaryRows!=null?summaryRows:[]).map(row=>[row.company,
-row.dept1,row.dept2,row.oaQuantity,row.erpQuantity,row.quantityDiff,row.oaAmount,row.erpCost,row.amountDiff,row.differenceSummary])]}function detailRowsToValues(detailRows){
-return[[...DETAIL_HEADERS],...(detailRows!=null?detailRows:[]).map(row=>[row.differenceType,row.formNumber,row.oaDate,row.erpDocNumbers,row.erpDate,row.itemCode,
-row.itemName,row.company,row.dept1,row.dept2,row.oaQuantity,row.erpQuantity,row.quantityDiff,row.oaAmount,row.erpCost,row.amountDiff,row.remark])]}function buildFormNumberSet(groupedRows){const result=new Set;for(const[key,row]of(groupedRows!=null?groupedRows:new Map).entries()){const formNumber=normalizeText(
+row.company),dept1:normalizeText(row.dept1),dept2:normalizeText(row.dept2),oaQuantity:zeroDecimal(),erpQuantity:zeroDecimal(),oaAmount:zeroDecimal(),erpCost:zeroDecimal(),
+differenceTypes:new Set};grouped.set(key,summary)}summary.oaQuantity=addDecimal(summary.oaQuantity,parseDecimal2(row.oaQuantity,"OA\u6570\u91CF\u5408\u8BA1"));summary.
+erpQuantity=addDecimal(summary.erpQuantity,parseDecimal2(row.erpQuantity,"ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1"));summary.oaAmount=addDecimal(summary.oaAmount,
+parseDecimal2(row.oaAmount,"OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1"));summary.erpCost=addDecimal(summary.erpCost,parseDecimal2(row.erpCost,"ERP\u603B\u6210\u672C\
+\u5408\u8BA1"));const differenceType=normalizeText(row.differenceType);if(differenceType){summary.differenceTypes.add(differenceType)}}const result=[];for(const summary of grouped.
+values()){const quantityDiff=subtractDecimal(summary.oaQuantity,summary.erpQuantity);const amountDiff=subtractDecimal(summary.oaAmount,summary.erpCost);result.push(
+{company:summary.company,dept1:summary.dept1,dept2:summary.dept2,oaQuantity:decimalToNumber2(summary.oaQuantity),erpQuantity:decimalToNumber2(summary.erpQuantity),
+quantityDiff:decimalToNumber2(quantityDiff),oaAmount:decimalToNumber2(summary.oaAmount),erpCost:decimalToNumber2(summary.erpCost),amountDiff:decimalToNumber2(amountDiff),
+differenceSummary:DIFFERENCE_TYPE_PRIORITY.filter(type=>summary.differenceTypes.has(type)).join("\u3001")})}return result}function summaryRowsToValues(summaryRows){
+return[[...SUMMARY_HEADERS],...(summaryRows!=null?summaryRows:[]).map(row=>[row.company,row.dept1,row.dept2,row.oaQuantity,row.erpQuantity,row.quantityDiff,row.
+oaAmount,row.erpCost,row.amountDiff,row.differenceSummary])]}function detailRowsToValues(detailRows){return[[...DETAIL_HEADERS],...(detailRows!=null?detailRows:
+[]).map(row=>[row.differenceType,row.formNumber,row.oaDate,row.erpDocNumbers,row.erpDate,row.itemCode,row.itemName,row.company,row.dept1,row.dept2,row.oaQuantity,
+row.erpQuantity,row.quantityDiff,row.oaAmount,row.erpCost,row.amountDiff,row.remark])]}function buildFormNumberSet(groupedRows){const result=new Set;for(const[key,row]of(groupedRows!=null?groupedRows:new Map).entries()){const formNumber=normalizeText(
 row.formNumber||row.sourceFormNumber||key.split("||")[0]);if(formNumber){result.add(formNumber)}}return result}function buildDifference(differenceType,oa,erp){var _a,
 _b,_c;const formNumber=normalizeText((oa==null?void 0:oa.formNumber)||(erp==null?void 0:erp.formNumber)||(erp==null?void 0:erp.sourceFormNumber));const itemCode=normalizeText(
 (oa==null?void 0:oa.itemCode)||(erp==null?void 0:erp.itemCode));const itemName=normalizeText((oa==null?void 0:oa.itemName)||(erp==null?void 0:erp.itemName));const company=normalizeText(
