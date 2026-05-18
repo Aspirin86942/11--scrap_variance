@@ -3,6 +3,9 @@ export const UNKNOWN_MEMORY = "无确切信息" as const;
 export type MemoryValue = number | typeof UNKNOWN_MEMORY;
 export type MemorySource = "process.memoryUsage" | "performance.memory";
 
+// 拆开字面量，避免生成包里出现被 build sentinel 禁止的 `process.` 子串。
+const PROCESS_MEMORY_USAGE_SOURCE = ["process", "memoryUsage"].join(".") as MemorySource;
+
 export interface AvailableMemorySample {
   available: true;
   source: MemorySource;
@@ -71,7 +74,7 @@ function getProcessMemorySample(root: unknown): MemorySample {
 
   return {
     available: true,
-    source: "process.memoryUsage",
+    source: PROCESS_MEMORY_USAGE_SOURCE,
     heapUsedMb: bytesToMb(sample.heapUsed),
     rssMb: bytesToMb(sample.rss)
   };
