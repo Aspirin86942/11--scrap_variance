@@ -81,10 +81,10 @@ export function buildOaRows(
     }
 
     const key = makeDetailKey(formNumber, itemCode);
-    const existing = result.get(key);
-    if (!existing) {
+    let target = result.get(key);
+    if (!target) {
       // 同一 OA 表单和物料保持一个聚合粒度，后续差异比较依赖这个稳定键。
-      result.set(key, {
+      target = {
         formNumber,
         itemCode,
         itemName: normalizeText(row["物料名称"]),
@@ -94,13 +94,10 @@ export function buildOaRows(
         oaDate: "",
         quantity: zeroDecimal(),
         amount: zeroDecimal()
-      });
+      };
+      result.set(key, target);
     }
 
-    const target = result.get(key);
-    if (!target) {
-      throw new Error(`OA 聚合失败：${key}`);
-    }
     target.oaDate = appendUniqueJoinedText(target.oaDate, dateKey);
     target.quantity = addDecimal(target.quantity, parseDecimal(row["数量"], "数量"));
     target.amount = addDecimal(target.amount, parseDecimal(row["实际预算金额mx"], "实际预算金额mx"));

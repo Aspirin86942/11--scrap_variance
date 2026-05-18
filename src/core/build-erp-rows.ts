@@ -13,10 +13,10 @@ function addErpRowToGroup(
 ): void {
   const key = makeDetailKey(sourceFormNumber, itemCode);
   const docNumber = normalizeText(row["单据编号"]);
-  const existing = result.get(key);
+  let target = result.get(key);
 
-  if (!existing) {
-    result.set(key, {
+  if (!target) {
+    target = {
       sourceFormNumber,
       formNumber: sourceFormNumber,
       itemCode,
@@ -28,13 +28,10 @@ function addErpRowToGroup(
       quantity: zeroDecimal(),
       cost: zeroDecimal(),
       erpDocNumbers: ""
-    });
+    };
+    result.set(key, target);
   }
 
-  const target = result.get(key);
-  if (!target) {
-    throw new Error(`ERP 聚合失败：${key}`);
-  }
   target.erpDate = appendUniqueJoinedText(target.erpDate, dateKey);
   target.erpDocNumbers = appendUniqueJoinedText(target.erpDocNumbers, docNumber, ",");
   target.quantity = addDecimal(target.quantity, parseDecimal(row["实发数量"], "实发数量"));
