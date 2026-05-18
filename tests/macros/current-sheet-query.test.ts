@@ -403,4 +403,65 @@ describe("current sheet query macro", () => {
     expect(oaCompareSheet.rowDeletes).toEqual([]);
     expect(oaCompareSheet.writes).toEqual(writesBefore);
   });
+
+  it("toggleMaterialRows rolls back inserted rows when material row writing fails", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31"
+    };
+    setActiveSheet(root, oaCompareSheet);
+    root.Application!.Selection = { Row: 2 };
+    runCurrentSheetQuery(root);
+    oaCompareSheet.failWriteAddresses.add("A3:P3");
+
+    expect(() => toggleMaterialRows(root)).toThrow("分块写入失败：第 1 块 A3:P3");
+
+    expect(oaCompareSheet.rowInserts).toEqual([{ afterRow: 2, rowCount: 1 }]);
+    expect(oaCompareSheet.rowDeletes).toEqual([{ startRow: 3, rowCount: 1 }]);
+    expect(oaCompareSheet.clears).toEqual([]);
+    expect(visibleWrites(oaCompareSheet).map((write) => write.address)).toEqual(["A1:P2"]);
+    expect(oaCompareSheet.rangeValues.get("CB1:CC1")).toEqual([["oa_doc_compare", "A1:P2"]]);
+  });
+
+  it("toggleMaterialRows restores deleted material rows when collapse metadata update fails", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31"
+    };
+    setActiveSheet(root, oaCompareSheet);
+    root.Application!.Selection = { Row: 2 };
+    runCurrentSheetQuery(root);
+    toggleMaterialRows(root);
+    oaCompareSheet.rangeValues.set("A4:A4", [["汇总"]]);
+    oaCompareSheet.failWriteAddresses.add("CB1:CC1");
+
+    expect(() => toggleMaterialRows(root)).toThrow("分块写入失败：第 1 块 CB1:CC1");
+
+    expect(oaCompareSheet.rowDeletes).toEqual([{ startRow: 3, rowCount: 1 }]);
+    expect(oaCompareSheet.rowInserts).toEqual([
+      { afterRow: 2, rowCount: 1 },
+      { afterRow: 2, rowCount: 1 }
+    ]);
+    expect(visibleWrites(oaCompareSheet).filter((write) => write.address === "A3:P3")).toHaveLength(2);
+    expect(oaCompareSheet.clears).toEqual([]);
+    expect(oaCompareSheet.rangeValues.get("CB1:CC1")).toEqual([["oa_doc_compare", "A1:P3"]]);
+  });
 });

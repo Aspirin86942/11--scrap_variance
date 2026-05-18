@@ -176,6 +176,38 @@ function countMaterialRowsBelow(sheet: WpsSheet, summaryRowNumber: number): numb
   return count;
 }
 
+function readOutputRangeValues(sheet: WpsSheet, startRow: number, rowCount: number, columnCount: number): OutputMatrix {
+  const address = rangeAddress(startRow, 1, rowCount, columnCount);
+  const range = sheet.Range(address);
+  return normalizeMatrix(range.Value2 ?? range.Value).map((row) =>
+    row.slice(0, columnCount).map((cell) => (typeof cell === "number" ? cell : normalizeText(cell)))
+  );
+}
+
+function rollbackInsertedRows(sheet: WpsSheet, startRow: number, rowCount: number, error: unknown): never {
+  try {
+    deleteRows(sheet, startRow, rowCount);
+  } catch (rollbackError) {
+    throw new Error(`展开物料失败：${errorMessage(error)}；回滚插入行失败：${errorMessage(rollbackError)}`);
+  }
+  throw error;
+}
+
+function rollbackDeletedRows(
+  sheet: WpsSheet,
+  summaryRow: number,
+  deletedValues: OutputMatrix,
+  error: unknown
+): never {
+  try {
+    insertRowsBelow(sheet, summaryRow, deletedValues.length);
+    writeMatrixBulkOrChunks(sheet, summaryRow + 1, 1, deletedValues, WRITE_CHUNK_ROWS);
+  } catch (rollbackError) {
+    throw new Error(`收起物料失败：${errorMessage(error)}；回滚删除行失败：${errorMessage(rollbackError)}`);
+  }
+  throw error;
+}
+
 export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
   const activeSheet = getActiveSheet(root);
   const kind = detectOutputSheetKind(activeSheet.Name);
@@ -193,8 +225,14 @@ export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
 
   const existingMaterialRows = countMaterialRowsBelow(activeSheet, selectedRow);
   if (existingMaterialRows > 0) {
+    const headerRow = docCompareRowsToValues(kind, [])[0] ?? [];
+    const deletedValues = readOutputRangeValues(activeSheet, selectedRow + 1, existingMaterialRows, headerRow.length);
     deleteRows(activeSheet, selectedRow + 1, existingMaterialRows);
-    adjustOutputMetadataRows(activeSheet, -existingMaterialRows);
+    try {
+      adjustOutputMetadataRows(activeSheet, -existingMaterialRows);
+    } catch (error) {
+      rollbackDeletedRows(activeSheet, selectedRow, deletedValues, error);
+    }
     return;
   }
 
@@ -214,13 +252,12 @@ export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
     throw new Error(`当前单据没有可展开物料：${selectedDocNumber}`);
   }
 
+  const materialValues = docCompareRowsToValues(kind, materialRows).slice(1);
   insertRowsBelow(activeSheet, selectedRow, materialRows.length);
-  writeMatrixBulkOrChunks(
-    activeSheet,
-    selectedRow + 1,
-    1,
-    docCompareRowsToValues(kind, materialRows).slice(1),
-    WRITE_CHUNK_ROWS
-  );
-  adjustOutputMetadataRows(activeSheet, materialRows.length);
+  try {
+    writeMatrixBulkOrChunks(activeSheet, selectedRow + 1, 1, materialValues, WRITE_CHUNK_ROWS);
+    adjustOutputMetadataRows(activeSheet, materialRows.length);
+  } catch (error) {
+    rollbackInsertedRows(activeSheet, selectedRow + 1, materialRows.length, error);
+  }
 }
