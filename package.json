@@ -6,8 +6,8 @@
   "description": "WPS add-in for OA and ERP scrap variance checks.",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "bundle": "esbuild src/main.ts --bundle --format=iife --target=es2018 --main-fields=module,main --legal-comments=none --minify-whitespace --line-limit=160 --outfile=main.js",
-    "bundle:prod": "esbuild src/main.ts --bundle --format=iife --target=es2018 --main-fields=module,main --legal-comments=none --minify --outfile=main.js",
+    "bundle": "esbuild src/entry.ts --bundle --format=iife --target=es2018 --main-fields=module,main --legal-comments=none --minify-whitespace --line-limit=160 --outfile=main.js",
+    "bundle:prod": "esbuild src/entry.ts --bundle --format=iife --target=es2018 --main-fields=module,main --legal-comments=none --minify --outfile=main.js",
     "bench": "esbuild src/bench/query-benchmark.ts --bundle --platform=node --format=cjs --target=node18 --outfile=.bench/query-benchmark.cjs --log-level=warning && node .bench/query-benchmark.cjs",
     "build": "npm run typecheck && npm run bundle",
     "build:prod": "npm run typecheck && npm run bundle:prod",

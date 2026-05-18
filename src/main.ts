@@ -1,7 +1,10 @@
+import { createButtonActions, type ButtonActionRegistry } from "./actions/button-actions";
 import { runPerformanceDiagnostics } from "./macros/performance-diagnostics";
-import { runCurrentSheetQuery, toggleMaterialRows } from "./macros/current-sheet-query";
+import { runCurrentSheetQueryWithState, toggleMaterialRows } from "./macros/current-sheet-query";
 import { setupOutputSheets } from "./macros/output-sheets";
 import { runScrapVariancePrecheck } from "./macros/scrap-variance-precheck";
+import { openQueryDialogAndRun } from "./query-dialog/open-query-dialog";
+import { buildDefaultQueryDialogState } from "./query-dialog/state";
 import { createRibbonHandlers } from "./ribbon/handlers";
 import type { ScrapVarianceGlobal } from "./types/wps";
 
@@ -19,14 +22,22 @@ export function reportRuntimeError(error: unknown): void {
   }
 }
 
-const root = globalThis as ScrapVarianceGlobal;
+export function createDefaultButtonActions(root: ScrapVarianceGlobal): ButtonActionRegistry {
+  return createButtonActions({
+    runPrecheck: () => runScrapVariancePrecheck(root),
+    setupOutputSheets: () => setupOutputSheets(root),
+    queryCurrentSheet: () =>
+      openQueryDialogAndRun(root, (state) => runCurrentSheetQueryWithState(root, state), reportRuntimeError),
+    queryCurrentSheetTest: () => runCurrentSheetQueryWithState(root, buildDefaultQueryDialogState()),
+    toggleMaterialRows: () => toggleMaterialRows(root),
+    runDiagnostics: () => runPerformanceDiagnostics(root)
+  });
+}
 
-root.ribbon = createRibbonHandlers({
-  root,
-  runPrecheck: () => runScrapVariancePrecheck(root),
-  setupOutputSheets: () => setupOutputSheets(root),
-  queryCurrentSheet: () => runCurrentSheetQuery(root),
-  toggleMaterialRows: () => toggleMaterialRows(root),
-  runDiagnostics: () => runPerformanceDiagnostics(root),
-  reportError: reportRuntimeError
-});
+export function createWpsRibbon(root: ScrapVarianceGlobal, buttonActions: ButtonActionRegistry) {
+  return createRibbonHandlers({
+    root,
+    buttonActions,
+    reportError: reportRuntimeError
+  });
+}

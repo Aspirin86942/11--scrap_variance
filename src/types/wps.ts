@@ -1,3 +1,4 @@
+import type { ButtonActionRegistry, ButtonActionTestResult } from "../actions/button-actions";
 import type { RibbonQueryState } from "./scrap";
 
 export type WpsCellValue = string | number | boolean | Date | null | undefined;
@@ -35,12 +36,19 @@ export interface WpsWorkbook {
   Sheets?: WpsSheets;
 }
 
+export interface WpsPluginStorage {
+  getItem(key: string): unknown;
+  setItem(key: string, value: unknown): void;
+}
+
 export interface WpsApplication {
   ActiveWorkbook?: WpsWorkbook;
   ActiveSheet?: WpsSheet;
   Selection?: WpsRange;
   Worksheets?: WpsSheets;
   Sheets?: WpsSheets;
+  PluginStorage?: WpsPluginStorage;
+  ShowDialog?: (url: string, title: string, width: number, height: number, modal: boolean) => unknown;
 }
 
 export interface RibbonControl {
@@ -62,22 +70,13 @@ export interface RibbonControl {
 export interface RibbonApi {
   OnAddinLoad(ribbonUi: unknown): void;
   OnAction(control: RibbonControl): void;
-  OnInputChange(control: RibbonControl, text?: string): void;
-  OnDirectionChange(control: RibbonControl, selectedIdOrIndex?: string | number): void;
-  OnCompanyChange(controlOrText?: unknown, text?: unknown): void;
-  OnDept1Change(controlOrText?: unknown, text?: unknown): void;
-  OnDept2Change(controlOrText?: unknown, text?: unknown): void;
-  OnStartDateChange(controlOrText?: unknown, text?: unknown): void;
-  OnEndDateChange(controlOrText?: unknown, text?: unknown): void;
-  OnQueryDirectionChange(controlOrSelection?: unknown, selectedIdOrIndex?: unknown): void;
-  GetDirectionCount(control: RibbonControl): number;
-  GetDirectionLabel(control: RibbonControl, index: number): string;
-  GetDirectionSelectedIndex(control: RibbonControl): number;
 }
 
 export interface ScrapVarianceGlobal {
   Application?: WpsApplication;
   ribbon?: RibbonApi;
+  buttonActions?: ButtonActionRegistry;
+  __WPS_RUN_ALL_BUTTON_TESTS__?: () => Promise<ButtonActionTestResult[]>;
   ScrapVarianceRibbonUi?: unknown;
   ScrapVarianceRibbonState?: Partial<RibbonQueryState>;
   alert?: (message: string) => void;

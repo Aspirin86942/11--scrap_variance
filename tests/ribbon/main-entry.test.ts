@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ButtonActionRegistry } from "../../src/actions/button-actions";
 import { reportRuntimeError } from "../../src/main";
 import { createRibbonHandlers, getControlId } from "../../src/ribbon/handlers";
-import { DEFAULT_RIBBON_STATE } from "../../src/ribbon/state";
 import type { ScrapVarianceGlobal } from "../../src/types/wps";
 
 const root = globalThis as ScrapVarianceGlobal;
@@ -30,6 +30,17 @@ afterEach(() => {
 });
 
 describe("WPS ribbon entrypoint", () => {
+  function makeButtonActions(overrides: Partial<ButtonActionRegistry> = {}): ButtonActionRegistry {
+    return {
+      btnPrecheck: { name: "runPrecheck", run: vi.fn() },
+      btnSetupOutputSheets: { name: "setupOutputSheets", run: vi.fn() },
+      btnQueryCurrentSheet: { name: "queryCurrentSheet", run: vi.fn() },
+      btnToggleMaterialRows: { name: "toggleMaterialRows", run: vi.fn() },
+      btnPerformanceDiagnostics: { name: "runDiagnostics", run: vi.fn() },
+      ...overrides
+    };
+  }
+
   it("getControlId accepts WPS control id casing variants", () => {
     expect(getControlId({ Id: "btnPrecheck" })).toBe("btnPrecheck");
     expect(getControlId({ id: "btnSetupOutputSheets" })).toBe("btnSetupOutputSheets");
@@ -38,21 +49,13 @@ describe("WPS ribbon entrypoint", () => {
     expect(getControlId({})).toBe("");
   });
 
-  it("createRibbonHandlers dispatches known ribbon buttons and input callbacks", () => {
-    const runPrecheck = vi.fn();
-    const setupOutputSheets = vi.fn();
-    const queryCurrentSheet = vi.fn();
-    const toggleMaterialRows = vi.fn();
-    const runDiagnostics = vi.fn();
+  it("createRibbonHandlers dispatches known ribbon buttons through registered actions", () => {
+    const buttonActions = makeButtonActions();
     const reportError = vi.fn();
     const root: ScrapVarianceGlobal = {};
     const ribbon = createRibbonHandlers({
       root,
-      runPrecheck,
-      setupOutputSheets,
-      queryCurrentSheet,
-      toggleMaterialRows,
-      runDiagnostics,
+      buttonActions,
       reportError
     });
 
@@ -61,185 +64,19 @@ describe("WPS ribbon entrypoint", () => {
     ribbon.OnAction({ ID: "btnQueryCurrentSheet" });
     ribbon.OnAction({ Id: "btnToggleMaterialRows" });
     ribbon.OnAction({ Id: "btnPerformanceDiagnostics" });
-    ribbon.OnInputChange({ Id: "company" }, "数控");
-    ribbon.OnInputChange({ Id: "dept1" }, "生产");
-    ribbon.OnDirectionChange({ Id: "queryDirection" }, "1");
 
-    expect(runPrecheck).toHaveBeenCalledOnce();
-    expect(setupOutputSheets).toHaveBeenCalledOnce();
-    expect(queryCurrentSheet).toHaveBeenCalledOnce();
-    expect(toggleMaterialRows).toHaveBeenCalledOnce();
-    expect(runDiagnostics).toHaveBeenCalledOnce();
-    expect(root.ScrapVarianceRibbonState).toEqual(
-      expect.objectContaining({
-        company: "数控",
-        dept1: "生产",
-        queryDirection: "ERP源单查OA"
-      })
-    );
-    expect(ribbon.GetDirectionCount({ Id: "queryDirection" })).toBe(2);
-    expect(ribbon.GetDirectionLabel({ Id: "queryDirection" }, 0)).toBe("OA金蝶单号查ERP");
-    expect(ribbon.GetDirectionSelectedIndex({ Id: "queryDirection" })).toBe(1);
-    expect(reportError).not.toHaveBeenCalled();
-  });
-
-  it("createRibbonHandlers accepts input values carried on the WPS control object", () => {
-    const reportError = vi.fn();
-    const root: ScrapVarianceGlobal = {};
-    const ribbon = createRibbonHandlers({
-      root,
-      runPrecheck: vi.fn(),
-      setupOutputSheets: vi.fn(),
-      queryCurrentSheet: vi.fn(),
-      toggleMaterialRows: vi.fn(),
-      runDiagnostics: vi.fn(),
-      reportError
-    });
-
-    ribbon.OnInputChange({ Id: "company", Text: " 波峰 " });
-    ribbon.OnInputChange({ Id: "startDate", Value: "2026/1/1" });
-    ribbon.OnInputChange({ Id: "endDate", text: "2026/5/1" });
-
-    expect(root.ScrapVarianceRibbonState).toEqual(
-      expect.objectContaining({
-        company: "波峰",
-        startDate: "2026/1/1",
-        endDate: "2026/5/1"
-      })
-    );
-    expect(reportError).not.toHaveBeenCalled();
-  });
-
-  it("createRibbonHandlers exposes dedicated editBox callbacks when WPS only passes text", () => {
-    const reportError = vi.fn();
-    const root: ScrapVarianceGlobal = {};
-    const ribbon = createRibbonHandlers({
-      root,
-      runPrecheck: vi.fn(),
-      setupOutputSheets: vi.fn(),
-      queryCurrentSheet: vi.fn(),
-      toggleMaterialRows: vi.fn(),
-      runDiagnostics: vi.fn(),
-      reportError
-    });
-    const inputRibbon = ribbon as typeof ribbon & {
-      OnCompanyChange(value: string): void;
-      OnDept1Change(value: string): void;
-      OnDept2Change(value: string): void;
-      OnStartDateChange(value: string): void;
-      OnEndDateChange(value: string): void;
-    };
-
-    inputRibbon.OnCompanyChange(" 数控 ");
-    inputRibbon.OnDept1Change("硬件研发中心");
-    inputRibbon.OnDept2Change("测试部");
-    inputRibbon.OnStartDateChange("2026/1/1");
-    inputRibbon.OnEndDateChange("2026/5/1");
-
-    expect(root.ScrapVarianceRibbonState).toEqual(
-      expect.objectContaining({
-        company: "数控",
-        dept1: "硬件研发中心",
-        dept2: "测试部",
-        startDate: "2026/1/1",
-        endDate: "2026/5/1"
-      })
-    );
-    expect(reportError).not.toHaveBeenCalled();
-  });
-
-  it("createRibbonHandlers clears stale filters before accepting a fresh company-only query", () => {
-    const reportError = vi.fn();
-    const root: ScrapVarianceGlobal = {
-      ScrapVarianceRibbonState: {
-        company: "不存在公司",
-        dept1: "旧一级部门",
-        dept2: "旧二级部门",
-        startDate: "2099/1/1",
-        endDate: "2099/12/31"
-      }
-    };
-    const ribbon = createRibbonHandlers({
-      root,
-      runPrecheck: vi.fn(),
-      setupOutputSheets: vi.fn(),
-      queryCurrentSheet: vi.fn(),
-      toggleMaterialRows: vi.fn(),
-      runDiagnostics: vi.fn(),
-      reportError
-    });
-
-    ribbon.OnCompanyChange(" 数控 ");
-
-    expect(root.ScrapVarianceRibbonState).toEqual(
-      expect.objectContaining({
-        company: "数控",
-        dept1: "",
-        dept2: "",
-        startDate: "",
-        endDate: ""
-      })
-    );
-    expect(reportError).not.toHaveBeenCalled();
-  });
-
-  it("createRibbonHandlers accepts direction selection carried on the WPS control object", () => {
-    const reportError = vi.fn();
-    const root: ScrapVarianceGlobal = {};
-    const ribbon = createRibbonHandlers({
-      root,
-      runPrecheck: vi.fn(),
-      setupOutputSheets: vi.fn(),
-      queryCurrentSheet: vi.fn(),
-      toggleMaterialRows: vi.fn(),
-      runDiagnostics: vi.fn(),
-      reportError
-    });
-
-    ribbon.OnDirectionChange({ Id: "queryDirection", selectedIndex: 1 });
-
-    expect(root.ScrapVarianceRibbonState).toEqual(
-      expect.objectContaining({
-        queryDirection: "ERP源单查OA"
-      })
-    );
-    expect(reportError).not.toHaveBeenCalled();
-  });
-
-  it("createRibbonHandlers exposes a dedicated direction callback when WPS only passes selection", () => {
-    const reportError = vi.fn();
-    const root: ScrapVarianceGlobal = {};
-    const ribbon = createRibbonHandlers({
-      root,
-      runPrecheck: vi.fn(),
-      setupOutputSheets: vi.fn(),
-      queryCurrentSheet: vi.fn(),
-      toggleMaterialRows: vi.fn(),
-      runDiagnostics: vi.fn(),
-      reportError
-    });
-    const directionRibbon = ribbon as typeof ribbon & {
-      OnQueryDirectionChange(value: number): void;
-    };
-
-    directionRibbon.OnQueryDirectionChange(1);
-
-    expect(root.ScrapVarianceRibbonState).toEqual(
-      expect.objectContaining({
-        queryDirection: "ERP源单查OA"
-      })
-    );
+    expect(buttonActions.btnPrecheck.run).toHaveBeenCalledOnce();
+    expect(buttonActions.btnSetupOutputSheets.run).toHaveBeenCalledOnce();
+    expect(buttonActions.btnQueryCurrentSheet.run).toHaveBeenCalledOnce();
+    expect(buttonActions.btnToggleMaterialRows.run).toHaveBeenCalledOnce();
+    expect(buttonActions.btnPerformanceDiagnostics.run).toHaveBeenCalledOnce();
     expect(reportError).not.toHaveBeenCalled();
   });
 
   it("createRibbonHandlers reports unknown ribbon button errors", () => {
     const reportError = vi.fn();
     const ribbon = createRibbonHandlers({
-      runPrecheck: vi.fn(),
-      setupOutputSheets: vi.fn(),
-      queryCurrentSheet: vi.fn(),
-      toggleMaterialRows: vi.fn(),
-      runDiagnostics: vi.fn(),
+      buttonActions: makeButtonActions(),
       reportError
     });
 
@@ -252,13 +89,14 @@ describe("WPS ribbon entrypoint", () => {
   it("createRibbonHandlers does not throw when a dependency fails and reportError handles it", () => {
     const reportError = vi.fn();
     const ribbon = createRibbonHandlers({
-      runPrecheck: () => {
-        throw new Error("precheck failed");
-      },
-      setupOutputSheets: vi.fn(),
-      queryCurrentSheet: vi.fn(),
-      toggleMaterialRows: vi.fn(),
-      runDiagnostics: vi.fn(),
+      buttonActions: makeButtonActions({
+        btnPrecheck: {
+          name: "runPrecheck",
+          run: () => {
+            throw new Error("precheck failed");
+          }
+        }
+      }),
       reportError
     });
 
@@ -272,11 +110,7 @@ describe("WPS ribbon entrypoint", () => {
     const ribbonUi = { invalidate: vi.fn() };
     const ribbon = createRibbonHandlers({
       root,
-      runPrecheck: vi.fn(),
-      setupOutputSheets: vi.fn(),
-      queryCurrentSheet: vi.fn(),
-      toggleMaterialRows: vi.fn(),
-      runDiagnostics: vi.fn(),
+      buttonActions: makeButtonActions(),
       reportError: vi.fn()
     });
 
@@ -285,7 +119,7 @@ describe("WPS ribbon entrypoint", () => {
     expect(root.ScrapVarianceRibbonUi).toBe(ribbonUi);
   });
 
-  it("OnAddinLoad resets stale ribbon filters so blank controls query all data", () => {
+  it("OnAddinLoad does not rewrite dialog query state", () => {
     const root: ScrapVarianceGlobal = {
       ScrapVarianceRibbonState: {
         company: "不存在公司",
@@ -295,17 +129,17 @@ describe("WPS ribbon entrypoint", () => {
     };
     const ribbon = createRibbonHandlers({
       root,
-      runPrecheck: vi.fn(),
-      setupOutputSheets: vi.fn(),
-      queryCurrentSheet: vi.fn(),
-      toggleMaterialRows: vi.fn(),
-      runDiagnostics: vi.fn(),
+      buttonActions: makeButtonActions(),
       reportError: vi.fn()
     });
 
     ribbon.OnAddinLoad({ invalidate: vi.fn() });
 
-    expect(root.ScrapVarianceRibbonState).toEqual(DEFAULT_RIBBON_STATE);
+    expect(root.ScrapVarianceRibbonState).toEqual({
+      company: "不存在公司",
+      startDate: "2099/1/1",
+      endDate: "2099/12/31"
+    });
   });
 
   it("reportRuntimeError calls alert when alert is a function", () => {
