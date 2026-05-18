@@ -2,7 +2,8 @@ export const SHEET_NAMES = {
   oa: "查询OA-存货报废申请单",
   erp: "查询ERP-报废明细表",
   panel: "查询面板",
-  precheckResult: "预验证结果"
+  precheckResult: "预验证结果",
+  performanceDiagnostics: "性能诊断结果"
 } as const;
 
 export const OA_REQUIRED_HEADERS = [
@@ -74,6 +75,8 @@ export const PRECHECK_HEADERS = [
   "处理建议"
 ] as const;
 
+export const DIAGNOSTICS_HEADERS = ["类别", "阶段", "输入行数", "输出行数", "耗时ms", "内存MB", "说明"] as const;
+
 export const DIFFERENCE_TYPE_PRIORITY = [
   "OA有申请，ERP无出库",
   "ERP出库对应OA未在当前OA数据中找到",
@@ -87,4 +90,5 @@ export const MIN_OA_HEADER_MATCH_COUNT = 5;
 export const MIN_ERP_HEADER_MATCH_COUNT = 5;
 export const MAX_OUTPUT_CLEAR_ROW = 200000;
 export const MAX_PRECHECK_CLEAR_ROW = 200000;
+export const MAX_DIAGNOSTICS_CLEAR_ROW = 200000;
 export const WRITE_CHUNK_ROWS = 1000;

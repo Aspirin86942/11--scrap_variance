@@ -1,4 +1,4 @@
-import { MAX_OUTPUT_CLEAR_ROW, MAX_PRECHECK_CLEAR_ROW, WRITE_CHUNK_ROWS } from "../constants";
+import { MAX_DIAGNOSTICS_CLEAR_ROW, MAX_OUTPUT_CLEAR_ROW, MAX_PRECHECK_CLEAR_ROW, WRITE_CHUNK_ROWS } from "../constants";
 import type { OutputMatrix } from "../types/scrap";
 import type { WpsRange, WpsSheet } from "../types/wps";
 
@@ -107,4 +107,8 @@ export function clearQueryOutput(sheet: WpsSheet): void {
 
 export function clearPrecheckOutput(sheet: WpsSheet): void {
   clearRange(sheet, `A1:H${MAX_PRECHECK_CLEAR_ROW}`);
+}
+
+export function clearDiagnosticsOutput(sheet: WpsSheet): void {
+  clearRange(sheet, `A1:G${MAX_DIAGNOSTICS_CLEAR_ROW}`);
 }

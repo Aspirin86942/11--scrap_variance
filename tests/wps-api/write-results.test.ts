@@ -1,10 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { MAX_OUTPUT_CLEAR_ROW, MAX_PRECHECK_CLEAR_ROW, OA_REQUIRED_HEADERS } from "../../src/constants";
+import {
+  MAX_DIAGNOSTICS_CLEAR_ROW,
+  MAX_OUTPUT_CLEAR_ROW,
+  MAX_PRECHECK_CLEAR_ROW,
+  OA_REQUIRED_HEADERS
+} from "../../src/constants";
 import type { ScrapVarianceGlobal, WpsApplication, WpsSheet, WpsSheets } from "../../src/types/wps";
 import { readSheetTable } from "../../src/wps-api/read-sheet-data";
 import { ensureSheet, getApplication, getSheets } from "../../src/wps-api/workbook";
 import {
   clearPrecheckOutput,
+  clearDiagnosticsOutput,
   clearQueryOutput,
   rangeAddress,
   writeMatrixBulkOrChunks
@@ -67,6 +73,14 @@ describe("WPS adapter bulk reads and writes", () => {
 
     expect(querySheet.clears).toEqual([`A8:Q${MAX_OUTPUT_CLEAR_ROW}`]);
     expect(precheckSheet.clears).toEqual([`A1:H${MAX_PRECHECK_CLEAR_ROW}`]);
+  });
+
+  it("clears diagnostics output fixed range exactly once", () => {
+    const diagnosticsSheet = createFakeSheet("性能诊断结果");
+
+    clearDiagnosticsOutput(diagnosticsSheet);
+
+    expect(diagnosticsSheet.clears).toEqual([`A1:G${MAX_DIAGNOSTICS_CLEAR_ROW}`]);
   });
 
   it("writes a matrix with a single bulk range assignment", () => {

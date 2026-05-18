@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ERP_REQUIRED_HEADERS, OA_REQUIRED_HEADERS, SHEET_NAMES } from "../../src/constants";
+import { runPerformanceDiagnostics } from "../../src/macros/performance-diagnostics";
 import { runScrapVariancePrecheck } from "../../src/macros/scrap-variance-precheck";
 import { runScrapVarianceQuery } from "../../src/macros/scrap-variance-query";
 import { setupQueryPanel } from "../../src/macros/setup-query-panel";
@@ -193,5 +194,37 @@ describe("TypeScript macro orchestration", () => {
     expect(issue?.[3]).toBe("表头");
     expect(issue?.[5]).toBe("表头识别不唯一");
     expect(issue?.[1]).not.toBe("系统");
+  });
+
+  it("runPerformanceDiagnostics writes diagnostics without clearing query output", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
+    const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
+    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    panelSheet.rangeValues.set("B2:B6", [[""], [""], [""], [""], [""]]);
+    const root = makeRoot([oaSheet, erpSheet, panelSheet]);
+
+    runPerformanceDiagnostics(root);
+
+    const diagnosticsSheet = getSheet(root, 4) as FakeSheet;
+    const output = flattenWrites(diagnosticsSheet);
+    expect(diagnosticsSheet.Name).toBe(SHEET_NAMES.performanceDiagnostics);
+    expect(panelSheet.clears).toEqual([]);
+    expect(output).toContain("类别");
+    expect(output).toContain("read_oa_used_range");
+    expect(output).toContain("build_output_matrix");
+    expect(output).toContain("write_diagnostics_sheet");
+    expect(output).toContain("performance.now");
+  });
+
+  it("runPerformanceDiagnostics writes an error row when diagnostics fails", () => {
+    const root = makeRoot([]);
+
+    runPerformanceDiagnostics(root);
+
+    const diagnosticsSheet = getSheet(root, 1) as FakeSheet;
+    const output = flattenWrites(diagnosticsSheet);
+    expect(diagnosticsSheet.Name).toBe(SHEET_NAMES.performanceDiagnostics);
+    expect(output).toContain("错误");
+    expect(output.join("|")).toContain("找不到工作表");
   });
 });

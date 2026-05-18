@@ -45,7 +45,7 @@ function panelFilterValues(rawValue: unknown): WpsCellValue[] {
     .slice(0, 5);
 }
 
-function readPanelFilters(panelRange: WpsRange): QueryFilters {
+export function readPanelFilters(panelRange: WpsRange): QueryFilters {
   const values = panelFilterValues(readRangeValue(panelRange));
 
   return parseFilters({
