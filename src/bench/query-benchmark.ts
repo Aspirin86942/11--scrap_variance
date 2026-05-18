@@ -1,0 +1,184 @@
+/// <reference types="node" />
+
+import { execSync } from "node:child_process";
+import { mkdirSync, writeFileSync } from "node:fs";
+import { dirname } from "node:path";
+import { runQueryCorePipeline } from "../core/query-pipeline";
+import { generateBenchmarkData } from "../perf/benchmark-data";
+import { UNKNOWN_MEMORY, type MemoryValue } from "../perf/memory";
+import { createMetricsRecorder, type StageMetric } from "../perf/metrics";
+
+export interface BenchCliOptions {
+  scales: number[];
+  writeJson: boolean;
+}
+
+export interface DatasetBenchResult {
+  name: string;
+  oaRows: number;
+  erpRows: number;
+  resultRows: {
+    oaGroups: number;
+    erpForOaGroups: number;
+    erpOnlyGroups: number;
+    detailRows: number;
+    summaryRows: number;
+  };
+  stages: StageMetric[];
+  total: {
+    name: "total";
+    timeMs: number;
+    heapDeltaMb: MemoryValue;
+  };
+}
+
+export interface BenchReport {
+  generatedAt: string;
+  gitCommit: string;
+  nodeVersion: string;
+  datasets: DatasetBenchResult[];
+}
+
+function getGitCommit(): string {
+  try {
+    return execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
+  } catch {
+    return "unknown";
+  }
+}
+
+function parsePositiveScale(value: string): number {
+  const scale = Number(value);
+  if (!Number.isInteger(scale) || scale <= 0) {
+    throw new Error("--scale 只能是 default、stress 或正整数");
+  }
+  return scale;
+}
+
+export function parseBenchArgs(args: string[]): BenchCliOptions {
+  let scales = [10000, 50000];
+  let writeJson = true;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const arg = args[index];
+    if (arg === "--no-json") {
+      writeJson = false;
+      continue;
+    }
+    if (arg === "--scale") {
+      const value = args[index + 1];
+      if (!value) {
+        throw new Error("--scale 需要参数：default、stress 或正整数");
+      }
+      if (value === "default") {
+        scales = [10000, 50000];
+      } else if (value === "stress") {
+        scales = [10000, 50000, 200000];
+      } else {
+        scales = [parsePositiveScale(value)];
+      }
+      index += 1;
+      continue;
+    }
+    throw new Error(`未知 benchmark 参数：${arg}`);
+  }
+
+  return { scales, writeJson };
+}
+
+function metricSum(stages: StageMetric[]): number {
+  return Number(stages.reduce((total, stage) => total + stage.timeMs, 0).toFixed(2));
+}
+
+function metricMemoryDelta(stages: StageMetric[]): MemoryValue {
+  let total = 0;
+  for (const stage of stages) {
+    if (stage.heapDeltaMb === UNKNOWN_MEMORY) {
+      return UNKNOWN_MEMORY;
+    }
+    total += stage.heapDeltaMb;
+  }
+  return Number(total.toFixed(2));
+}
+
+export function buildBenchReport(scales: number[], options: Pick<BenchCliOptions, "writeJson">): BenchReport {
+  const datasets: DatasetBenchResult[] = [];
+
+  for (const scale of scales) {
+    const metrics = createMetricsRecorder();
+    const data = metrics.measure(
+      "generate_data",
+      { inputRows: scale, outputRows: (value) => value.oaRows.length + value.erpRows.length },
+      () => generateBenchmarkData(scale)
+    );
+    const result = runQueryCorePipeline(data.oaRows, data.erpRows, data.filters, metrics);
+
+    datasets.push({
+      name: data.name,
+      oaRows: data.oaRows.length,
+      erpRows: data.erpRows.length,
+      resultRows: {
+        oaGroups: result.oaGroupedRows.size,
+        erpForOaGroups: result.erpRowsForOa.size,
+        erpOnlyGroups: result.erpOnlyRows.size,
+        detailRows: result.detailRows.length,
+        summaryRows: result.summaryRows.length
+      },
+      stages: metrics.stages,
+      total: {
+        name: "total",
+        timeMs: metricSum(metrics.stages),
+        heapDeltaMb: metricMemoryDelta(metrics.stages)
+      }
+    });
+  }
+
+  const report: BenchReport = {
+    generatedAt: new Date().toISOString(),
+    gitCommit: getGitCommit(),
+    nodeVersion: process.version,
+    datasets
+  };
+
+  if (options.writeJson) {
+    writeBenchJson(report, "bench-results/latest.json");
+  }
+
+  return report;
+}
+
+export function renderBenchTable(report: BenchReport): string {
+  const lines = ["dataset     stage                  rows      time_ms   heap_delta_mb"];
+  for (const dataset of report.datasets) {
+    for (const stage of dataset.stages) {
+      lines.push(
+        `${dataset.name.padEnd(11)} ${stage.name.padEnd(22)} ${String(stage.inputRows).padEnd(9)} ${String(stage.timeMs).padEnd(9)} ${String(stage.heapDeltaMb)}`
+      );
+    }
+    // 汇总行使用输入总行数，便于和各阶段性能结果快速对齐。
+    lines.push(
+      `${dataset.name.padEnd(11)} ${dataset.total.name.padEnd(22)} ${String(dataset.oaRows + dataset.erpRows).padEnd(9)} ${String(dataset.total.timeMs).padEnd(9)} ${String(dataset.total.heapDeltaMb)}`
+    );
+  }
+  return lines.join("\n");
+}
+
+export function writeBenchJson(report: BenchReport, outputPath: string): void {
+  mkdirSync(dirname(outputPath), { recursive: true });
+  writeFileSync(outputPath, `${JSON.stringify(report, null, 2)}\n`, { encoding: "utf-8" });
+}
+
+export function runBenchCli(args: string[]): void {
+  const options = parseBenchArgs(args);
+  const report = buildBenchReport(options.scales, options);
+  process.stdout.write(`${renderBenchTable(report)}\n`);
+}
+
+if (typeof require !== "undefined" && require.main === module) {
+  try {
+    runBenchCli(process.argv.slice(2));
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`);
+    process.exitCode = 1;
+  }
+}
