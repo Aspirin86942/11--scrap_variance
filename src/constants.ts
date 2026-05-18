@@ -77,6 +77,8 @@ export const PRECHECK_HEADERS = [
 
 export const DIAGNOSTICS_HEADERS = ["类别", "阶段", "输入行数", "输出行数", "耗时ms", "内存MB", "说明"] as const;
 
+export const NOT_APPLICABLE = "不适用" as const;
+
 export const DIFFERENCE_TYPE_PRIORITY = [
   "OA有申请，ERP无出库",
   "ERP出库对应OA未在当前OA数据中找到",

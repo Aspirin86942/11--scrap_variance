@@ -4,6 +4,7 @@ import {
   MAX_HEADER_SCAN_ROWS,
   MIN_ERP_HEADER_MATCH_COUNT,
   MIN_OA_HEADER_MATCH_COUNT,
+  NOT_APPLICABLE,
   OA_REQUIRED_HEADERS,
   SHEET_NAMES,
   WRITE_CHUNK_ROWS
@@ -28,10 +29,10 @@ function capabilityRows(capabilities: RuntimeCapability[]): OutputMatrix {
   return capabilities.map((capability) => [
     "运行时能力",
     capability.name,
-    "",
-    "",
-    "",
-    UNKNOWN_MEMORY,
+    NOT_APPLICABLE,
+    NOT_APPLICABLE,
+    NOT_APPLICABLE,
+    NOT_APPLICABLE,
     capability.note
   ]);
 }
@@ -55,7 +56,18 @@ function writeDiagnosticsRows(sheet: WpsSheet, rows: OutputMatrix): void {
 
 function writeDiagnosticsError(root: ScrapVarianceGlobal | undefined, message: string): void {
   const sheet = ensureSheet(SHEET_NAMES.performanceDiagnostics, root);
-  writeDiagnosticsRows(sheet, [[...DIAGNOSTICS_HEADERS], ["错误", "performance_diagnostics", "", "", "", UNKNOWN_MEMORY, message]]);
+  writeDiagnosticsRows(sheet, [
+    [...DIAGNOSTICS_HEADERS],
+    [
+      "错误",
+      "performance_diagnostics",
+      NOT_APPLICABLE,
+      NOT_APPLICABLE,
+      NOT_APPLICABLE,
+      NOT_APPLICABLE,
+      message
+    ]
+  ]);
 }
 
 export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
@@ -107,8 +119,8 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
         "result_rows",
         oaTable.rows.length + erpTable.rows.length,
         result.detailRows.length + result.summaryRows.length,
-        "",
-        UNKNOWN_MEMORY,
+        NOT_APPLICABLE,
+        NOT_APPLICABLE,
         `OA聚合=${result.oaGroupedRows.size}；ERP匹配聚合=${result.erpRowsForOa.size}；ERP-only聚合=${result.erpOnlyRows.size}`
       ]
     ];

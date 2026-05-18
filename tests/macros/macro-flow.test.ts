@@ -220,6 +220,27 @@ describe("TypeScript macro orchestration", () => {
     if (!initialWrite || !writeStageAppend || !Array.isArray(initialWrite.value)) {
       throw new Error("missing diagnostics writes");
     }
+    const initialRows = initialWrite.value as OutputMatrix;
+
+    expect(initialRows).toContainEqual([
+      "运行时能力",
+      "performance.now",
+      "不适用",
+      "不适用",
+      "不适用",
+      "不适用",
+      "支持"
+    ]);
+    expect(initialRows.some((row) => row[0] === "运行时能力" && row[1] === "memory_api")).toBe(true);
+    expect(initialRows).toContainEqual([
+      "结果规模",
+      "result_rows",
+      2,
+      2,
+      "不适用",
+      "不适用",
+      "OA聚合=1；ERP匹配聚合=1；ERP-only聚合=0"
+    ]);
     const initialRowCount = (initialWrite.value as OutputMatrix).length;
     expect(initialWrite.address).toBe(`A1:G${initialRowCount}`);
     expect(writeStageAppend.address).toBe(`A${initialRowCount + 1}:G${initialRowCount + 1}`);
@@ -235,6 +256,22 @@ describe("TypeScript macro orchestration", () => {
     expect(diagnosticsSheet.Name).toBe(SHEET_NAMES.performanceDiagnostics);
     expect(output).toContain("错误");
     expect(output.join("|")).toContain("找不到工作表");
+    const errorWrite = diagnosticsSheet.writes[0];
+    if (!errorWrite || !Array.isArray(errorWrite.value)) {
+      throw new Error("missing diagnostics error write");
+    }
+    expect(errorWrite.value).toEqual([
+      ["类别", "阶段", "输入行数", "输出行数", "耗时ms", "内存MB", "说明"],
+      [
+        "错误",
+        "performance_diagnostics",
+        "不适用",
+        "不适用",
+        "不适用",
+        "不适用",
+        expect.stringContaining("找不到工作表")
+      ]
+    ]);
   });
 
   it("runPerformanceDiagnostics preserves the original error when writing the error row fails", () => {
