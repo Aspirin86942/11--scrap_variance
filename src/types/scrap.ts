@@ -80,6 +80,18 @@ export interface PanelQueryInput {
   queryDirection: QueryDirection;
 }
 
+export type DocCompareRowType = "汇总" | "物料";
+export type OutputSheetKind = "legacy_detail" | "oa_doc_compare" | "erp_doc_compare";
+
+export interface RibbonQueryState {
+  company: string;
+  dept1: string;
+  dept2: string;
+  startDate: string;
+  endDate: string;
+  queryDirection: QueryDirection;
+}
+
 export interface SummaryRow {
   company: string;
   dept1: string;

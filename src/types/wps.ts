@@ -1,3 +1,5 @@
+import type { RibbonQueryState } from "./scrap";
+
 export type WpsCellValue = string | number | boolean | Date | null | undefined;
 export type WpsMatrix = WpsCellValue[][];
 
@@ -46,6 +48,7 @@ export interface ScrapVarianceGlobal {
   Application?: WpsApplication;
   ribbon?: RibbonApi;
   ScrapVarianceRibbonUi?: unknown;
+  ScrapVarianceRibbonState?: Partial<RibbonQueryState>;
   alert?: (message: string) => void;
   console?: Pick<Console, "error" | "log">;
 }

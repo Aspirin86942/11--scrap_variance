@@ -2,6 +2,9 @@ export const SHEET_NAMES = {
   oa: "查询OA-存货报废申请单",
   erp: "查询ERP-报废明细表",
   panel: "查询面板",
+  detailOutput: "报废差异明细",
+  oaDocCompare: "OA视角单据对比",
+  erpDocCompare: "ERP视角单据对比",
   precheckResult: "预验证结果",
   performanceDiagnostics: "性能诊断结果"
 } as const;
@@ -64,6 +67,44 @@ export const DETAIL_HEADERS = [
   "OA实际预算金额mx合计",
   "ERP总成本合计",
   "金额差额",
+  "备注"
+] as const;
+
+export const OA_DOC_COMPARE_HEADERS = [
+  "行类型",
+  "公司简称",
+  "一级部门",
+  "二级部门",
+  "OA申请日期",
+  "OA单据号",
+  "OA数量",
+  "OA金额",
+  "ERP单据号",
+  "ERP数量",
+  "ERP金额",
+  "数量差额",
+  "金额差额",
+  "物料编码",
+  "物料名称",
+  "备注"
+] as const;
+
+export const ERP_DOC_COMPARE_HEADERS = [
+  "行类型",
+  "公司简称",
+  "一级部门",
+  "二级部门",
+  "ERP日期",
+  "ERP单据号",
+  "ERP数量",
+  "ERP金额",
+  "OA单据号",
+  "OA数量",
+  "OA金额",
+  "数量差额",
+  "金额差额",
+  "物料编码",
+  "物料名称",
   "备注"
 ] as const;
 
