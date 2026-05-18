@@ -226,6 +226,15 @@ describe("perf memory", () => {
       )
     ).toBe(UNKNOWN_MEMORY);
   });
+
+  it("returns unknown heap delta for available samples from different sources", () => {
+    expect(
+      memoryDeltaMb(
+        { available: true, source: "process.memoryUsage", heapUsedMb: 10, rssMb: 20 },
+        { available: true, source: "performance.memory", heapUsedMb: 13, rssMb: UNKNOWN_MEMORY }
+      )
+    ).toBe(UNKNOWN_MEMORY);
+  });
 });
 
 describe("metrics recorder", () => {
@@ -278,6 +287,58 @@ describe("metrics recorder", () => {
         },
         heapDeltaMb: 2,
         note: ""
+      })
+    );
+  });
+
+  it("records unknown heap delta when memory samples switch sources", () => {
+    let currentTime = 100;
+    let processMemoryCalls = 0;
+    const root = {
+      performance: {
+        now: () => {
+          currentTime += 25;
+          return currentTime;
+        },
+        memory: {
+          usedJSHeapSize: 9 * 1024 * 1024
+        }
+      },
+      process: {
+        memoryUsage: () => {
+          processMemoryCalls += 1;
+          if (processMemoryCalls > 1) {
+            throw new Error("memory unavailable");
+          }
+          return {
+            heapUsed: 7 * 1024 * 1024,
+            rss: 17 * 1024 * 1024
+          };
+        }
+      }
+    };
+    const metrics = createMetricsRecorder(root);
+
+    const value = metrics.measure("stage_mixed_memory", { inputRows: 1, outputRows: 1 }, () => ["A"]);
+
+    expect(value).toEqual(["A"]);
+    expect(metrics.stages).toHaveLength(1);
+    expect(metrics.stages[0]).toEqual(
+      expect.objectContaining({
+        name: "stage_mixed_memory",
+        memoryBefore: {
+          available: true,
+          source: "process.memoryUsage",
+          heapUsedMb: 7,
+          rssMb: 17
+        },
+        memoryAfter: {
+          available: true,
+          source: "performance.memory",
+          heapUsedMb: 9,
+          rssMb: UNKNOWN_MEMORY
+        },
+        heapDeltaMb: UNKNOWN_MEMORY
       })
     );
   });

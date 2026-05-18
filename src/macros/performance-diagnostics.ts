@@ -11,7 +11,6 @@ import {
 } from "../constants";
 import { runQueryCorePipeline } from "../core/query-pipeline";
 import { parseTableFromMatrix } from "../core/table-parser";
-import { UNKNOWN_MEMORY } from "../perf/memory";
 import { createMetricsRecorder, type StageMetric } from "../perf/metrics";
 import { probeRuntimeCapabilities, type RuntimeCapability } from "../perf/runtime-probe";
 import type { OutputMatrix } from "../types/scrap";

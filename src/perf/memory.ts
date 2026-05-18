@@ -109,5 +109,8 @@ export function memoryDeltaMb(before: MemorySample, after: MemorySample): Memory
   if (!before.available || !after.available) {
     return UNKNOWN_MEMORY;
   }
+  if (before.source !== after.source) {
+    return UNKNOWN_MEMORY;
+  }
   return Number((after.heapUsedMb - before.heapUsedMb).toFixed(2));
 }
