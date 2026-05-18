@@ -1,7 +1,8 @@
-import { buildErpOnlyRows, buildErpRowsForOa } from "./build-erp-rows";
+import { buildErpOnlyRows, buildErpRowsForOa, buildErpRowsForOaKingdee } from "./build-erp-rows";
 import { buildOaRows, collectSelectedOaForms, parseFilters } from "./build-oa-rows";
 import { buildSummaryRows, detailRowsToValues, summaryRowsToValues } from "./build-summary-rows";
 import { compareRows } from "./compare-rows";
+import { DEFAULT_QUERY_DIRECTION, QUERY_DIRECTIONS, parseQueryDirection, type QueryDirection } from "./query-direction";
 import { createMetricsRecorder, type MetricsRecorder } from "../perf/metrics";
 import type {
   DetailRow,
@@ -14,6 +15,7 @@ import type {
 } from "../types/scrap";
 
 export interface QueryCorePipelineResult {
+  queryDirection: QueryDirection;
   oaGroupedRows: Map<string, OaAggRow>;
   currentOaFormNumbers: Set<string>;
   erpRowsForOa: Map<string, ErpAggRow>;
@@ -28,9 +30,11 @@ export function runQueryCorePipeline(
   oaRows: RawRow[],
   erpRows: RawRow[],
   filters: Partial<QueryFilters> | Record<string, unknown> | null | undefined,
-  metrics: MetricsRecorder = createMetricsRecorder()
+  metrics: MetricsRecorder = createMetricsRecorder(),
+  queryDirectionInput: unknown = DEFAULT_QUERY_DIRECTION
 ): QueryCorePipelineResult {
   const activeFilters = parseFilters(filters);
+  const queryDirection = parseQueryDirection(queryDirectionInput);
 
   const oaGroupedRows = metrics.measure(
     "build_oa_rows",
@@ -47,13 +51,19 @@ export function runQueryCorePipeline(
   const erpRowsForOa = metrics.measure(
     "build_erp_rows_for_oa",
     { inputRows: erpRows.length, outputRows: (rows: Map<string, ErpAggRow>) => rows.size },
-    () => buildErpRowsForOa(erpRows, oaGroupedRows)
+    () =>
+      queryDirection === QUERY_DIRECTIONS.oaKingdeeToErp
+        ? buildErpRowsForOaKingdee(erpRows, oaGroupedRows)
+        : buildErpRowsForOa(erpRows, oaGroupedRows)
   );
 
   const erpOnlyRows = metrics.measure(
     "build_erp_only_rows",
     { inputRows: erpRows.length, outputRows: (rows: Map<string, ErpAggRow>) => rows.size },
-    () => buildErpOnlyRows(erpRows, currentOaFormNumbers, activeFilters)
+    () =>
+      queryDirection === QUERY_DIRECTIONS.oaKingdeeToErp
+        ? new Map<string, ErpAggRow>()
+        : buildErpOnlyRows(erpRows, currentOaFormNumbers, activeFilters)
   );
 
   const detailRows = metrics.measure(
@@ -84,6 +94,7 @@ export function runQueryCorePipeline(
   );
 
   return {
+    queryDirection,
     oaGroupedRows,
     currentOaFormNumbers,
     erpRowsForOa,

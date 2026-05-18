@@ -27,6 +27,7 @@ function makeDate(dayOffset: number): string {
 function makeOaRow(index: number): RawRow {
   return {
     表单编号: `F${pad(index, 6)}`,
+    金蝶云单据编号: `QOUT${pad(index, 6)}`,
     申请日期: makeDate(index),
     公司简称: "数控",
     一级部门: "生产",

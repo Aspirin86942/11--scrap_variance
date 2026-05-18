@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildErpOnlyRows, buildErpRowsForOa } from "../../src/core/build-erp-rows";
+import { buildErpOnlyRows, buildErpRowsForOa, buildErpRowsForOaKingdee } from "../../src/core/build-erp-rows";
 import { buildOaRows, collectSelectedOaForms, parseFilters } from "../../src/core/build-oa-rows";
 import { buildSummaryRows, detailRowsToValues, summaryRowsToValues } from "../../src/core/build-summary-rows";
 import { compareRows } from "../../src/core/compare-rows";
@@ -260,6 +260,102 @@ describe("query core", () => {
     expect(erpForOa.get("CHBF2026050001||MAT-A")?.erpDate).toBe("2026-05-03、2026-05-04");
     expect([...erpOnly.keys()]).toEqual(["CHBF9999999999||MAT-Z"]);
     expect(erpOnly.get("CHBF9999999999||MAT-Z")?.erpDate).toBe("2026-05-04");
+  });
+
+  it("matches ERP rows by OA Kingdee document number in OA direction", () => {
+    const filters = parseFilters({
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026-05-01",
+      endDate: "2026-05-31"
+    });
+    const oaGrouped = buildOaRows(
+      [
+        {
+          表单编号: "OA-001",
+          金蝶云单据编号: "ERP-001",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 2,
+          实际预算金额mx: 20
+        }
+      ],
+      filters
+    );
+    const erpForOa = buildErpRowsForOaKingdee(
+      [
+        {
+          单据编号: "ERP-001",
+          日期: "2026/6/1",
+          源单单号: "SOURCE-001",
+          区分公司简称: "其他公司",
+          一级部门: "其他部门",
+          二级部门: "其他二级",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 2,
+          总成本: 21
+        }
+      ],
+      oaGrouped
+    );
+
+    const details = compareRows(oaGrouped, erpForOa, new Map());
+
+    expect(erpForOa.get("OA-001||MAT-A")?.sourceFormNumber).toBe("SOURCE-001");
+    expect(details[0]).toMatchObject({
+      differenceType: "OA和ERP都有，数量一致",
+      formNumber: "OA-001",
+      oaKingdeeDocNumber: "ERP-001",
+      erpDocNumbers: "ERP-001",
+      erpSourceFormNumber: "SOURCE-001",
+      amountDiff: -1
+    });
+  });
+
+  it("treats blank OA Kingdee number as OA without ERP shipment", () => {
+    const oaGrouped = buildOaRows(
+      [
+        {
+          表单编号: "OA-BLANK",
+          金蝶云单据编号: "",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 1,
+          实际预算金额mx: 10
+        }
+      ],
+      parseFilters({})
+    );
+
+    const erpForOa = buildErpRowsForOaKingdee(
+      [
+        {
+          单据编号: "ERP-IGNORED",
+          日期: "2026/5/2",
+          源单单号: "OA-BLANK",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 10
+        }
+      ],
+      oaGrouped
+    );
+
+    expect(compareRows(oaGrouped, erpForOa, new Map())[0]?.differenceType).toBe("OA有申请，ERP无出库");
   });
 
   it("deduplicates aggregate dates without changing the grouping key", () => {

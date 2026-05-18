@@ -7,18 +7,19 @@ import { collectSelectedOaForms, isDateInRange, makeDetailKey, matchesOrgFilters
 function addErpRowToGroup(
   result: Map<string, ErpAggRow>,
   row: RawRow,
-  sourceFormNumber: string,
+  groupingFormNumber: string,
   itemCode: string,
-  dateKey: string
+  dateKey: string,
+  sourceFormNumber = normalizeText(row["源单单号"])
 ): void {
-  const key = makeDetailKey(sourceFormNumber, itemCode);
+  const key = makeDetailKey(groupingFormNumber, itemCode);
   const docNumber = normalizeText(row["单据编号"]);
   let target = result.get(key);
 
   if (!target) {
     target = {
       sourceFormNumber,
-      formNumber: sourceFormNumber,
+      formNumber: groupingFormNumber,
       itemCode,
       itemName: normalizeText(row["物料名称"]),
       company: normalizeText(row["区分公司简称"]),
@@ -30,6 +31,10 @@ function addErpRowToGroup(
       erpDocNumbers: ""
     };
     result.set(key, target);
+  }
+
+  if (!target.sourceFormNumber && sourceFormNumber) {
+    target.sourceFormNumber = sourceFormNumber;
   }
 
   target.erpDate = appendUniqueJoinedText(target.erpDate, dateKey);
@@ -53,6 +58,46 @@ export function buildErpRowsForOa(
     }
     const dateKey = normalizeDateKey(row["日期"]);
     addErpRowToGroup(result, row, sourceFormNumber, itemCode, dateKey);
+  }
+
+  return result;
+}
+
+function indexErpRowsByDocNumber(erpRows: RawRow[] | null | undefined): Map<string, RawRow[]> {
+  const result = new Map<string, RawRow[]>();
+
+  for (const row of erpRows ?? []) {
+    const docNumber = normalizeText(row["单据编号"]);
+    if (!docNumber) {
+      continue;
+    }
+    const rows = result.get(docNumber) ?? [];
+    rows.push(row);
+    result.set(docNumber, rows);
+  }
+
+  return result;
+}
+
+export function buildErpRowsForOaKingdee(
+  erpRows?: RawRow[] | null,
+  oaGroupedRows?: Map<string, OaAggRow> | null
+): Map<string, ErpAggRow> {
+  const result = new Map<string, ErpAggRow>();
+  const erpByDocNumber = indexErpRowsByDocNumber(erpRows);
+
+  for (const oa of (oaGroupedRows ?? new Map<string, OaAggRow>()).values()) {
+    if (!oa.kingdeeDocNumber) {
+      continue;
+    }
+
+    for (const row of erpByDocNumber.get(oa.kingdeeDocNumber) ?? []) {
+      const itemCode = normalizeText(row["物料编码"]);
+      if (!itemCode) {
+        continue;
+      }
+      addErpRowToGroup(result, row, oa.formNumber, itemCode, normalizeDateKey(row["日期"]));
+    }
   }
 
   return result;

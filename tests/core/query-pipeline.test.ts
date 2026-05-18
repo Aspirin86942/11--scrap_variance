@@ -19,13 +19,13 @@ describe("query core pipeline", () => {
     const result = runQueryCorePipeline(data.oaRows, data.erpRows, data.filters, metrics);
 
     expect(result.oaGroupedRows.size).toBeGreaterThan(0);
+    expect(result.queryDirection).toBe("OA金蝶单号查ERP");
     expect(result.erpRowsForOa.size).toBeGreaterThan(0);
-    expect(result.erpOnlyRows.size).toBeGreaterThan(0);
+    expect(result.erpOnlyRows.size).toBe(0);
     expect(result.detailRows.length).toBeGreaterThan(0);
     expect(result.summaryRows.length).toBeGreaterThan(0);
     expect(result.summaryValues[0]).toContain("差异类型摘要");
     expect(result.detailValues[0]).toContain("ERP日期");
-    expect([...result.erpOnlyRows.keys()].every((key) => key.startsWith("ERPONLY"))).toBe(true);
     expect(
       result.detailRows.find((row) => row.formNumber === "F000001" && row.itemCode === "MAT-0001")?.differenceType
     ).not.toBe("OA有申请，ERP无出库");
