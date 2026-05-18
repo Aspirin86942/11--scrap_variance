@@ -32,9 +32,86 @@ describe("perf memory", () => {
 
     expect(sample).toEqual({
       available: true,
+      source: "process.memoryUsage",
       heapUsedMb: 10,
       rssMb: 20
     });
+  });
+
+  it("samples browser performance memory when process memory is unavailable", () => {
+    const sample = getMemorySample({
+      performance: {
+        memory: {
+          usedJSHeapSize: 12 * 1024 * 1024,
+          totalJSHeapSize: 48 * 1024 * 1024
+        }
+      }
+    });
+
+    expect(sample).toEqual({
+      available: true,
+      source: "performance.memory",
+      heapUsedMb: 12,
+      rssMb: 48
+    });
+  });
+
+  it("uses usedJSHeapSize as rss fallback when performance total heap is unavailable", () => {
+    const sample = getMemorySample({
+      performance: {
+        memory: {
+          usedJSHeapSize: 15 * 1024 * 1024
+        }
+      }
+    });
+
+    expect(sample).toEqual({
+      available: true,
+      source: "performance.memory",
+      heapUsedMb: 15,
+      rssMb: 15
+    });
+  });
+
+  it("returns explicit unknown memory when performance memory values are invalid", () => {
+    const unknownSample = {
+      available: false,
+      heapUsedMb: UNKNOWN_MEMORY,
+      rssMb: UNKNOWN_MEMORY
+    };
+
+    expect(
+      getMemorySample({
+        performance: {
+          memory: {
+            usedJSHeapSize: "12",
+            totalJSHeapSize: 48 * 1024 * 1024
+          }
+        }
+      })
+    ).toEqual(unknownSample);
+
+    expect(
+      getMemorySample({
+        performance: {
+          memory: {
+            usedJSHeapSize: Number.NaN,
+            totalJSHeapSize: 48 * 1024 * 1024
+          }
+        }
+      })
+    ).toEqual(unknownSample);
+
+    expect(
+      getMemorySample({
+        performance: {
+          memory: {
+            usedJSHeapSize: Number.POSITIVE_INFINITY,
+            totalJSHeapSize: 48 * 1024 * 1024
+          }
+        }
+      })
+    ).toEqual(unknownSample);
   });
 
   it("returns explicit unknown memory when process memory is unavailable", () => {
@@ -96,14 +173,14 @@ describe("perf memory", () => {
   it("calculates heap delta only when both samples are available", () => {
     expect(
       memoryDeltaMb(
-        { available: true, heapUsedMb: 10, rssMb: 20 },
-        { available: true, heapUsedMb: 13.456, rssMb: 22 }
+        { available: true, source: "performance.memory", heapUsedMb: 10, rssMb: 20 },
+        { available: true, source: "performance.memory", heapUsedMb: 13.456, rssMb: 22 }
       )
     ).toBe(3.46);
     expect(
       memoryDeltaMb(
         { available: false, heapUsedMb: UNKNOWN_MEMORY, rssMb: UNKNOWN_MEMORY },
-        { available: true, heapUsedMb: 13, rssMb: 22 }
+        { available: true, source: "process.memoryUsage", heapUsedMb: 13, rssMb: 22 }
       )
     ).toBe(UNKNOWN_MEMORY);
   });
@@ -147,11 +224,13 @@ describe("metrics recorder", () => {
         timeMs: 25,
         memoryBefore: {
           available: true,
+          source: "process.memoryUsage",
           heapUsedMb: 7,
           rssMb: 17
         },
         memoryAfter: {
           available: true,
+          source: "process.memoryUsage",
           heapUsedMb: 9,
           rssMb: 19
         },
@@ -202,11 +281,13 @@ describe("metrics recorder", () => {
       timeMs: 25,
       memoryBefore: {
         available: true,
+        source: "process.memoryUsage",
         heapUsedMb: 7,
         rssMb: 17
       },
       memoryAfter: {
         available: true,
+        source: "process.memoryUsage",
         heapUsedMb: 9,
         rssMb: 19
       },
@@ -306,11 +387,13 @@ describe("metrics recorder", () => {
       timeMs: 25,
       memoryBefore: {
         available: true,
+        source: "process.memoryUsage",
         heapUsedMb: 7,
         rssMb: 17
       },
       memoryAfter: {
         available: true,
+        source: "process.memoryUsage",
         heapUsedMb: 9,
         rssMb: 19
       },
