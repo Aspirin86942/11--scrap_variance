@@ -318,6 +318,75 @@ describe("query core", () => {
     });
   });
 
+  it("counts a shared OA Kingdee ERP document once per OA form", () => {
+    const oaGrouped = buildOaRows(
+      [
+        {
+          表单编号: "OA-MULTI",
+          金蝶云单据编号: "ERP-MULTI",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 2,
+          实际预算金额mx: 20
+        },
+        {
+          表单编号: "OA-MULTI",
+          金蝶云单据编号: "ERP-MULTI",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-B",
+          物料名称: "物料B",
+          数量: 3,
+          实际预算金额mx: 30
+        }
+      ],
+      parseFilters({})
+    );
+
+    const erpForOa = buildErpRowsForOaKingdee(
+      [
+        {
+          单据编号: "ERP-MULTI",
+          日期: "2026/5/2",
+          源单单号: "SOURCE-MULTI",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 2,
+          总成本: 20
+        },
+        {
+          单据编号: "ERP-MULTI",
+          日期: "2026/5/2",
+          源单单号: "SOURCE-MULTI",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-B",
+          物料名称: "物料B",
+          实发数量: 3,
+          总成本: 30
+        }
+      ],
+      oaGrouped
+    );
+
+    expect(erpForOa.get("OA-MULTI||MAT-A")?.quantity.toString()).toBe("2");
+    expect(erpForOa.get("OA-MULTI||MAT-A")?.cost.toString()).toBe("20");
+    expect(erpForOa.get("OA-MULTI||MAT-A")?.erpDocNumbers).toBe("ERP-MULTI");
+    expect(erpForOa.get("OA-MULTI||MAT-B")?.quantity.toString()).toBe("3");
+    expect(erpForOa.get("OA-MULTI||MAT-B")?.cost.toString()).toBe("30");
+    expect(erpForOa.get("OA-MULTI||MAT-B")?.erpDocNumbers).toBe("ERP-MULTI");
+  });
+
   it("treats blank OA Kingdee number as OA without ERP shipment", () => {
     const oaGrouped = buildOaRows(
       [

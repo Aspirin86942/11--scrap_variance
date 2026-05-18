@@ -79,17 +79,27 @@ function indexErpRowsByDocNumber(erpRows: RawRow[] | null | undefined): Map<stri
   return result;
 }
 
+function makeOaKingdeeLookupKey(formNumber: string, kingdeeDocNumber: string): string {
+  return JSON.stringify([formNumber, kingdeeDocNumber]);
+}
+
 export function buildErpRowsForOaKingdee(
   erpRows?: RawRow[] | null,
   oaGroupedRows?: Map<string, OaAggRow> | null
 ): Map<string, ErpAggRow> {
   const result = new Map<string, ErpAggRow>();
   const erpByDocNumber = indexErpRowsByDocNumber(erpRows);
+  const processedOaKingdeeDocs = new Set<string>();
 
   for (const oa of (oaGroupedRows ?? new Map<string, OaAggRow>()).values()) {
     if (!oa.kingdeeDocNumber) {
       continue;
     }
+    const oaKingdeeLookupKey = makeOaKingdeeLookupKey(oa.formNumber, oa.kingdeeDocNumber);
+    if (processedOaKingdeeDocs.has(oaKingdeeLookupKey)) {
+      continue;
+    }
+    processedOaKingdeeDocs.add(oaKingdeeLookupKey);
 
     for (const row of erpByDocNumber.get(oa.kingdeeDocNumber) ?? []) {
       const itemCode = normalizeText(row["物料编码"]);
