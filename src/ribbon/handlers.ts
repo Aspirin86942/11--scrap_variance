@@ -1,24 +1,29 @@
+import { QUERY_DIRECTIONS } from "../core/query-direction";
 import type { RibbonApi, RibbonControl, ScrapVarianceGlobal } from "../types/wps";
+import { getRibbonState, updateRibbonState } from "./state";
 
 export interface RibbonDependencies {
   runPrecheck(): void;
-  setupQueryPanel(): void;
-  runQuery(): void;
+  setupOutputSheets(): void;
+  queryCurrentSheet(): void;
+  toggleMaterialRows(): void;
   runDiagnostics(): void;
   reportError(error: unknown): void;
   root?: ScrapVarianceGlobal;
 }
+
+const DIRECTION_LABELS = [QUERY_DIRECTIONS.oaKingdeeToErp, QUERY_DIRECTIONS.erpSourceToOa] as const;
 
 export function getControlId(control: RibbonControl): string {
   return control.Id ?? control.id ?? control.ID ?? "";
 }
 
 export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonApi {
+  const root = dependencies.root ?? (globalThis as ScrapVarianceGlobal);
+
   return {
     OnAddinLoad(ribbonUi: unknown): void {
-      if (dependencies.root) {
-        dependencies.root.ScrapVarianceRibbonUi = ribbonUi;
-      }
+      root.ScrapVarianceRibbonUi = ribbonUi;
     },
     OnAction(control: RibbonControl): void {
       try {
@@ -28,11 +33,14 @@ export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonAp
           case "btnPrecheck":
             dependencies.runPrecheck();
             return;
-          case "btnInitQueryPanel":
-            dependencies.setupQueryPanel();
+          case "btnSetupOutputSheets":
+            dependencies.setupOutputSheets();
             return;
-          case "btnRunQuery":
-            dependencies.runQuery();
+          case "btnQueryCurrentSheet":
+            dependencies.queryCurrentSheet();
+            return;
+          case "btnToggleMaterialRows":
+            dependencies.toggleMaterialRows();
             return;
           case "btnPerformanceDiagnostics":
             dependencies.runDiagnostics();
@@ -43,6 +51,31 @@ export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonAp
       } catch (error) {
         dependencies.reportError(error);
       }
+    },
+    OnInputChange(control: RibbonControl, text: string): void {
+      try {
+        updateRibbonState(root, getControlId(control), text);
+      } catch (error) {
+        dependencies.reportError(error);
+      }
+    },
+    OnDirectionChange(control: RibbonControl, selectedIdOrIndex: string | number): void {
+      try {
+        const index = typeof selectedIdOrIndex === "number" ? selectedIdOrIndex : Number(selectedIdOrIndex);
+        updateRibbonState(root, getControlId(control), DIRECTION_LABELS[index] ?? selectedIdOrIndex);
+      } catch (error) {
+        dependencies.reportError(error);
+      }
+    },
+    GetDirectionCount(): number {
+      return DIRECTION_LABELS.length;
+    },
+    GetDirectionLabel(_control: RibbonControl, index: number): string {
+      return DIRECTION_LABELS[index] ?? "";
+    },
+    GetDirectionSelectedIndex(): number {
+      const current = getRibbonState(root).queryDirection;
+      return Math.max(0, DIRECTION_LABELS.findIndex((label) => label === current));
     }
   };
 }

@@ -1,7 +1,7 @@
 import { runPerformanceDiagnostics } from "./macros/performance-diagnostics";
+import { runCurrentSheetQuery, toggleMaterialRows } from "./macros/current-sheet-query";
+import { setupOutputSheets } from "./macros/output-sheets";
 import { runScrapVariancePrecheck } from "./macros/scrap-variance-precheck";
-import { runScrapVarianceQuery } from "./macros/scrap-variance-query";
-import { setupQueryPanel } from "./macros/setup-query-panel";
 import { createRibbonHandlers } from "./ribbon/handlers";
 import type { ScrapVarianceGlobal } from "./types/wps";
 
@@ -24,8 +24,9 @@ const root = globalThis as ScrapVarianceGlobal;
 root.ribbon = createRibbonHandlers({
   root,
   runPrecheck: () => runScrapVariancePrecheck(root),
-  setupQueryPanel: () => setupQueryPanel(root),
-  runQuery: () => runScrapVarianceQuery(root),
+  setupOutputSheets: () => setupOutputSheets(root),
+  queryCurrentSheet: () => runCurrentSheetQuery(root),
+  toggleMaterialRows: () => toggleMaterialRows(root),
   runDiagnostics: () => runPerformanceDiagnostics(root),
   reportError: reportRuntimeError
 });

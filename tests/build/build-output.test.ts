@@ -25,8 +25,15 @@ describe("WPS add-in generated bundle", () => {
     expect(xml).toContain('onLoad="ribbon.OnAddinLoad"');
     expect(xml).toContain('onAction="ribbon.OnAction"');
     expect(xml).toContain('id="btnPrecheck"');
-    expect(xml).toContain('id="btnInitQueryPanel"');
-    expect(xml).toContain('id="btnRunQuery"');
+    expect(xml).toContain('id="btnSetupOutputSheets"');
+    expect(xml).toContain('id="btnQueryCurrentSheet"');
+    expect(xml).toContain('id="btnToggleMaterialRows"');
+    expect(xml).toContain('id="company"');
+    expect(xml).toContain('id="dept1"');
+    expect(xml).toContain('id="dept2"');
+    expect(xml).toContain('id="startDate"');
+    expect(xml).toContain('id="endDate"');
+    expect(xml).toContain('id="queryDirection"');
   });
 
   it("generated main.js is a bundle and does not document.write source files", () => {
@@ -49,8 +56,9 @@ describe("WPS add-in generated bundle", () => {
     expect(source).not.toContain("ribbon handlers are not implemented yet");
     expect(source).not.toContain("加载项入口尚未完成");
     expect(source).toContain("btnPrecheck");
-    expect(source).toContain("btnInitQueryPanel");
-    expect(source).toContain("btnRunQuery");
+    expect(source).toContain("btnSetupOutputSheets");
+    expect(source).toContain("btnQueryCurrentSheet");
+    expect(source).toContain("btnToggleMaterialRows");
     expect(handlers).toContain("未知功能区按钮");
     expect(entry).toContain("reportRuntimeError");
   });

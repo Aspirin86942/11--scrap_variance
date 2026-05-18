@@ -31,35 +31,54 @@ afterEach(() => {
 describe("WPS ribbon entrypoint", () => {
   it("getControlId accepts WPS control id casing variants", () => {
     expect(getControlId({ Id: "btnPrecheck" })).toBe("btnPrecheck");
-    expect(getControlId({ id: "btnInitQueryPanel" })).toBe("btnInitQueryPanel");
-    expect(getControlId({ ID: "btnRunQuery" })).toBe("btnRunQuery");
+    expect(getControlId({ id: "btnSetupOutputSheets" })).toBe("btnSetupOutputSheets");
+    expect(getControlId({ ID: "btnQueryCurrentSheet" })).toBe("btnQueryCurrentSheet");
     expect(getControlId({ Id: "btnPerformanceDiagnostics" })).toBe("btnPerformanceDiagnostics");
     expect(getControlId({})).toBe("");
   });
 
-  it("createRibbonHandlers dispatches known ribbon buttons", () => {
+  it("createRibbonHandlers dispatches known ribbon buttons and input callbacks", () => {
     const runPrecheck = vi.fn();
-    const setupQueryPanel = vi.fn();
-    const runQuery = vi.fn();
+    const setupOutputSheets = vi.fn();
+    const queryCurrentSheet = vi.fn();
+    const toggleMaterialRows = vi.fn();
     const runDiagnostics = vi.fn();
     const reportError = vi.fn();
+    const root: ScrapVarianceGlobal = {};
     const ribbon = createRibbonHandlers({
+      root,
       runPrecheck,
-      setupQueryPanel,
-      runQuery,
+      setupOutputSheets,
+      queryCurrentSheet,
+      toggleMaterialRows,
       runDiagnostics,
       reportError
     });
 
     ribbon.OnAction({ Id: "btnPrecheck" });
-    ribbon.OnAction({ id: "btnInitQueryPanel" });
-    ribbon.OnAction({ ID: "btnRunQuery" });
+    ribbon.OnAction({ id: "btnSetupOutputSheets" });
+    ribbon.OnAction({ ID: "btnQueryCurrentSheet" });
+    ribbon.OnAction({ Id: "btnToggleMaterialRows" });
     ribbon.OnAction({ Id: "btnPerformanceDiagnostics" });
+    ribbon.OnInputChange({ Id: "company" }, "数控");
+    ribbon.OnInputChange({ Id: "dept1" }, "生产");
+    ribbon.OnDirectionChange({ Id: "queryDirection" }, "1");
 
     expect(runPrecheck).toHaveBeenCalledOnce();
-    expect(setupQueryPanel).toHaveBeenCalledOnce();
-    expect(runQuery).toHaveBeenCalledOnce();
+    expect(setupOutputSheets).toHaveBeenCalledOnce();
+    expect(queryCurrentSheet).toHaveBeenCalledOnce();
+    expect(toggleMaterialRows).toHaveBeenCalledOnce();
     expect(runDiagnostics).toHaveBeenCalledOnce();
+    expect(root.ScrapVarianceRibbonState).toEqual(
+      expect.objectContaining({
+        company: "数控",
+        dept1: "生产",
+        queryDirection: "ERP源单查OA"
+      })
+    );
+    expect(ribbon.GetDirectionCount({ Id: "queryDirection" })).toBe(2);
+    expect(ribbon.GetDirectionLabel({ Id: "queryDirection" }, 0)).toBe("OA金蝶单号查ERP");
+    expect(ribbon.GetDirectionSelectedIndex({ Id: "queryDirection" })).toBe(1);
     expect(reportError).not.toHaveBeenCalled();
   });
 
@@ -67,8 +86,9 @@ describe("WPS ribbon entrypoint", () => {
     const reportError = vi.fn();
     const ribbon = createRibbonHandlers({
       runPrecheck: vi.fn(),
-      setupQueryPanel: vi.fn(),
-      runQuery: vi.fn(),
+      setupOutputSheets: vi.fn(),
+      queryCurrentSheet: vi.fn(),
+      toggleMaterialRows: vi.fn(),
       runDiagnostics: vi.fn(),
       reportError
     });
@@ -85,8 +105,9 @@ describe("WPS ribbon entrypoint", () => {
       runPrecheck: () => {
         throw new Error("precheck failed");
       },
-      setupQueryPanel: vi.fn(),
-      runQuery: vi.fn(),
+      setupOutputSheets: vi.fn(),
+      queryCurrentSheet: vi.fn(),
+      toggleMaterialRows: vi.fn(),
       runDiagnostics: vi.fn(),
       reportError
     });
@@ -102,8 +123,9 @@ describe("WPS ribbon entrypoint", () => {
     const ribbon = createRibbonHandlers({
       root,
       runPrecheck: vi.fn(),
-      setupQueryPanel: vi.fn(),
-      runQuery: vi.fn(),
+      setupOutputSheets: vi.fn(),
+      queryCurrentSheet: vi.fn(),
+      toggleMaterialRows: vi.fn(),
       runDiagnostics: vi.fn(),
       reportError: vi.fn()
     });

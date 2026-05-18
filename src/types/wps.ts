@@ -52,6 +52,11 @@ export interface RibbonControl {
 export interface RibbonApi {
   OnAddinLoad(ribbonUi: unknown): void;
   OnAction(control: RibbonControl): void;
+  OnInputChange(control: RibbonControl, text: string): void;
+  OnDirectionChange(control: RibbonControl, selectedIdOrIndex: string | number): void;
+  GetDirectionCount(control: RibbonControl): number;
+  GetDirectionLabel(control: RibbonControl, index: number): string;
+  GetDirectionSelectedIndex(control: RibbonControl): number;
 }
 
 export interface ScrapVarianceGlobal {

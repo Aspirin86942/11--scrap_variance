@@ -4,9 +4,16 @@
     <tabs>
       <tab id="tabScrapVariance" label="报废差异工具">
         <group id="grpScrapVariance" label="报废差异工具">
+          <editBox id="company" label="公司简称" onChange="ribbon.OnInputChange" />
+          <editBox id="dept1" label="一级部门" onChange="ribbon.OnInputChange" />
+          <editBox id="dept2" label="二级部门" onChange="ribbon.OnInputChange" />
+          <editBox id="startDate" label="开始日期" onChange="ribbon.OnInputChange" />
+          <editBox id="endDate" label="结束日期" onChange="ribbon.OnInputChange" />
+          <dropDown id="queryDirection" label="查询方向" getItemCount="ribbon.GetDirectionCount" getItemLabel="ribbon.GetDirectionLabel" getSelectedItemIndex="ribbon.GetDirectionSelectedIndex" onAction="ribbon.OnDirectionChange" />
           <button id="btnPrecheck" label="预验证数据" size="large" onAction="ribbon.OnAction" />
-          <button id="btnInitQueryPanel" label="初始化查询面板" size="large" onAction="ribbon.OnAction" />
-          <button id="btnRunQuery" label="执行差异查询" size="large" onAction="ribbon.OnAction" />
+          <button id="btnSetupOutputSheets" label="初始化输出表" size="large" onAction="ribbon.OnAction" />
+          <button id="btnQueryCurrentSheet" label="查询当前页" size="large" onAction="ribbon.OnAction" />
+          <button id="btnToggleMaterialRows" label="展开物料" size="large" onAction="ribbon.OnAction" />
           <button id="btnPerformanceDiagnostics" label="性能诊断" size="large" onAction="ribbon.OnAction" />
         </group>
       </tab>
