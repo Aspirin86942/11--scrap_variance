@@ -97,25 +97,56 @@ describe("query core pipeline", () => {
 
   it("runs ERP source direction with ERP filters and returns ERP-only rows", () => {
     const data = generateBenchmarkData(30);
+    const metrics = createMetricsRecorder({
+      performance: { now: () => 1 },
+      process: {
+        memoryUsage: () => ({
+          heapUsed: 10 * 1024 * 1024,
+          rss: 20 * 1024 * 1024
+        })
+      }
+    });
     const result = runQueryCorePipeline(
       data.oaRows,
       data.erpRows,
       data.filters,
-      createMetricsRecorder({
-        performance: { now: () => 1 },
-        process: {
-          memoryUsage: () => ({
-            heapUsed: 10 * 1024 * 1024,
-            rss: 20 * 1024 * 1024
-          })
-        }
-      }),
+      metrics,
       "ERP源单查OA"
     );
+    const erpGroupedOutputRows = result.erpRowsForOa.size + result.erpOnlyRows.size;
 
     expect(result.queryDirection).toBe("ERP源单查OA");
     expect(result.erpRowsForOa.size).toBeGreaterThan(0);
     expect(result.erpOnlyRows.size).toBeGreaterThan(0);
     expect(result.detailRows.some((row) => row.differenceType === "ERP出库对应OA未在当前OA数据中找到")).toBe(true);
+    expect(metrics.stages.map((stage) => stage.name)).toEqual([
+      "build_erp_rows_by_erp_filters",
+      "collect_erp_source_forms",
+      "build_oa_rows_for_erp_source_forms",
+      "collect_oa_forms",
+      "split_erp_rows_by_oa_forms",
+      "compare_rows",
+      "build_summary_rows",
+      "build_output_matrix"
+    ]);
+    expect(metrics.stages.find((stage) => stage.name === "build_erp_rows_by_erp_filters")?.outputRows).toBe(
+      erpGroupedOutputRows
+    );
+    expect(metrics.stages.find((stage) => stage.name === "build_oa_rows_for_erp_source_forms")?.outputRows).toBe(
+      result.oaGroupedRows.size
+    );
+    expect(metrics.stages.find((stage) => stage.name === "collect_oa_forms")?.outputRows).toBe(
+      result.currentOaFormNumbers.size
+    );
+    expect(metrics.stages.find((stage) => stage.name === "split_erp_rows_by_oa_forms")?.outputRows).toBe(
+      erpGroupedOutputRows
+    );
+    expect(metrics.stages.find((stage) => stage.name === "compare_rows")?.outputRows).toBe(result.detailRows.length);
+    expect(metrics.stages.find((stage) => stage.name === "build_summary_rows")?.outputRows).toBe(
+      result.summaryRows.length
+    );
+    expect(metrics.stages.find((stage) => stage.name === "build_output_matrix")?.outputRows).toBe(
+      result.summaryRows.length + result.detailRows.length
+    );
   });
 });

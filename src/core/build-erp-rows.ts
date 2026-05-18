@@ -136,7 +136,7 @@ export function buildErpRowsByErpFilters(
 
     const sourceFormNumber = normalizeText(row["源单单号"]);
     const itemCode = normalizeText(row["物料编码"]);
-    if (!sourceFormNumber || !itemCode) {
+    if (!itemCode) {
       continue;
     }
 

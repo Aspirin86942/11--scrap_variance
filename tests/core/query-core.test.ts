@@ -544,6 +544,38 @@ describe("query core", () => {
     });
   });
 
+  it("keeps filtered ERP rows with blank source form as ERP-only in ERP direction", () => {
+    const erpGrouped = buildErpRowsByErpFilters(
+      [
+        {
+          单据编号: "ERP-BLANK-SOURCE",
+          日期: "2026/5/2",
+          源单单号: "",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 10
+        }
+      ],
+      parseFilters({ company: "数控", startDate: "2026-05-01", endDate: "2026-05-31" })
+    );
+    const split = splitErpRowsByOaForms(erpGrouped, new Set(["OA-IRRELEVANT"]));
+    const details = compareRows(new Map(), split.erpRowsForOa, split.erpOnlyRows);
+
+    expect([...erpGrouped.keys()]).toEqual(["||MAT-A"]);
+    expect(split.erpRowsForOa.size).toBe(0);
+    expect(split.erpOnlyRows.get("||MAT-A")?.erpDocNumbers).toBe("ERP-BLANK-SOURCE");
+    expect(details[0]).toMatchObject({
+      differenceType: "ERP出库对应OA未在当前OA数据中找到",
+      formNumber: "",
+      erpDocNumbers: "ERP-BLANK-SOURCE",
+      erpSourceFormNumber: ""
+    });
+  });
+
   it("deduplicates aggregate dates without changing the grouping key", () => {
     const filters = parseFilters({
       company: "数控",
