@@ -113,6 +113,72 @@ export function buildErpRowsForOaKingdee(
   return result;
 }
 
+export interface SplitErpRowsByOaFormsResult {
+  erpRowsForOa: Map<string, ErpAggRow>;
+  erpOnlyRows: Map<string, ErpAggRow>;
+}
+
+export function buildErpRowsByErpFilters(
+  erpRows?: RawRow[] | null,
+  filters?: QueryFilters | null
+): Map<string, ErpAggRow> {
+  const result = new Map<string, ErpAggRow>();
+  const activeFilters = filters ?? parseFilters();
+
+  for (const row of erpRows ?? []) {
+    const dateKey = normalizeDateKey(row["日期"]);
+    if (!isDateInRange(dateKey, activeFilters)) {
+      continue;
+    }
+    if (!matchesOrgFilters(row["区分公司简称"], row["一级部门"], row["二级部门"], activeFilters)) {
+      continue;
+    }
+
+    const sourceFormNumber = normalizeText(row["源单单号"]);
+    const itemCode = normalizeText(row["物料编码"]);
+    if (!sourceFormNumber || !itemCode) {
+      continue;
+    }
+
+    addErpRowToGroup(result, row, sourceFormNumber, itemCode, dateKey, sourceFormNumber);
+  }
+
+  return result;
+}
+
+export function collectErpSourceForms(erpGroupedRows?: Map<string, ErpAggRow> | null): Set<string> {
+  const result = new Set<string>();
+
+  for (const row of (erpGroupedRows ?? new Map<string, ErpAggRow>()).values()) {
+    const sourceFormNumber = normalizeText(row.sourceFormNumber || row.formNumber);
+    if (sourceFormNumber) {
+      result.add(sourceFormNumber);
+    }
+  }
+
+  return result;
+}
+
+export function splitErpRowsByOaForms(
+  erpGroupedRows?: Map<string, ErpAggRow> | null,
+  oaFormNumbers?: Set<string> | null
+): SplitErpRowsByOaFormsResult {
+  const erpRowsForOa = new Map<string, ErpAggRow>();
+  const erpOnlyRows = new Map<string, ErpAggRow>();
+  const activeOaFormNumbers = oaFormNumbers ?? new Set<string>();
+
+  for (const [key, row] of (erpGroupedRows ?? new Map<string, ErpAggRow>()).entries()) {
+    const sourceFormNumber = normalizeText(row.sourceFormNumber || row.formNumber);
+    if (sourceFormNumber && activeOaFormNumbers.has(sourceFormNumber)) {
+      erpRowsForOa.set(key, row);
+    } else {
+      erpOnlyRows.set(key, row);
+    }
+  }
+
+  return { erpRowsForOa, erpOnlyRows };
+}
+
 export function buildErpOnlyRows(
   erpRows?: RawRow[] | null,
   currentOaFormNumbers?: Set<string> | null,

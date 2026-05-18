@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildErpOnlyRows, buildErpRowsForOa, buildErpRowsForOaKingdee } from "../../src/core/build-erp-rows";
-import { buildOaRows, collectSelectedOaForms, parseFilters } from "../../src/core/build-oa-rows";
+import {
+  buildErpOnlyRows,
+  buildErpRowsByErpFilters,
+  buildErpRowsForOa,
+  buildErpRowsForOaKingdee,
+  collectErpSourceForms,
+  splitErpRowsByOaForms
+} from "../../src/core/build-erp-rows";
+import { buildOaRows, buildOaRowsForFormNumbers, collectSelectedOaForms, parseFilters } from "../../src/core/build-oa-rows";
 import { buildSummaryRows, detailRowsToValues, summaryRowsToValues } from "../../src/core/build-summary-rows";
 import { compareRows } from "../../src/core/compare-rows";
 import type { RawRow } from "../../src/types/scrap";
@@ -425,6 +432,116 @@ describe("query core", () => {
     );
 
     expect(compareRows(oaGrouped, erpForOa, new Map())[0]?.differenceType).toBe("OA有申请，ERP无出库");
+  });
+
+  it("filters ERP first and compares back to OA in ERP source direction", () => {
+    const filters = parseFilters({
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026-05-01",
+      endDate: "2026-05-31"
+    });
+    const erpGrouped = buildErpRowsByErpFilters(
+      [
+        {
+          单据编号: "ERP-KEEP-A",
+          日期: "2026/5/2",
+          源单单号: "OA-KEEP",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 10
+        },
+        {
+          单据编号: "ERP-KEEP-B",
+          日期: "2026/5/3",
+          源单单号: "OA-KEEP",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 12
+        },
+        {
+          单据编号: "ERP-OUT-DATE",
+          日期: "2026/6/1",
+          源单单号: "OA-OUT",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 10
+        }
+      ],
+      filters
+    );
+    const oaGrouped = buildOaRowsForFormNumbers(
+      [
+        {
+          表单编号: "OA-KEEP",
+          金蝶云单据编号: "ERP-KEEP-A",
+          申请日期: "2026/4/1",
+          公司简称: "其他公司",
+          一级部门: "其他部门",
+          二级部门: "其他二级",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 2,
+          实际预算金额mx: 20
+        }
+      ],
+      collectErpSourceForms(erpGrouped)
+    );
+    const split = splitErpRowsByOaForms(erpGrouped, collectSelectedOaForms(oaGrouped));
+
+    const details = compareRows(oaGrouped, split.erpRowsForOa, split.erpOnlyRows);
+
+    expect([...erpGrouped.keys()]).toEqual(["OA-KEEP||MAT-A"]);
+    expect(split.erpRowsForOa.get("OA-KEEP||MAT-A")?.erpDocNumbers).toBe("ERP-KEEP-A,ERP-KEEP-B");
+    expect(details[0]).toMatchObject({
+      differenceType: "OA和ERP都有，数量一致",
+      formNumber: "OA-KEEP",
+      oaKingdeeDocNumber: "ERP-KEEP-A",
+      erpSourceFormNumber: "OA-KEEP",
+      erpCost: 22,
+      amountDiff: -2
+    });
+  });
+
+  it("keeps filtered ERP rows with missing OA as ERP-only in ERP direction", () => {
+    const erpGrouped = buildErpRowsByErpFilters(
+      [
+        {
+          单据编号: "ERP-MISSING",
+          日期: "2026/5/2",
+          源单单号: "OA-MISSING",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 10
+        }
+      ],
+      parseFilters({ company: "数控", startDate: "2026-05-01", endDate: "2026-05-31" })
+    );
+    const split = splitErpRowsByOaForms(erpGrouped, new Set());
+
+    expect(compareRows(new Map(), split.erpRowsForOa, split.erpOnlyRows)[0]).toMatchObject({
+      differenceType: "ERP出库对应OA未在当前OA数据中找到",
+      formNumber: "OA-MISSING",
+      erpDocNumbers: "ERP-MISSING",
+      erpSourceFormNumber: "OA-MISSING"
+    });
   });
 
   it("deduplicates aggregate dates without changing the grouping key", () => {

@@ -94,4 +94,28 @@ describe("query core pipeline", () => {
     expect(result.erpOnlyRows.size).toBeGreaterThan(0);
     expect([...result.erpOnlyRows.keys()].every((key) => key.startsWith("ERPONLY"))).toBe(true);
   });
+
+  it("runs ERP source direction with ERP filters and returns ERP-only rows", () => {
+    const data = generateBenchmarkData(30);
+    const result = runQueryCorePipeline(
+      data.oaRows,
+      data.erpRows,
+      data.filters,
+      createMetricsRecorder({
+        performance: { now: () => 1 },
+        process: {
+          memoryUsage: () => ({
+            heapUsed: 10 * 1024 * 1024,
+            rss: 20 * 1024 * 1024
+          })
+        }
+      }),
+      "ERP源单查OA"
+    );
+
+    expect(result.queryDirection).toBe("ERP源单查OA");
+    expect(result.erpRowsForOa.size).toBeGreaterThan(0);
+    expect(result.erpOnlyRows.size).toBeGreaterThan(0);
+    expect(result.detailRows.some((row) => row.differenceType === "ERP出库对应OA未在当前OA数据中找到")).toBe(true);
+  });
 });
