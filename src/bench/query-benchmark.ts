@@ -28,7 +28,7 @@ export interface DatasetBenchResult {
   total: {
     name: "total";
     timeMs: number;
-    heapDeltaMb: MemoryValue;
+    maxStageHeapDeltaMb: MemoryValue;
   };
 }
 
@@ -90,15 +90,15 @@ function metricSum(stages: StageMetric[]): number {
   return Number(stages.reduce((total, stage) => total + stage.timeMs, 0).toFixed(2));
 }
 
-function metricMemoryDelta(stages: StageMetric[]): MemoryValue {
-  let total = 0;
+export function maxStageHeapDelta(stages: StageMetric[]): MemoryValue {
+  let maxValue: number | null = null;
   for (const stage of stages) {
     if (stage.heapDeltaMb === UNKNOWN_MEMORY) {
-      return UNKNOWN_MEMORY;
+      continue;
     }
-    total += stage.heapDeltaMb;
+    maxValue = maxValue === null ? stage.heapDeltaMb : Math.max(maxValue, stage.heapDeltaMb);
   }
-  return Number(total.toFixed(2));
+  return maxValue === null ? UNKNOWN_MEMORY : Number(maxValue.toFixed(2));
 }
 
 export function buildBenchReport(scales: number[], options: Pick<BenchCliOptions, "writeJson">): BenchReport {
@@ -128,7 +128,7 @@ export function buildBenchReport(scales: number[], options: Pick<BenchCliOptions
       total: {
         name: "total",
         timeMs: metricSum(metrics.stages),
-        heapDeltaMb: metricMemoryDelta(metrics.stages)
+        maxStageHeapDeltaMb: maxStageHeapDelta(metrics.stages)
       }
     });
   }
@@ -148,7 +148,7 @@ export function buildBenchReport(scales: number[], options: Pick<BenchCliOptions
 }
 
 export function renderBenchTable(report: BenchReport): string {
-  const lines = ["dataset     stage                  rows      time_ms   heap_delta_mb"];
+  const lines = ["dataset     stage                  input_rows time_ms   heap_delta_mb_or_max"];
   for (const dataset of report.datasets) {
     for (const stage of dataset.stages) {
       lines.push(
@@ -157,7 +157,7 @@ export function renderBenchTable(report: BenchReport): string {
     }
     // 汇总行使用输入总行数，便于和各阶段性能结果快速对齐。
     lines.push(
-      `${dataset.name.padEnd(11)} ${dataset.total.name.padEnd(22)} ${String(dataset.oaRows + dataset.erpRows).padEnd(9)} ${String(dataset.total.timeMs).padEnd(9)} ${String(dataset.total.heapDeltaMb)}`
+      `${dataset.name.padEnd(11)} ${dataset.total.name.padEnd(22)} ${String(dataset.oaRows + dataset.erpRows).padEnd(9)} ${String(dataset.total.timeMs).padEnd(9)} ${String(dataset.total.maxStageHeapDeltaMb)}`
     );
   }
   return lines.join("\n");
