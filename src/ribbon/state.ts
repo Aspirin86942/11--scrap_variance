@@ -15,6 +15,10 @@ export const DEFAULT_RIBBON_STATE: RibbonQueryState = {
 
 const RIBBON_STATE_KEYS = new Set(Object.keys(DEFAULT_RIBBON_STATE));
 
+export function resetRibbonState(root: ScrapVarianceGlobal = globalThis as ScrapVarianceGlobal): void {
+  root.ScrapVarianceRibbonState = { ...DEFAULT_RIBBON_STATE };
+}
+
 export function getRibbonState(root: ScrapVarianceGlobal = globalThis as ScrapVarianceGlobal): RibbonQueryState {
   const state = root.ScrapVarianceRibbonState ?? {};
 

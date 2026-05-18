@@ -1,7 +1,7 @@
 import { QUERY_DIRECTIONS } from "../core/query-direction";
 import type { RibbonApi, RibbonControl, ScrapVarianceGlobal } from "../types/wps";
 import { normalizeText } from "../utils/text";
-import { getRibbonState, updateRibbonState } from "./state";
+import { getRibbonState, resetRibbonState, updateRibbonState } from "./state";
 
 export interface RibbonDependencies {
   runPrecheck(): void;
@@ -81,6 +81,7 @@ export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonAp
   return {
     OnAddinLoad(ribbonUi: unknown): void {
       root.ScrapVarianceRibbonUi = ribbonUi;
+      resetRibbonState(root);
     },
     OnAction(control: RibbonControl): void {
       try {

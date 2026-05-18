@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { reportRuntimeError } from "../../src/main";
 import { createRibbonHandlers, getControlId } from "../../src/ribbon/handlers";
+import { DEFAULT_RIBBON_STATE } from "../../src/ribbon/state";
 import type { ScrapVarianceGlobal } from "../../src/types/wps";
 
 const root = globalThis as ScrapVarianceGlobal;
@@ -247,6 +248,29 @@ describe("WPS ribbon entrypoint", () => {
     ribbon.OnAddinLoad(ribbonUi);
 
     expect(root.ScrapVarianceRibbonUi).toBe(ribbonUi);
+  });
+
+  it("OnAddinLoad resets stale ribbon filters so blank controls query all data", () => {
+    const root: ScrapVarianceGlobal = {
+      ScrapVarianceRibbonState: {
+        company: "不存在公司",
+        startDate: "2099/1/1",
+        endDate: "2099/12/31"
+      }
+    };
+    const ribbon = createRibbonHandlers({
+      root,
+      runPrecheck: vi.fn(),
+      setupOutputSheets: vi.fn(),
+      queryCurrentSheet: vi.fn(),
+      toggleMaterialRows: vi.fn(),
+      runDiagnostics: vi.fn(),
+      reportError: vi.fn()
+    });
+
+    ribbon.OnAddinLoad({ invalidate: vi.fn() });
+
+    expect(root.ScrapVarianceRibbonState).toEqual(DEFAULT_RIBBON_STATE);
   });
 
   it("reportRuntimeError calls alert when alert is a function", () => {

@@ -295,12 +295,13 @@ var _a,_b,_c,_d;const runtime=root2;const fallbackRuntime=fallbackRoot;return[ca
 now,(_b=fallbackRuntime.performance)==null?void 0:_b.now)),capability("console.log",hasFunction((_c=runtime.console)==null?void 0:_c.log,(_d=fallbackRuntime.console)==
 null?void 0:_d.log)),capability("setTimeout",hasFunction(runtime.setTimeout,fallbackRuntime.setTimeout)),capability("Promise",hasFunction(runtime.Promise,fallbackRuntime.
 Promise)),capability("Worker",hasFunction(runtime.Worker,fallbackRuntime.Worker)),capability("memory_api",hasMemoryApi(runtime,fallbackRuntime))]}var DEFAULT_RIBBON_STATE={company:"",dept1:"",dept2:"",startDate:"",endDate:"",queryDirection:DEFAULT_QUERY_DIRECTION};var RIBBON_STATE_KEYS=new Set(Object.keys(
-DEFAULT_RIBBON_STATE));function getRibbonState(root2=globalThis){var _a;const state=(_a=root2.ScrapVarianceRibbonState)!=null?_a:{};return{company:normalizeText(
-state.company),dept1:normalizeText(state.dept1),dept2:normalizeText(state.dept2),startDate:normalizeText(state.startDate),endDate:normalizeText(state.endDate),queryDirection:parseQueryDirection(
-state.queryDirection)}}function updateRibbonState(root2=globalThis,key,value){if(!RIBBON_STATE_KEYS.has(key)){throw new Error(`\u672A\u77E5\u529F\u80FD\u533A\u8F93\u5165\u9879\uFF1A${key}`)}
-const current=getRibbonState(root2);if(key==="queryDirection"){root2.ScrapVarianceRibbonState={...current,queryDirection:parseQueryDirection(value)};return}root2.
-ScrapVarianceRibbonState={...current,[key]:normalizeText(value)}}function readRibbonFilters(root2=globalThis){const state=getRibbonState(root2);return parseFilters(
-{company:state.company,dept1:state.dept1,dept2:state.dept2,startDate:state.startDate,endDate:state.endDate})}function isArray(value){return Object.prototype.toString.call(value)==="[object Array]"}function isNumericKey(key){return/^\d+$/.test(key)}function sortedNumericKeys(value){
+DEFAULT_RIBBON_STATE));function resetRibbonState(root2=globalThis){root2.ScrapVarianceRibbonState={...DEFAULT_RIBBON_STATE}}function getRibbonState(root2=globalThis){
+var _a;const state=(_a=root2.ScrapVarianceRibbonState)!=null?_a:{};return{company:normalizeText(state.company),dept1:normalizeText(state.dept1),dept2:normalizeText(
+state.dept2),startDate:normalizeText(state.startDate),endDate:normalizeText(state.endDate),queryDirection:parseQueryDirection(state.queryDirection)}}function updateRibbonState(root2=globalThis,key,value){
+if(!RIBBON_STATE_KEYS.has(key)){throw new Error(`\u672A\u77E5\u529F\u80FD\u533A\u8F93\u5165\u9879\uFF1A${key}`)}const current=getRibbonState(root2);if(key==="qu\
+eryDirection"){root2.ScrapVarianceRibbonState={...current,queryDirection:parseQueryDirection(value)};return}root2.ScrapVarianceRibbonState={...current,[key]:normalizeText(
+value)}}function readRibbonFilters(root2=globalThis){const state=getRibbonState(root2);return parseFilters({company:state.company,dept1:state.dept1,dept2:state.
+dept2,startDate:state.startDate,endDate:state.endDate})}function isArray(value){return Object.prototype.toString.call(value)==="[object Array]"}function isNumericKey(key){return/^\d+$/.test(key)}function sortedNumericKeys(value){
 return Object.keys(value).filter(isNumericKey).map(Number).sort((left,right)=>left-right)}function numericObjectToArray(value){const keys=sortedNumericKeys(value);
 if(keys.length===0){return null}const offset=keys[0]===0?0:1;const result=[];for(const key of keys){result[key-offset]=value[String(key)]}return result}function numericObjectToMatrix(value){
 const rowKeys=sortedNumericKeys(value);if(rowKeys.length===0){return null}const firstRow=value[String(rowKeys[0])];if(firstRow&&typeof firstRow==="object"&&(isArray(
@@ -555,17 +556,17 @@ Value)!=null?_e:controlOrSelection.value)!=null?_f:controlOrSelection.Index)!=nu
 const root2=(_a=dependencies.root)!=null?_a:globalThis;const updateInput=(key,controlOrText,text)=>{try{updateRibbonState(root2,key,getControlText(controlOrText,
 text))}catch(error){dependencies.reportError(error)}};const updateDirection=(key,controlOrSelection,selectedIdOrIndex)=>{var _a2;try{const selection=getDirectionSelection(
 controlOrSelection,selectedIdOrIndex);const index=typeof selection==="number"?selection:Number(selection);updateRibbonState(root2,key,(_a2=DIRECTION_LABELS[index])!=
-null?_a2:selection)}catch(error){dependencies.reportError(error)}};return{OnAddinLoad(ribbonUi){root2.ScrapVarianceRibbonUi=ribbonUi},OnAction(control){try{const controlId=getControlId(
-control);switch(controlId){case"btnPrecheck":dependencies.runPrecheck();return;case"btnSetupOutputSheets":dependencies.setupOutputSheets();return;case"btnQueryC\
-urrentSheet":dependencies.queryCurrentSheet();return;case"btnToggleMaterialRows":dependencies.toggleMaterialRows();return;case"btnPerformanceDiagnostics":dependencies.
-runDiagnostics();return;default:throw new Error(`\u672A\u77E5\u529F\u80FD\u533A\u6309\u94AE\uFF1A${controlId}`)}}catch(error){dependencies.reportError(error)}},
-OnInputChange(control,text){updateInput(getControlId(control),control,text)},OnDirectionChange(control,selectedIdOrIndex){updateDirection(getControlId(control),
-control,selectedIdOrIndex)},OnCompanyChange(controlOrText,text){updateInput("company",controlOrText,text)},OnDept1Change(controlOrText,text){updateInput("dept1",
-controlOrText,text)},OnDept2Change(controlOrText,text){updateInput("dept2",controlOrText,text)},OnStartDateChange(controlOrText,text){updateInput("startDate",controlOrText,
-text)},OnEndDateChange(controlOrText,text){updateInput("endDate",controlOrText,text)},OnQueryDirectionChange(controlOrSelection,selectedIdOrIndex){updateDirection(
-"queryDirection",controlOrSelection,selectedIdOrIndex)},GetDirectionCount(){return DIRECTION_LABELS.length},GetDirectionLabel(_control,index){var _a2;return(_a2=
-DIRECTION_LABELS[index])!=null?_a2:""},GetDirectionSelectedIndex(){const current=getRibbonState(root2).queryDirection;return Math.max(0,DIRECTION_LABELS.findIndex(
-label=>label===current))}}}function reportRuntimeError(error){var _a;const root2=globalThis;const message=error instanceof Error?error.message:String(error);if(typeof root2.alert==="funct\
+null?_a2:selection)}catch(error){dependencies.reportError(error)}};return{OnAddinLoad(ribbonUi){root2.ScrapVarianceRibbonUi=ribbonUi;resetRibbonState(root2)},OnAction(control){
+try{const controlId=getControlId(control);switch(controlId){case"btnPrecheck":dependencies.runPrecheck();return;case"btnSetupOutputSheets":dependencies.setupOutputSheets();
+return;case"btnQueryCurrentSheet":dependencies.queryCurrentSheet();return;case"btnToggleMaterialRows":dependencies.toggleMaterialRows();return;case"btnPerforman\
+ceDiagnostics":dependencies.runDiagnostics();return;default:throw new Error(`\u672A\u77E5\u529F\u80FD\u533A\u6309\u94AE\uFF1A${controlId}`)}}catch(error){dependencies.
+reportError(error)}},OnInputChange(control,text){updateInput(getControlId(control),control,text)},OnDirectionChange(control,selectedIdOrIndex){updateDirection(getControlId(
+control),control,selectedIdOrIndex)},OnCompanyChange(controlOrText,text){updateInput("company",controlOrText,text)},OnDept1Change(controlOrText,text){updateInput(
+"dept1",controlOrText,text)},OnDept2Change(controlOrText,text){updateInput("dept2",controlOrText,text)},OnStartDateChange(controlOrText,text){updateInput("start\
+Date",controlOrText,text)},OnEndDateChange(controlOrText,text){updateInput("endDate",controlOrText,text)},OnQueryDirectionChange(controlOrSelection,selectedIdOrIndex){
+updateDirection("queryDirection",controlOrSelection,selectedIdOrIndex)},GetDirectionCount(){return DIRECTION_LABELS.length},GetDirectionLabel(_control,index){var _a2;
+return(_a2=DIRECTION_LABELS[index])!=null?_a2:""},GetDirectionSelectedIndex(){const current=getRibbonState(root2).queryDirection;return Math.max(0,DIRECTION_LABELS.
+findIndex(label=>label===current))}}}function reportRuntimeError(error){var _a;const root2=globalThis;const message=error instanceof Error?error.message:String(error);if(typeof root2.alert==="funct\
 ion"){root2.alert(message);return}if(typeof((_a=root2.console)==null?void 0:_a.error)==="function"){root2.console.error(message)}}var root=globalThis;root.ribbon=
 createRibbonHandlers({root,runPrecheck:()=>runScrapVariancePrecheck(root),setupOutputSheets:()=>setupOutputSheets(root),queryCurrentSheet:()=>runCurrentSheetQuery(
 root),toggleMaterialRows:()=>toggleMaterialRows(root),runDiagnostics:()=>runPerformanceDiagnostics(root),reportError:reportRuntimeError});})();
