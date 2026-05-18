@@ -17,7 +17,7 @@ import { parseFilters } from "../core/build-oa-rows";
 import { detectOutputSheetKind, unsupportedOutputSheetMessage } from "../core/output-sheets";
 import { QUERY_DIRECTIONS } from "../core/query-direction";
 import { runQueryCorePipeline } from "../core/query-pipeline";
-import { getRibbonState, readRibbonFilters } from "../ribbon/state";
+import { getRibbonState } from "../ribbon/state";
 import type { OutputMatrix, OutputSheetKind, QueryFilters, RawRow, RibbonQueryState } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
 import { deleteRows, getActiveSheet, getSelectedRowNumber, insertRowsBelow } from "../wps-api/active-context";
@@ -84,10 +84,15 @@ function readSourceRows(root?: ScrapVarianceGlobal): SourceRows {
   };
 }
 
-function buildLegacyDetailValues(oaRows: RawRow[], erpRows: RawRow[], filters: QueryFilters, root?: ScrapVarianceGlobal):
+function buildLegacyDetailValues(
+  oaRows: RawRow[],
+  erpRows: RawRow[],
+  filters: QueryFilters,
+  queryDirection: RibbonQueryState["queryDirection"]
+):
   | { values: OutputMatrix; noResultMessage: null }
   | { values: null; noResultMessage: string } {
-  const pipeline = runQueryCorePipeline(oaRows, erpRows, filters, undefined, getRibbonState(root).queryDirection);
+  const pipeline = runQueryCorePipeline(oaRows, erpRows, filters, undefined, queryDirection);
 
   if (pipeline.detailRows.length === 0) {
     return {
@@ -139,29 +144,25 @@ function buildErpDocCompareValues(oaRows: RawRow[], erpRows: RawRow[], filters: 
   };
 }
 
-function tryGetRibbonState(root?: ScrapVarianceGlobal): RibbonQueryState | undefined {
-  try {
-    return getRibbonState(root);
-  } catch {
-    return undefined;
-  }
-}
-
 function safeWriteCurrentSheetError(
   sheet: WpsSheet,
   kind: OutputSheetKind,
   message: string,
-  root?: ScrapVarianceGlobal
+  queryState?: RibbonQueryState
 ): void {
   try {
     clearPreviousToolOutput(sheet, kind);
-    writeOutputWithMetadata(sheet, kind, [["错误", message]], tryGetRibbonState(root));
+    writeOutputWithMetadata(sheet, kind, [["错误", message]], queryState);
   } catch (writeError) {
     throw new Error(`查询执行失败：${message}；错误信息写入也失败：${errorMessage(writeError)}`);
   }
 }
 
 export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
+  runCurrentSheetQueryWithState(root, getRibbonState(root));
+}
+
+export function runCurrentSheetQueryWithState(root: ScrapVarianceGlobal | undefined, queryState: RibbonQueryState): void {
   setupOutputSheets(root);
 
   const activeSheet = getActiveSheet(root);
@@ -171,12 +172,11 @@ export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
   }
 
   try {
-    const queryState = getRibbonState(root);
-    const filters = readRibbonFilters(root);
+    const filters = parseFilters(queryState);
     const { oaRows, erpRows } = readSourceRows(root);
     const result =
       kind === "legacy_detail"
-        ? buildLegacyDetailValues(oaRows, erpRows, filters, root)
+        ? buildLegacyDetailValues(oaRows, erpRows, filters, queryState.queryDirection)
         : kind === "oa_doc_compare"
           ? buildOaDocCompareValues(oaRows, erpRows, filters)
           : buildErpDocCompareValues(oaRows, erpRows, filters);
@@ -184,7 +184,7 @@ export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
     clearPreviousToolOutput(activeSheet, kind);
     writeOutputWithMetadata(activeSheet, kind, result.values ?? [[result.noResultMessage]], queryState);
   } catch (error) {
-    safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error), root);
+    safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error), queryState);
   }
 }
 

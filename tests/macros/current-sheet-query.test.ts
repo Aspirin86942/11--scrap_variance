@@ -8,7 +8,7 @@ import {
 } from "../../src/constants";
 import { QUERY_DIRECTIONS } from "../../src/core/query-direction";
 import { unsupportedOutputSheetMessage } from "../../src/core/output-sheets";
-import { runCurrentSheetQuery, toggleMaterialRows } from "../../src/macros/current-sheet-query";
+import { runCurrentSheetQuery, runCurrentSheetQueryWithState, toggleMaterialRows } from "../../src/macros/current-sheet-query";
 import { setupOutputSheets } from "../../src/macros/output-sheets";
 import type { OutputMatrix } from "../../src/types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../../src/types/wps";
@@ -159,6 +159,76 @@ describe("current sheet query macro", () => {
     expect(output).toContain("数控");
     expect(output).toContain("OA-001");
     expect(output).not.toContain("装备");
+    expect(output).not.toContain("查询条件没有匹配到 OA 数据。");
+  });
+
+  it("runCurrentSheetQueryWithState ignores stale global ribbon filters", () => {
+    const oaSheet = makeOaSheet([
+      validOaRow(),
+      ["OA-002", "ERP-999", "2026/4/1", "装备", "其他一级", "其他二级", "MAT-B", "物料B", 2, 20]
+    ]);
+    const erpSheet = makeErpSheet([
+      validErpRow(),
+      ["ERP-999", "2026/4/2", "OA-002", "装备", "其他一级", "其他二级", "MAT-B", "物料B", 2, 20]
+    ]);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "不存在公司",
+      dept1: "旧一级部门",
+      dept2: "旧二级部门",
+      startDate: "2099/1/1",
+      endDate: "2099/12/31"
+    };
+    setActiveSheet(root, oaCompareSheet);
+
+    runCurrentSheetQueryWithState(root, {
+      company: "数控",
+      dept1: "",
+      dept2: "",
+      startDate: "",
+      endDate: "",
+      queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+    });
+
+    const output = flattenWrites(oaCompareSheet);
+    expect(output).toContain("数控");
+    expect(output).toContain("OA-001");
+    expect(output).not.toContain("查询条件没有匹配到 OA 数据。");
+    expect(oaCompareSheet.writes).toContainEqual({
+      address: "CB2:CG2",
+      value: [["数控", "", "", "", "", QUERY_DIRECTIONS.oaKingdeeToErp]]
+    });
+  });
+
+  it("runCurrentSheetQueryWithState applies explicit direction to legacy detail output", () => {
+    const oaSheet = makeOaSheet([
+      ["OA-001", "ERP-778", "2026/4/1", "其他公司", "其他部门", "其他二级", "MAT-A", "物料A", 10, 100]
+    ]);
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+    };
+    setActiveSheet(root, detailSheet);
+
+    runCurrentSheetQueryWithState(root, {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31",
+      queryDirection: QUERY_DIRECTIONS.erpSourceToOa
+    });
+
+    const output = flattenWrites(detailSheet);
+    expect(output).toContain("OA和ERP都有，但数量不同");
+    expect(output).toContain("OA-001");
     expect(output).not.toContain("查询条件没有匹配到 OA 数据。");
   });
 
