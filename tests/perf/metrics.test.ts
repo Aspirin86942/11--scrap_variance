@@ -97,8 +97,73 @@ describe("metrics recorder", () => {
         inputRows: 3,
         outputRows: 2,
         timeMs: 25,
-        heapDeltaMb: 2
+        memoryBefore: {
+          available: true,
+          heapUsedMb: 7,
+          rssMb: 17
+        },
+        memoryAfter: {
+          available: true,
+          heapUsedMb: 9,
+          rssMb: 19
+        },
+        heapDeltaMb: 2,
+        note: ""
       })
     );
+  });
+
+  it("records failed stage timing, memory, heap delta, and error note before rethrowing", () => {
+    let currentTime = 100;
+    let currentHeap = 5 * 1024 * 1024;
+    const root = {
+      performance: {
+        now: () => {
+          currentTime += 25;
+          return currentTime;
+        }
+      },
+      process: {
+        memoryUsage: () => {
+          currentHeap += 2 * 1024 * 1024;
+          return {
+            heapUsed: currentHeap,
+            rss: currentHeap + 10 * 1024 * 1024
+          };
+        }
+      }
+    };
+    const metrics = createMetricsRecorder(root);
+    const originalError = new Error("stage failed");
+    let thrownError: unknown;
+
+    try {
+      metrics.measure("stage_b", { inputRows: 5, outputRows: () => 99 }, () => {
+        throw originalError;
+      });
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(thrownError).toBe(originalError);
+    expect(metrics.stages).toHaveLength(1);
+    expect(metrics.stages[0]).toEqual({
+      name: "stage_b",
+      inputRows: 5,
+      outputRows: 0,
+      timeMs: 25,
+      memoryBefore: {
+        available: true,
+        heapUsedMb: 7,
+        rssMb: 17
+      },
+      memoryAfter: {
+        available: true,
+        heapUsedMb: 9,
+        rssMb: 19
+      },
+      heapDeltaMb: 2,
+      note: "stage failed"
+    });
   });
 });
