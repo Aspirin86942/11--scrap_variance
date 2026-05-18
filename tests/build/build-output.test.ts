@@ -28,6 +28,12 @@ describe("WPS add-in generated bundle", () => {
 
     expect(xml).toContain('onLoad="ribbon.OnAddinLoad"');
     expect(xml).toContain('onAction="ribbon.OnAction"');
+    expect(xml).toContain('onChange="ribbon.OnCompanyChange"');
+    expect(xml).toContain('onChange="ribbon.OnDept1Change"');
+    expect(xml).toContain('onChange="ribbon.OnDept2Change"');
+    expect(xml).toContain('onChange="ribbon.OnStartDateChange"');
+    expect(xml).toContain('onChange="ribbon.OnEndDateChange"');
+    expect(xml).toContain('onAction="ribbon.OnQueryDirectionChange"');
     expect(xml).toContain('id="btnPrecheck"');
     expect(xml).toContain('id="btnSetupOutputSheets"');
     expect(xml).toContain('id="btnQueryCurrentSheet"');

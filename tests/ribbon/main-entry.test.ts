@@ -109,6 +109,44 @@ describe("WPS ribbon entrypoint", () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
+  it("createRibbonHandlers exposes dedicated editBox callbacks when WPS only passes text", () => {
+    const reportError = vi.fn();
+    const root: ScrapVarianceGlobal = {};
+    const ribbon = createRibbonHandlers({
+      root,
+      runPrecheck: vi.fn(),
+      setupOutputSheets: vi.fn(),
+      queryCurrentSheet: vi.fn(),
+      toggleMaterialRows: vi.fn(),
+      runDiagnostics: vi.fn(),
+      reportError
+    });
+    const inputRibbon = ribbon as typeof ribbon & {
+      OnCompanyChange(value: string): void;
+      OnDept1Change(value: string): void;
+      OnDept2Change(value: string): void;
+      OnStartDateChange(value: string): void;
+      OnEndDateChange(value: string): void;
+    };
+
+    inputRibbon.OnCompanyChange(" 数控 ");
+    inputRibbon.OnDept1Change("硬件研发中心");
+    inputRibbon.OnDept2Change("测试部");
+    inputRibbon.OnStartDateChange("2026/1/1");
+    inputRibbon.OnEndDateChange("2026/5/1");
+
+    expect(root.ScrapVarianceRibbonState).toEqual(
+      expect.objectContaining({
+        company: "数控",
+        dept1: "硬件研发中心",
+        dept2: "测试部",
+        startDate: "2026/1/1",
+        endDate: "2026/5/1"
+      })
+    );
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
   it("createRibbonHandlers accepts direction selection carried on the WPS control object", () => {
     const reportError = vi.fn();
     const root: ScrapVarianceGlobal = {};
@@ -123,6 +161,32 @@ describe("WPS ribbon entrypoint", () => {
     });
 
     ribbon.OnDirectionChange({ Id: "queryDirection", selectedIndex: 1 });
+
+    expect(root.ScrapVarianceRibbonState).toEqual(
+      expect.objectContaining({
+        queryDirection: "ERP源单查OA"
+      })
+    );
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("createRibbonHandlers exposes a dedicated direction callback when WPS only passes selection", () => {
+    const reportError = vi.fn();
+    const root: ScrapVarianceGlobal = {};
+    const ribbon = createRibbonHandlers({
+      root,
+      runPrecheck: vi.fn(),
+      setupOutputSheets: vi.fn(),
+      queryCurrentSheet: vi.fn(),
+      toggleMaterialRows: vi.fn(),
+      runDiagnostics: vi.fn(),
+      reportError
+    });
+    const directionRibbon = ribbon as typeof ribbon & {
+      OnQueryDirectionChange(value: number): void;
+    };
+
+    directionRibbon.OnQueryDirectionChange(1);
 
     expect(root.ScrapVarianceRibbonState).toEqual(
       expect.objectContaining({

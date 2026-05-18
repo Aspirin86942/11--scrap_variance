@@ -545,20 +545,27 @@ minMatchCount,MAX_HEADER_SCAN_ROWS)}catch(error){if(error instanceof HeaderDetec
 throw error}}function runScrapVariancePrecheck(root2){let issues;try{const oaSheet=getSheetByName(SHEET_NAMES.oa,root2);const erpSheet=getSheetByName(SHEET_NAMES.
 erp,root2);const headerIssues=[];const oaTable=readPrecheckTable("OA",oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,headerIssues);const erpTable=readPrecheckTable(
 "ERP",erpSheet,[...ERP_REQUIRED_HEADERS],MIN_ERP_HEADER_MATCH_COUNT,headerIssues);issues=headerIssues.length>0?headerIssues:buildPrecheckIssues(oaTable,erpTable)}catch(error){
-issues=[buildSystemErrorIssue(error)]}writePrecheckResults(issues,root2)}var DIRECTION_LABELS=[QUERY_DIRECTIONS.oaKingdeeToErp,QUERY_DIRECTIONS.erpSourceToOa];function getControlId(control){var _a,_b,_c;return(_c=(_b=(_a=control.Id)!=
-null?_a:control.id)!=null?_b:control.ID)!=null?_c:""}function getControlText(control,fallback){var _a,_b,_c;return normalizeText((_c=(_b=(_a=fallback!=null?fallback:
-control.Text)!=null?_a:control.text)!=null?_b:control.Value)!=null?_c:control.value)}function getDirectionSelection(control,fallback){var _a,_b,_c,_d,_e,_f,_g;return(_g=
-(_f=(_e=(_d=(_c=(_b=(_a=fallback!=null?fallback:control.selectedId)!=null?_a:control.SelectedId)!=null?_b:control.selectedIndex)!=null?_c:control.SelectedIndex)!=
-null?_d:control.Value)!=null?_e:control.value)!=null?_f:control.Index)!=null?_g:control.index}function createRibbonHandlers(dependencies){var _a;const root2=(_a=
-dependencies.root)!=null?_a:globalThis;return{OnAddinLoad(ribbonUi){root2.ScrapVarianceRibbonUi=ribbonUi},OnAction(control){try{const controlId=getControlId(control);
-switch(controlId){case"btnPrecheck":dependencies.runPrecheck();return;case"btnSetupOutputSheets":dependencies.setupOutputSheets();return;case"btnQueryCurrentShe\
-et":dependencies.queryCurrentSheet();return;case"btnToggleMaterialRows":dependencies.toggleMaterialRows();return;case"btnPerformanceDiagnostics":dependencies.runDiagnostics();
-return;default:throw new Error(`\u672A\u77E5\u529F\u80FD\u533A\u6309\u94AE\uFF1A${controlId}`)}}catch(error){dependencies.reportError(error)}},OnInputChange(control,text){
-try{updateRibbonState(root2,getControlId(control),getControlText(control,text))}catch(error){dependencies.reportError(error)}},OnDirectionChange(control,selectedIdOrIndex){
-var _a2;try{const selection=getDirectionSelection(control,selectedIdOrIndex);const index=typeof selection==="number"?selection:Number(selection);updateRibbonState(
-root2,getControlId(control),(_a2=DIRECTION_LABELS[index])!=null?_a2:selection)}catch(error){dependencies.reportError(error)}},GetDirectionCount(){return DIRECTION_LABELS.
-length},GetDirectionLabel(_control,index){var _a2;return(_a2=DIRECTION_LABELS[index])!=null?_a2:""},GetDirectionSelectedIndex(){const current=getRibbonState(root2).
-queryDirection;return Math.max(0,DIRECTION_LABELS.findIndex(label=>label===current))}}}function reportRuntimeError(error){var _a;const root2=globalThis;const message=error instanceof Error?error.message:String(error);if(typeof root2.alert==="funct\
+issues=[buildSystemErrorIssue(error)]}writePrecheckResults(issues,root2)}var DIRECTION_LABELS=[QUERY_DIRECTIONS.oaKingdeeToErp,QUERY_DIRECTIONS.erpSourceToOa];function isRecord(value){return typeof value==="object"&&value!==null}function getControlId(control){
+var _a,_b;if(!isRecord(control)){return""}return normalizeText((_b=(_a=control.Id)!=null?_a:control.id)!=null?_b:control.ID)}function getControlText(controlOrText,fallback){
+var _a,_b,_c;if(fallback!==void 0){return normalizeText(fallback)}if(!isRecord(controlOrText)){return normalizeText(controlOrText)}return normalizeText((_c=(_b=
+(_a=controlOrText.Text)!=null?_a:controlOrText.text)!=null?_b:controlOrText.Value)!=null?_c:controlOrText.value)}function getDirectionSelection(controlOrSelection,fallback){
+var _a,_b,_c,_d,_e,_f,_g;if(fallback!==void 0){return fallback}if(!isRecord(controlOrSelection)){return controlOrSelection}return(_g=(_f=(_e=(_d=(_c=(_b=(_a=controlOrSelection.
+selectedId)!=null?_a:controlOrSelection.SelectedId)!=null?_b:controlOrSelection.selectedIndex)!=null?_c:controlOrSelection.SelectedIndex)!=null?_d:controlOrSelection.
+Value)!=null?_e:controlOrSelection.value)!=null?_f:controlOrSelection.Index)!=null?_g:controlOrSelection.index}function createRibbonHandlers(dependencies){var _a;
+const root2=(_a=dependencies.root)!=null?_a:globalThis;const updateInput=(key,controlOrText,text)=>{try{updateRibbonState(root2,key,getControlText(controlOrText,
+text))}catch(error){dependencies.reportError(error)}};const updateDirection=(key,controlOrSelection,selectedIdOrIndex)=>{var _a2;try{const selection=getDirectionSelection(
+controlOrSelection,selectedIdOrIndex);const index=typeof selection==="number"?selection:Number(selection);updateRibbonState(root2,key,(_a2=DIRECTION_LABELS[index])!=
+null?_a2:selection)}catch(error){dependencies.reportError(error)}};return{OnAddinLoad(ribbonUi){root2.ScrapVarianceRibbonUi=ribbonUi},OnAction(control){try{const controlId=getControlId(
+control);switch(controlId){case"btnPrecheck":dependencies.runPrecheck();return;case"btnSetupOutputSheets":dependencies.setupOutputSheets();return;case"btnQueryC\
+urrentSheet":dependencies.queryCurrentSheet();return;case"btnToggleMaterialRows":dependencies.toggleMaterialRows();return;case"btnPerformanceDiagnostics":dependencies.
+runDiagnostics();return;default:throw new Error(`\u672A\u77E5\u529F\u80FD\u533A\u6309\u94AE\uFF1A${controlId}`)}}catch(error){dependencies.reportError(error)}},
+OnInputChange(control,text){updateInput(getControlId(control),control,text)},OnDirectionChange(control,selectedIdOrIndex){updateDirection(getControlId(control),
+control,selectedIdOrIndex)},OnCompanyChange(controlOrText,text){updateInput("company",controlOrText,text)},OnDept1Change(controlOrText,text){updateInput("dept1",
+controlOrText,text)},OnDept2Change(controlOrText,text){updateInput("dept2",controlOrText,text)},OnStartDateChange(controlOrText,text){updateInput("startDate",controlOrText,
+text)},OnEndDateChange(controlOrText,text){updateInput("endDate",controlOrText,text)},OnQueryDirectionChange(controlOrSelection,selectedIdOrIndex){updateDirection(
+"queryDirection",controlOrSelection,selectedIdOrIndex)},GetDirectionCount(){return DIRECTION_LABELS.length},GetDirectionLabel(_control,index){var _a2;return(_a2=
+DIRECTION_LABELS[index])!=null?_a2:""},GetDirectionSelectedIndex(){const current=getRibbonState(root2).queryDirection;return Math.max(0,DIRECTION_LABELS.findIndex(
+label=>label===current))}}}function reportRuntimeError(error){var _a;const root2=globalThis;const message=error instanceof Error?error.message:String(error);if(typeof root2.alert==="funct\
 ion"){root2.alert(message);return}if(typeof((_a=root2.console)==null?void 0:_a.error)==="function"){root2.console.error(message)}}var root=globalThis;root.ribbon=
 createRibbonHandlers({root,runPrecheck:()=>runScrapVariancePrecheck(root),setupOutputSheets:()=>setupOutputSheets(root),queryCurrentSheet:()=>runCurrentSheetQuery(
 root),toggleMaterialRows:()=>toggleMaterialRows(root),runDiagnostics:()=>runPerformanceDiagnostics(root),reportError:reportRuntimeError});})();

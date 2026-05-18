@@ -15,30 +15,68 @@ export interface RibbonDependencies {
 
 const DIRECTION_LABELS = [QUERY_DIRECTIONS.oaKingdeeToErp, QUERY_DIRECTIONS.erpSourceToOa] as const;
 
-export function getControlId(control: RibbonControl): string {
-  return control.Id ?? control.id ?? control.ID ?? "";
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
-export function getControlText(control: RibbonControl, fallback?: unknown): string {
-  return normalizeText(fallback ?? control.Text ?? control.text ?? control.Value ?? control.value);
+export function getControlId(control: RibbonControl | unknown): string {
+  if (!isRecord(control)) {
+    return "";
+  }
+
+  return normalizeText(control.Id ?? control.id ?? control.ID);
 }
 
-export function getDirectionSelection(control: RibbonControl, fallback?: unknown): unknown {
+export function getControlText(controlOrText: RibbonControl | unknown, fallback?: unknown): string {
+  if (fallback !== undefined) {
+    return normalizeText(fallback);
+  }
+  if (!isRecord(controlOrText)) {
+    return normalizeText(controlOrText);
+  }
+
+  return normalizeText(controlOrText.Text ?? controlOrText.text ?? controlOrText.Value ?? controlOrText.value);
+}
+
+export function getDirectionSelection(controlOrSelection: RibbonControl | unknown, fallback?: unknown): unknown {
+  if (fallback !== undefined) {
+    return fallback;
+  }
+  if (!isRecord(controlOrSelection)) {
+    return controlOrSelection;
+  }
+
   return (
-    fallback ??
-    control.selectedId ??
-    control.SelectedId ??
-    control.selectedIndex ??
-    control.SelectedIndex ??
-    control.Value ??
-    control.value ??
-    control.Index ??
-    control.index
+    controlOrSelection.selectedId ??
+    controlOrSelection.SelectedId ??
+    controlOrSelection.selectedIndex ??
+    controlOrSelection.SelectedIndex ??
+    controlOrSelection.Value ??
+    controlOrSelection.value ??
+    controlOrSelection.Index ??
+    controlOrSelection.index
   );
 }
 
 export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonApi {
   const root = dependencies.root ?? (globalThis as ScrapVarianceGlobal);
+
+  const updateInput = (key: string, controlOrText?: unknown, text?: unknown): void => {
+    try {
+      updateRibbonState(root, key, getControlText(controlOrText, text));
+    } catch (error) {
+      dependencies.reportError(error);
+    }
+  };
+  const updateDirection = (key: string, controlOrSelection?: unknown, selectedIdOrIndex?: unknown): void => {
+    try {
+      const selection = getDirectionSelection(controlOrSelection, selectedIdOrIndex);
+      const index = typeof selection === "number" ? selection : Number(selection);
+      updateRibbonState(root, key, DIRECTION_LABELS[index] ?? selection);
+    } catch (error) {
+      dependencies.reportError(error);
+    }
+  };
 
   return {
     OnAddinLoad(ribbonUi: unknown): void {
@@ -72,20 +110,28 @@ export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonAp
       }
     },
     OnInputChange(control: RibbonControl, text?: string): void {
-      try {
-        updateRibbonState(root, getControlId(control), getControlText(control, text));
-      } catch (error) {
-        dependencies.reportError(error);
-      }
+      updateInput(getControlId(control), control, text);
     },
     OnDirectionChange(control: RibbonControl, selectedIdOrIndex?: string | number): void {
-      try {
-        const selection = getDirectionSelection(control, selectedIdOrIndex);
-        const index = typeof selection === "number" ? selection : Number(selection);
-        updateRibbonState(root, getControlId(control), DIRECTION_LABELS[index] ?? selection);
-      } catch (error) {
-        dependencies.reportError(error);
-      }
+      updateDirection(getControlId(control), control, selectedIdOrIndex);
+    },
+    OnCompanyChange(controlOrText?: unknown, text?: unknown): void {
+      updateInput("company", controlOrText, text);
+    },
+    OnDept1Change(controlOrText?: unknown, text?: unknown): void {
+      updateInput("dept1", controlOrText, text);
+    },
+    OnDept2Change(controlOrText?: unknown, text?: unknown): void {
+      updateInput("dept2", controlOrText, text);
+    },
+    OnStartDateChange(controlOrText?: unknown, text?: unknown): void {
+      updateInput("startDate", controlOrText, text);
+    },
+    OnEndDateChange(controlOrText?: unknown, text?: unknown): void {
+      updateInput("endDate", controlOrText, text);
+    },
+    OnQueryDirectionChange(controlOrSelection?: unknown, selectedIdOrIndex?: unknown): void {
+      updateDirection("queryDirection", controlOrSelection, selectedIdOrIndex);
     },
     GetDirectionCount(): number {
       return DIRECTION_LABELS.length;

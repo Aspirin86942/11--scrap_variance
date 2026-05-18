@@ -64,6 +64,12 @@ export interface RibbonApi {
   OnAction(control: RibbonControl): void;
   OnInputChange(control: RibbonControl, text?: string): void;
   OnDirectionChange(control: RibbonControl, selectedIdOrIndex?: string | number): void;
+  OnCompanyChange(controlOrText?: unknown, text?: unknown): void;
+  OnDept1Change(controlOrText?: unknown, text?: unknown): void;
+  OnDept2Change(controlOrText?: unknown, text?: unknown): void;
+  OnStartDateChange(controlOrText?: unknown, text?: unknown): void;
+  OnEndDateChange(controlOrText?: unknown, text?: unknown): void;
+  OnQueryDirectionChange(controlOrSelection?: unknown, selectedIdOrIndex?: unknown): void;
   GetDirectionCount(control: RibbonControl): number;
   GetDirectionLabel(control: RibbonControl, index: number): string;
   GetDirectionSelectedIndex(control: RibbonControl): number;
