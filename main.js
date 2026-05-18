@@ -456,15 +456,15 @@ writeError)}`)}}function runCurrentSheetQuery(root2){var _a;setupOutputSheets(ro
 Name);if(!kind){throw new Error(unsupportedOutputSheetMessage())}try{const queryState=getRibbonState(root2);const filters=readRibbonFilters(root2);const{oaRows,
 erpRows}=readSourceRows(root2);const result=kind==="legacy_detail"?buildLegacyDetailValues(oaRows,erpRows,filters,root2):kind==="oa_doc_compare"?buildOaDocCompareValues(
 oaRows,erpRows,filters):buildErpDocCompareValues(oaRows,erpRows,filters);clearPreviousToolOutput(activeSheet,kind);writeOutputWithMetadata(activeSheet,kind,(_a=
-result.values)!=null?_a:[[result.noResultMessage]],queryState)}catch(error){safeWriteCurrentSheetError(activeSheet,kind,errorMessage5(error),root2)}}function readOutputFilters(sheet,root2){
-const savedState=readOutputQueryState(sheet);if(!savedState){return readRibbonFilters(root2)}return parseFilters(savedState)}function readCellText(sheet,row,column){
-var _a,_b;const range=sheet.Range(`${column}${row}`);const matrix=normalizeMatrix((_a=range.Value2)!=null?_a:range.Value);return normalizeText((_b=matrix[0])==null?
-void 0:_b[0])}function countMaterialRowsBelow(sheet,summaryRowNumber){let count=0;for(let row=summaryRowNumber+1;row<summaryRowNumber+1e5;row+=1){if(readCellText(
-sheet,row,"A")!=="\u7269\u6599"){break}count+=1}return count}function readOutputRangeValues(sheet,startRow,rowCount,columnCount){var _a;const address=rangeAddress(
-startRow,1,rowCount,columnCount);const range=sheet.Range(address);return normalizeMatrix((_a=range.Value2)!=null?_a:range.Value).map(row=>row.slice(0,columnCount).
-map(cell=>typeof cell==="number"?cell:normalizeText(cell)))}function rollbackInsertedRows(sheet,startRow,rowCount,error){try{deleteRows(sheet,startRow,rowCount)}catch(rollbackError){
-throw new Error(`\u5C55\u5F00\u7269\u6599\u5931\u8D25\uFF1A${errorMessage5(error)}\uFF1B\u56DE\u6EDA\u63D2\u5165\u884C\u5931\u8D25\uFF1A${errorMessage5(rollbackError)}`)}
-throw error}function rollbackDeletedRows(sheet,summaryRow,deletedValues,error){try{insertRowsBelow(sheet,summaryRow,deletedValues.length);writeMatrixBulkOrChunks(
+result.values)!=null?_a:[[result.noResultMessage]],queryState)}catch(error){safeWriteCurrentSheetError(activeSheet,kind,errorMessage5(error),root2)}}function readOutputFilters(sheet){
+const savedState=readOutputQueryState(sheet);if(!savedState){throw new Error("\u5F53\u524D\u8F93\u51FA\u8868\u7F3A\u5C11\u67E5\u8BE2\u6761\u4EF6\u8BB0\u5F55\uFF0C\u8BF7\u5148\u5728\u5F53\u524D\u9875\u91CD\u65B0\u6267\u884C\u67E5\u8BE2\u3002")}
+return parseFilters(savedState)}function readCellText(sheet,row,column){var _a,_b;const range=sheet.Range(`${column}${row}`);const matrix=normalizeMatrix((_a=range.
+Value2)!=null?_a:range.Value);return normalizeText((_b=matrix[0])==null?void 0:_b[0])}function countMaterialRowsBelow(sheet,summaryRowNumber){let count=0;for(let row=summaryRowNumber+
+1;row<summaryRowNumber+1e5;row+=1){if(readCellText(sheet,row,"A")!=="\u7269\u6599"){break}count+=1}return count}function readOutputRangeValues(sheet,startRow,rowCount,columnCount){
+var _a;const address=rangeAddress(startRow,1,rowCount,columnCount);const range=sheet.Range(address);return normalizeMatrix((_a=range.Value2)!=null?_a:range.Value).
+map(row=>row.slice(0,columnCount).map(cell=>typeof cell==="number"?cell:normalizeText(cell)))}function rollbackInsertedRows(sheet,startRow,rowCount,error){try{deleteRows(
+sheet,startRow,rowCount)}catch(rollbackError){throw new Error(`\u5C55\u5F00\u7269\u6599\u5931\u8D25\uFF1A${errorMessage5(error)}\uFF1B\u56DE\u6EDA\u63D2\u5165\u884C\u5931\u8D25\uFF1A${errorMessage5(
+rollbackError)}`)}throw error}function rollbackDeletedRows(sheet,summaryRow,deletedValues,error){try{insertRowsBelow(sheet,summaryRow,deletedValues.length);writeMatrixBulkOrChunks(
 sheet,summaryRow+1,1,deletedValues,WRITE_CHUNK_ROWS)}catch(rollbackError){throw new Error(`\u6536\u8D77\u7269\u6599\u5931\u8D25\uFF1A${errorMessage5(error)}\uFF1B\u56DE\u6EDA\u5220\
 \u9664\u884C\u5931\u8D25\uFF1A${errorMessage5(rollbackError)}`)}throw error}function toggleMaterialRows(root2){var _a;const activeSheet=getActiveSheet(root2);const kind=detectOutputSheetKind(
 activeSheet.Name);if(!kind){throw new Error(unsupportedOutputSheetMessage())}if(kind==="legacy_detail"){throw new Error("\u5F53\u524D\u5DE5\u4F5C\u8868\u4E0D\u652F\u6301\u5C55\u5F00\u7269\u6599\u3002")}
@@ -472,8 +472,8 @@ const selectedRow=getSelectedRowNumber(root2);if(readCellText(activeSheet,select
 const existingMaterialRows=countMaterialRowsBelow(activeSheet,selectedRow);if(existingMaterialRows>0){const headerRow=(_a=docCompareRowsToValues(kind,[])[0])!=null?
 _a:[];const deletedValues=readOutputRangeValues(activeSheet,selectedRow+1,existingMaterialRows,headerRow.length);deleteRows(activeSheet,selectedRow+1,existingMaterialRows);
 try{adjustOutputMetadataRows(activeSheet,-existingMaterialRows)}catch(error){rollbackDeletedRows(activeSheet,selectedRow,deletedValues,error)}return}const filters=readOutputFilters(
-activeSheet,root2);const{oaRows,erpRows}=readSourceRows(root2);const result=kind==="oa_doc_compare"?buildOaDocCompare(oaRows,erpRows,filters):buildErpDocCompare(
-oaRows,erpRows,filters);const selectedDocNumber=readCellText(activeSheet,selectedRow,"F");const summaryRow=result.summaryRows.find(row=>row.primaryDocNumber===selectedDocNumber);
+activeSheet);const{oaRows,erpRows}=readSourceRows(root2);const result=kind==="oa_doc_compare"?buildOaDocCompare(oaRows,erpRows,filters):buildErpDocCompare(oaRows,
+erpRows,filters);const selectedDocNumber=readCellText(activeSheet,selectedRow,"F");const summaryRow=result.summaryRows.find(row=>row.primaryDocNumber===selectedDocNumber);
 if(!summaryRow){throw new Error(`\u627E\u4E0D\u5230\u53EF\u5C55\u5F00\u7684\u5355\u636E\uFF1A${selectedDocNumber}`)}const materialRows=buildMaterialRowsForDocSummary(
 result,summaryRow);if(materialRows.length===0){throw new Error(`\u5F53\u524D\u5355\u636E\u6CA1\u6709\u53EF\u5C55\u5F00\u7269\u6599\uFF1A${selectedDocNumber}`)}const materialValues=docCompareRowsToValues(
 kind,materialRows).slice(1);insertRowsBelow(activeSheet,selectedRow,materialRows.length);try{writeMatrixBulkOrChunks(activeSheet,selectedRow+1,1,materialValues,
