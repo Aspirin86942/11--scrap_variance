@@ -159,7 +159,19 @@ function safeWriteCurrentSheetError(
 }
 
 export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
-  runCurrentSheetQueryWithState(root, getRibbonState(root));
+  setupOutputSheets(root);
+
+  const activeSheet = getActiveSheet(root);
+  const kind = detectOutputSheetKind(activeSheet.Name);
+  if (!kind) {
+    throw new Error(unsupportedOutputSheetMessage());
+  }
+
+  try {
+    runCurrentSheetQueryWithState(root, getRibbonState(root));
+  } catch (error) {
+    safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error));
+  }
 }
 
 export function runCurrentSheetQueryWithState(root: ScrapVarianceGlobal | undefined, queryState: RibbonQueryState): void {
