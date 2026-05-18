@@ -180,4 +180,123 @@ describe("document compare core", () => {
       ["物料", 1, 11, 2, 20, "MAT-B", "物料B"]
     ]);
   });
+
+  it("uses stable summary keys when one OA document maps to multiple ERP documents", () => {
+    const oaRows: RawRow[] = [
+      {
+        表单编号: "OA-002",
+        金蝶云单据编号: "ERP-900",
+        申请日期: "2026/5/3",
+        公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料代码: "MAT-A",
+        物料名称: "物料A",
+        数量: 1,
+        实际预算金额mx: 10
+      },
+      {
+        表单编号: "OA-002",
+        金蝶云单据编号: "ERP-900",
+        申请日期: "2026/5/3",
+        公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料代码: "MAT-B",
+        物料名称: "物料B",
+        数量: 2,
+        实际预算金额mx: 20
+      },
+      {
+        表单编号: "OA-002",
+        金蝶云单据编号: "ERP-901",
+        申请日期: "2026/5/3",
+        公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料代码: "MAT-D",
+        物料名称: "物料D",
+        数量: 3,
+        实际预算金额mx: 30
+      }
+    ];
+    const erpRows: RawRow[] = [
+      {
+        单据编号: "ERP-900",
+        日期: "2026/5/4",
+        源单单号: "OA-002",
+        区分公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料编码: "MAT-A",
+        物料名称: "物料A",
+        实发数量: 1,
+        总成本: 10
+      },
+      {
+        单据编号: "ERP-900",
+        日期: "2026/5/4",
+        源单单号: "OA-002",
+        区分公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料编码: "MAT-B",
+        物料名称: "物料B",
+        实发数量: 2,
+        总成本: 20
+      },
+      {
+        单据编号: "ERP-901",
+        日期: "2026/5/4",
+        源单单号: "OA-002",
+        区分公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料编码: "MAT-D",
+        物料名称: "物料D",
+        实发数量: 3,
+        总成本: 30
+      },
+      {
+        单据编号: "ERP-901",
+        日期: "2026/5/4",
+        源单单号: "OA-002",
+        区分公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料编码: "MAT-X",
+        物料名称: "物料X",
+        实发数量: 4,
+        总成本: 40
+      }
+    ];
+
+    const result = buildOaDocCompare(oaRows, erpRows, parseFilters());
+    const summary = result.summaryRows[0];
+    expect(docCompareRowsToValues("oa_doc_compare", result.summaryRows)).toEqual([
+      [...OA_DOC_COMPARE_HEADERS],
+      ["汇总", "数控", "生产", "仓储", "2026-05-03", "OA-002", 6, 60, "ERP-900,ERP-901", 10, 100, -4, -40, "", "", ""]
+    ]);
+
+    const materialRows = buildMaterialRowsForDocSummary(result, {
+      ...summary,
+      counterpartDocNumber: "ERP-901,ERP-900"
+    });
+    expect(
+      materialRows.map((row) => [
+        row.rowType,
+        row.primaryQuantity,
+        row.primaryAmount,
+        row.counterpartQuantity,
+        row.counterpartAmount,
+        row.itemCode,
+        row.itemName
+      ])
+    ).toEqual([
+      ["物料", 1, 10, 1, 10, "MAT-A", "物料A"],
+      ["物料", 2, 20, 2, 20, "MAT-B", "物料B"],
+      ["物料", 3, 30, 3, 30, "MAT-D", "物料D"],
+      ["物料", 0, 0, 4, 40, "MAT-X", "物料X"]
+    ]);
+  });
 });

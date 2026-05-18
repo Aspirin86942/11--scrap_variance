@@ -257,8 +257,8 @@ function buildMatchedCounterpart(
   return matched;
 }
 
-function makeSummaryKey(kind: DocCompareKind, summaryRow: Pick<DocCompareRow, "primaryDocNumber" | "counterpartDocNumber">): string {
-  return JSON.stringify([kind, summaryRow.primaryDocNumber, summaryRow.counterpartDocNumber]);
+function makeSummaryKey(kind: DocCompareKind, summaryRow: Pick<DocCompareRow, "primaryDocNumber">): string {
+  return JSON.stringify([kind, normalizeText(summaryRow.primaryDocNumber)]);
 }
 
 function buildDocCompareRow(
