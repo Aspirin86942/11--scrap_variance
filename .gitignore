@@ -7,3 +7,4 @@ npm-debug.log*
 .~存货报废流程-erp&oa对比表.xlsm
 .bench/
 bench-results/latest.json
+wps-addon-build/
