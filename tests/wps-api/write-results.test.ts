@@ -71,7 +71,7 @@ describe("WPS adapter bulk reads and writes", () => {
     clearQueryOutput(querySheet);
     clearPrecheckOutput(precheckSheet);
 
-    expect(querySheet.clears).toEqual([`A8:Q${MAX_OUTPUT_CLEAR_ROW}`]);
+    expect(querySheet.clears).toEqual([`A9:S${MAX_OUTPUT_CLEAR_ROW}`]);
     expect(precheckSheet.clears).toEqual([`A1:H${MAX_PRECHECK_CLEAR_ROW}`]);
   });
 

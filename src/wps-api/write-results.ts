@@ -102,7 +102,7 @@ export function writeMatrixBulkOrChunks(
 }
 
 export function clearQueryOutput(sheet: WpsSheet): void {
-  clearRange(sheet, `A8:Q${MAX_OUTPUT_CLEAR_ROW}`);
+  clearRange(sheet, `A9:S${MAX_OUTPUT_CLEAR_ROW}`);
 }
 
 export function clearPrecheckOutput(sheet: WpsSheet): void {

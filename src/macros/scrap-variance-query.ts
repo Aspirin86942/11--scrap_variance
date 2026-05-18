@@ -9,8 +9,9 @@ import {
   WRITE_CHUNK_ROWS
 } from "../constants";
 import { parseFilters } from "../core/build-oa-rows";
+import { parseQueryDirection, QUERY_DIRECTIONS } from "../core/query-direction";
 import { runQueryCorePipeline } from "../core/query-pipeline";
-import type { QueryFilters } from "../types/scrap";
+import type { PanelQueryInput, QueryFilters } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsCellValue, WpsRange } from "../types/wps";
 import { normalizeMatrix } from "../utils/matrix";
 import { normalizeText } from "../utils/text";
@@ -40,7 +41,7 @@ function normalizePanelDateValue(value: WpsCellValue): WpsCellValue | string {
 function panelFilterValues(rawValue: unknown): WpsCellValue[] {
   return normalizeMatrix(rawValue)
     .flat()
-    .slice(0, 5);
+    .slice(0, 6);
 }
 
 export function readPanelFilters(panelRange: WpsRange): QueryFilters {
@@ -55,9 +56,24 @@ export function readPanelFilters(panelRange: WpsRange): QueryFilters {
   });
 }
 
+export function readPanelQueryInput(panelRange: WpsRange): PanelQueryInput {
+  const values = panelFilterValues(readRangeValue(panelRange));
+
+  return {
+    filters: parseFilters({
+      company: values[0],
+      dept1: values[1],
+      dept2: values[2],
+      startDate: normalizePanelDateValue(values[3]),
+      endDate: normalizePanelDateValue(values[4])
+    }),
+    queryDirection: parseQueryDirection(values[5])
+  };
+}
+
 function assertQueryOutputLimit(summaryRowCount: number, detailRowCount: number): void {
   const plannedRows = 1 + summaryRowCount + 1 + detailRowCount;
-  const lastOutputRow = 8 + plannedRows - 1;
+  const lastOutputRow = 9 + plannedRows - 1;
 
   if (lastOutputRow > MAX_OUTPUT_CLEAR_ROW) {
     throw new Error(
@@ -71,7 +87,7 @@ export function safeWriteQueryError(message: string, root?: ScrapVarianceGlobal)
   try {
     const panel = setupQueryPanel(root);
     clearQueryOutput(panel);
-    writeMatrixBulkOrChunks(panel, 8, 1, [["错误", message]], WRITE_CHUNK_ROWS);
+    writeMatrixBulkOrChunks(panel, 9, 1, [["错误", message]], WRITE_CHUNK_ROWS);
   } catch (writeError) {
     throw new Error(`查询执行失败：${message}；错误信息写入也失败：${errorMessage(writeError)}`);
   }
@@ -80,7 +96,7 @@ export function safeWriteQueryError(message: string, root?: ScrapVarianceGlobal)
 export function runScrapVarianceQuery(root?: ScrapVarianceGlobal): void {
   try {
     const panel = setupQueryPanel(root);
-    const filters = readPanelFilters(panel.Range("B2:B6"));
+    const queryInput = readPanelQueryInput(panel.Range("B2:B7"));
     const oaSheet = getSheetByName(SHEET_NAMES.oa, root);
     const erpSheet = getSheetByName(SHEET_NAMES.erp, root);
     const oaTable = readSheetTable(
@@ -95,21 +111,39 @@ export function runScrapVarianceQuery(root?: ScrapVarianceGlobal): void {
       MIN_ERP_HEADER_MATCH_COUNT,
       MAX_HEADER_SCAN_ROWS
     );
-    const pipeline = runQueryCorePipeline(oaTable.rows, erpTable.rows, filters);
+    const pipeline = runQueryCorePipeline(
+      oaTable.rows,
+      erpTable.rows,
+      queryInput.filters,
+      undefined,
+      queryInput.queryDirection
+    );
 
-    if (pipeline.oaGroupedRows.size === 0 && pipeline.erpOnlyRows.size === 0) {
+    if (pipeline.detailRows.length === 0) {
       clearQueryOutput(panel);
-      writeMatrixBulkOrChunks(panel, 8, 1, [["查询条件没有匹配到 OA 数据。"]], WRITE_CHUNK_ROWS);
+      writeMatrixBulkOrChunks(
+        panel,
+        9,
+        1,
+        [
+          [
+            pipeline.queryDirection === QUERY_DIRECTIONS.erpSourceToOa
+              ? "查询条件没有匹配到 ERP 数据。"
+              : "查询条件没有匹配到 OA 数据。"
+          ]
+        ],
+        WRITE_CHUNK_ROWS
+      );
       return;
     }
 
     assertQueryOutputLimit(pipeline.summaryValues.length, pipeline.detailValues.length);
 
     clearQueryOutput(panel);
-    writeMatrixBulkOrChunks(panel, 8, 1, [["汇总差异"]], WRITE_CHUNK_ROWS);
-    writeMatrixBulkOrChunks(panel, 9, 1, pipeline.summaryValues, WRITE_CHUNK_ROWS);
+    writeMatrixBulkOrChunks(panel, 9, 1, [["汇总差异"]], WRITE_CHUNK_ROWS);
+    writeMatrixBulkOrChunks(panel, 10, 1, pipeline.summaryValues, WRITE_CHUNK_ROWS);
 
-    const detailTitleRow = 9 + pipeline.summaryValues.length;
+    const detailTitleRow = 10 + pipeline.summaryValues.length;
     writeMatrixBulkOrChunks(panel, detailTitleRow, 1, [["明细差异"]], WRITE_CHUNK_ROWS);
     writeMatrixBulkOrChunks(panel, detailTitleRow + 1, 1, pipeline.detailValues, WRITE_CHUNK_ROWS);
   } catch (error) {
