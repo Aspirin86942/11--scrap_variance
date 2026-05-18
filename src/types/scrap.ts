@@ -92,6 +92,31 @@ export interface RibbonQueryState {
   queryDirection: QueryDirection;
 }
 
+export interface DocCompareRow {
+  rowType: DocCompareRowType;
+  company: string;
+  dept1: string;
+  dept2: string;
+  date: string;
+  primaryDocNumber: string;
+  primaryQuantity: number;
+  primaryAmount: number;
+  counterpartDocNumber: string;
+  counterpartQuantity: number;
+  counterpartAmount: number;
+  quantityDiff: number;
+  amountDiff: number;
+  itemCode: string;
+  itemName: string;
+  remark: string;
+}
+
+export interface DocCompareResult {
+  kind: Extract<OutputSheetKind, "oa_doc_compare" | "erp_doc_compare">;
+  summaryRows: DocCompareRow[];
+  materialRowsBySummaryKey: Map<string, DocCompareRow[]>;
+}
+
 export interface SummaryRow {
   company: string;
   dept1: string;
