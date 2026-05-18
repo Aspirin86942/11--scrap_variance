@@ -24,13 +24,19 @@ function capability(name: string, supported: boolean): RuntimeCapability {
   };
 }
 
-export function probeRuntimeCapabilities(root: unknown = globalThis): RuntimeCapability[] {
+function hasFunction(rootValue: unknown, fallbackValue: unknown): boolean {
+  return typeof rootValue === "function" || typeof fallbackValue === "function";
+}
+
+export function probeRuntimeCapabilities(root: unknown = globalThis, fallbackRoot: unknown = globalThis): RuntimeCapability[] {
   const runtime = root as RuntimeProbeRoot;
+  const fallbackRuntime = fallbackRoot as RuntimeProbeRoot;
+
   return [
-    capability("performance.now", typeof runtime.performance?.now === "function"),
-    capability("console.log", typeof runtime.console?.log === "function"),
-    capability("setTimeout", typeof runtime.setTimeout === "function"),
-    capability("Promise", typeof runtime.Promise === "function"),
-    capability("Worker", typeof runtime.Worker === "function")
+    capability("performance.now", hasFunction(runtime.performance?.now, fallbackRuntime.performance?.now)),
+    capability("console.log", hasFunction(runtime.console?.log, fallbackRuntime.console?.log)),
+    capability("setTimeout", hasFunction(runtime.setTimeout, fallbackRuntime.setTimeout)),
+    capability("Promise", hasFunction(runtime.Promise, fallbackRuntime.Promise)),
+    capability("Worker", hasFunction(runtime.Worker, fallbackRuntime.Worker))
   ];
 }

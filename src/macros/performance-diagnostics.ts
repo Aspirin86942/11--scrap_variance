@@ -62,7 +62,7 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
   try {
     const diagnosticsSheet = ensureSheet(SHEET_NAMES.performanceDiagnostics, root);
     const metrics = createMetricsRecorder(root ?? globalThis);
-    const capabilities = probeRuntimeCapabilities(root ?? globalThis);
+    const capabilities = probeRuntimeCapabilities(root ?? globalThis, globalThis);
     const panel = getSheetByName(SHEET_NAMES.panel, root);
     const oaSheet = getSheetByName(SHEET_NAMES.oa, root);
     const erpSheet = getSheetByName(SHEET_NAMES.erp, root);
@@ -123,6 +123,11 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
       writeMatrixBulkOrChunks(diagnosticsSheet, writeStageRow, 1, metricRows([writeStage]), WRITE_CHUNK_ROWS);
     }
   } catch (error) {
-    writeDiagnosticsError(root, errorMessage(error));
+    const originalMessage = errorMessage(error);
+    try {
+      writeDiagnosticsError(root, originalMessage);
+    } catch (writeError) {
+      throw new Error(`性能诊断失败：${originalMessage}; 错误信息写入也失败：${errorMessage(writeError)}`);
+    }
   }
 }

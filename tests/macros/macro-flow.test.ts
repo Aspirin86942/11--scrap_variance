@@ -214,6 +214,15 @@ describe("TypeScript macro orchestration", () => {
     expect(output).toContain("build_output_matrix");
     expect(output).toContain("write_diagnostics_sheet");
     expect(output).toContain("performance.now");
+
+    const initialWrite = diagnosticsSheet.writes[0];
+    const writeStageAppend = diagnosticsSheet.writes[1];
+    if (!initialWrite || !writeStageAppend || !Array.isArray(initialWrite.value)) {
+      throw new Error("missing diagnostics writes");
+    }
+    const initialRowCount = (initialWrite.value as OutputMatrix).length;
+    expect(initialWrite.address).toBe(`A1:G${initialRowCount}`);
+    expect(writeStageAppend.address).toBe(`A${initialRowCount + 1}:G${initialRowCount + 1}`);
   });
 
   it("runPerformanceDiagnostics writes an error row when diagnostics fails", () => {
@@ -226,5 +235,15 @@ describe("TypeScript macro orchestration", () => {
     expect(diagnosticsSheet.Name).toBe(SHEET_NAMES.performanceDiagnostics);
     expect(output).toContain("错误");
     expect(output.join("|")).toContain("找不到工作表");
+  });
+
+  it("runPerformanceDiagnostics preserves the original error when writing the error row fails", () => {
+    const diagnosticsSheet = createFakeSheet(SHEET_NAMES.performanceDiagnostics);
+    diagnosticsSheet.failWriteAddresses.add("A1:G2");
+    const root = makeRoot([diagnosticsSheet]);
+
+    expect(() => runPerformanceDiagnostics(root)).toThrow(
+      /性能诊断失败：.*找不到工作表：查询面板.*错误信息写入也失败：.*range write failed: A1:G2/s
+    );
   });
 });
