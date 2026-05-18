@@ -4,7 +4,6 @@ import { runCurrentSheetQueryWithState, toggleMaterialRows } from "./macros/curr
 import { setupOutputSheets } from "./macros/output-sheets";
 import { runScrapVariancePrecheck } from "./macros/scrap-variance-precheck";
 import { openQueryDialogAndRun } from "./query-dialog/open-query-dialog";
-import { buildDefaultQueryDialogState } from "./query-dialog/state";
 import { createRibbonHandlers } from "./ribbon/handlers";
 import type { ScrapVarianceGlobal } from "./types/wps";
 
@@ -28,7 +27,6 @@ export function createDefaultButtonActions(root: ScrapVarianceGlobal): ButtonAct
     setupOutputSheets: () => setupOutputSheets(root),
     queryCurrentSheet: () =>
       openQueryDialogAndRun(root, (state) => runCurrentSheetQueryWithState(root, state), reportRuntimeError),
-    queryCurrentSheetTest: () => runCurrentSheetQueryWithState(root, buildDefaultQueryDialogState()),
     toggleMaterialRows: () => toggleMaterialRows(root),
     runDiagnostics: () => runPerformanceDiagnostics(root)
   });

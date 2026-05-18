@@ -8,6 +8,10 @@ export interface RibbonDependencies {
   root?: ScrapVarianceGlobal;
 }
 
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+  return typeof value === "object" && value !== null && typeof (value as { then?: unknown }).then === "function";
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -30,7 +34,10 @@ export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonAp
     OnAction(control: RibbonControl): void {
       try {
         const controlId = getControlId(control);
-        getButtonAction(dependencies.buttonActions, controlId).run();
+        const result = getButtonAction(dependencies.buttonActions, controlId).run();
+        if (isPromiseLike(result)) {
+          void result.then(undefined, dependencies.reportError);
+        }
       } catch (error) {
         dependencies.reportError(error);
       }

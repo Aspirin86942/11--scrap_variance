@@ -2,15 +2,18 @@
   var RESULT_KEY = "ScrapVarianceQueryDialogResult";
   var DEFAULT_DIRECTION = "OA金蝶单号查ERP";
   var REVERSE_DIRECTION = "ERP源单查OA";
+  var hasSubmitted = false;
 
   function getToken() {
     return new URLSearchParams(window.location.search).get("token") || "";
   }
 
-  function getStorage() {
+  function getStorage(showAlert) {
     var app = window.Application;
     if (!app || !app.PluginStorage) {
-      alert("当前 WPS 环境不支持 PluginStorage，无法提交查询条件。");
+      if (showAlert !== false) {
+        alert("当前 WPS 环境不支持 PluginStorage，无法提交查询条件。");
+      }
       return null;
     }
     return app.PluginStorage;
@@ -43,6 +46,30 @@
     }
   }
 
+  function writeCancelIfNeeded() {
+    var storage;
+    var token;
+    if (hasSubmitted) {
+      return;
+    }
+
+    storage = getStorage(false);
+    token = getToken();
+    if (!storage || !token) {
+      return;
+    }
+
+    storage.setItem(
+      RESULT_KEY,
+      JSON.stringify({
+        token: token,
+        action: "cancel",
+        state: {}
+      })
+    );
+    hasSubmitted = true;
+  }
+
   function submitResult(action, state) {
     var storage = getStorage();
     var token = getToken();
@@ -59,6 +86,7 @@
         state: state || {}
       })
     );
+    hasSubmitted = true;
     closeDialog();
   }
 
@@ -78,6 +106,7 @@
   document.getElementById("btnCancel").addEventListener("click", function () {
     submitResult("cancel", {});
   });
+  window.addEventListener("beforeunload", writeCancelIfNeeded);
 
   resetForm();
 })();

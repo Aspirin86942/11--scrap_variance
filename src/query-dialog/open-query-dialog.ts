@@ -67,6 +67,10 @@ function buildDialogUrl(token: string): string {
   return url.toString();
 }
 
+function buildDialogTimeoutError(): Error {
+  return new Error("查询弹窗超时：没有收到查询或取消结果，请关闭弹窗后重试。");
+}
+
 export function pollQueryDialogResult(
   root: ScrapVarianceGlobal,
   token: string,
@@ -92,23 +96,26 @@ export function pollQueryDialogResult(
 }
 
 export function openQueryDialogAndRun(root: ScrapVarianceGlobal, runQuery: RunQuery, reportError: ReportError): void {
-  try {
-    const showDialog = root.Application?.ShowDialog;
-    if (typeof showDialog !== "function") {
-      throw new Error("当前 WPS 环境不支持 ShowDialog，无法打开查询弹窗。");
+  const showDialog = root.Application?.ShowDialog;
+  if (typeof showDialog !== "function") {
+    throw new Error("当前 WPS 环境不支持 ShowDialog，无法打开查询弹窗。");
+  }
+
+  const token = createDialogToken();
+  clearDialogResult(root);
+  showDialog(buildDialogUrl(token), "报废差异查询条件", 560, 430, false);
+
+  const startedAt = Date.now();
+  const timer = globalThis.setInterval(() => {
+    if (pollQueryDialogResult(root, token, runQuery, reportError)) {
+      globalThis.clearInterval(timer);
+      return;
     }
 
-    const token = createDialogToken();
-    clearDialogResult(root);
-    showDialog(buildDialogUrl(token), "报废差异查询条件", 560, 430, false);
-
-    const startedAt = Date.now();
-    const timer = globalThis.setInterval(() => {
-      if (pollQueryDialogResult(root, token, runQuery, reportError) || Date.now() - startedAt > QUERY_DIALOG_TIMEOUT_MS) {
-        globalThis.clearInterval(timer);
-      }
-    }, QUERY_DIALOG_POLL_MS);
-  } catch (error) {
-    reportError(error);
-  }
+    if (Date.now() - startedAt > QUERY_DIALOG_TIMEOUT_MS) {
+      globalThis.clearInterval(timer);
+      clearDialogResult(root);
+      reportError(buildDialogTimeoutError());
+    }
+  }, QUERY_DIALOG_POLL_MS);
 }

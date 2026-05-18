@@ -59,6 +59,7 @@ describe("WPS add-in generated bundle", () => {
     expect(script).toContain("ScrapVarianceQueryDialogResult");
     expect(script).toContain("OA金蝶单号查ERP");
     expect(script).toContain("ERP源单查OA");
+    expect(script).toContain("beforeunload");
   });
 
   it("registers every ribbon onAction callback through the WPS entrypoint", () => {

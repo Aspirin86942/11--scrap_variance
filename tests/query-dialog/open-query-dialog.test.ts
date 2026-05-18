@@ -64,6 +64,22 @@ describe("query dialog bridge", () => {
     vi.clearAllTimers();
   });
 
+  it("reports a timeout when the opened dialog never returns a result", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-19T00:00:00Z"));
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+
+    openQueryDialogAndRun(root, runQuery, reportError);
+    vi.advanceTimersByTime(5 * 60 * 1000 + 250);
+
+    expect(runQuery).not.toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(reportError.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ message: expect.stringContaining("查询弹窗超时") }));
+    expect(root.Application.PluginStorage.values.get(QUERY_DIALOG_RESULT_KEY)).toBe("");
+  });
+
   it("pollQueryDialogResult runs a submitted matching-token query and clears storage", () => {
     const root = makeRoot();
     const runQuery = vi.fn();

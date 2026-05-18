@@ -105,6 +105,25 @@ describe("WPS ribbon entrypoint", () => {
     expect(reportError.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ message: "precheck failed" }));
   });
 
+  it("createRibbonHandlers reports rejected async button actions", async () => {
+    const reportError = vi.fn();
+    const ribbon = createRibbonHandlers({
+      buttonActions: makeButtonActions({
+        btnPrecheck: {
+          name: "runPrecheck",
+          run: () => Promise.reject(new Error("async precheck failed"))
+        }
+      }),
+      reportError
+    });
+
+    ribbon.OnAction({ Id: "btnPrecheck" });
+    await Promise.resolve();
+
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(reportError.mock.calls[0]?.[0]).toEqual(expect.objectContaining({ message: "async precheck failed" }));
+  });
+
   it("OnAddinLoad stores ribbon UI on the provided root", () => {
     const root: ScrapVarianceGlobal = {};
     const ribbonUi = { invalidate: vi.fn() };

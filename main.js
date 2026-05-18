@@ -1,10 +1,9 @@
-"use strict";(()=>{function errorMessage(error){return error instanceof Error?error.message:String(error)}function createButtonActions(runners){const queryCurrentSheet={name:"quer\
-yCurrentSheet",run:runners.queryCurrentSheet};if(runners.queryCurrentSheetTest){queryCurrentSheet.test=runners.queryCurrentSheetTest}return{btnPrecheck:{name:"r\
-unPrecheck",run:runners.runPrecheck},btnSetupOutputSheets:{name:"setupOutputSheets",run:runners.setupOutputSheets},btnQueryCurrentSheet:queryCurrentSheet,btnToggleMaterialRows:{
-name:"toggleMaterialRows",run:runners.toggleMaterialRows},btnPerformanceDiagnostics:{name:"runDiagnostics",run:runners.runDiagnostics}}}function getButtonAction(actions,buttonId){
-const action=actions[buttonId];if(!action){throw new Error(`\u672A\u77E5\u529F\u80FD\u533A\u6309\u94AE\uFF1A${buttonId}`)}return action}async function runAllButtonActionTests(actions){
-var _a;const results=[];for(const action of Object.values(actions)){try{await((_a=action.test)!=null?_a:action.run)();results.push({name:action.name,ok:true,message:"\
-\u5B8C\u6210"})}catch(error){results.push({name:action.name,ok:false,message:errorMessage(error)})}}return results}var SHEET_NAMES={oa:"\u67E5\u8BE2OA-\u5B58\u8D27\u62A5\u5E9F\u7533\u8BF7\u5355",erp:"\u67E5\u8BE2ERP-\u62A5\u5E9F\u660E\u7EC6\u8868",panel:"\u67E5\u8BE2\u9762\u677F",
+"use strict";(()=>{function errorMessage(error){return error instanceof Error?error.message:String(error)}function createButtonActions(runners){return{btnPrecheck:{name:"runPreche\
+ck",run:runners.runPrecheck},btnSetupOutputSheets:{name:"setupOutputSheets",run:runners.setupOutputSheets},btnQueryCurrentSheet:{name:"queryCurrentSheet",run:runners.
+queryCurrentSheet},btnToggleMaterialRows:{name:"toggleMaterialRows",run:runners.toggleMaterialRows},btnPerformanceDiagnostics:{name:"runDiagnostics",run:runners.
+runDiagnostics}}}function getButtonAction(actions,buttonId){const action=actions[buttonId];if(!action){throw new Error(`\u672A\u77E5\u529F\u80FD\u533A\u6309\u94AE\uFF1A${buttonId}`)}
+return action}async function runAllButtonActionTests(actions){const results=[];for(const action of Object.values(actions)){try{await action.run();results.push({
+name:action.name,ok:true,message:"\u5DF2\u8C03\u7528\u6309\u94AE action"})}catch(error){results.push({name:action.name,ok:false,message:errorMessage(error)})}}return results}var SHEET_NAMES={oa:"\u67E5\u8BE2OA-\u5B58\u8D27\u62A5\u5E9F\u7533\u8BF7\u5355",erp:"\u67E5\u8BE2ERP-\u62A5\u5E9F\u660E\u7EC6\u8868",panel:"\u67E5\u8BE2\u9762\u677F",
 detailOutput:"\u62A5\u5E9F\u5DEE\u5F02\u660E\u7EC6",oaDocCompare:"OA\u89C6\u89D2\u5355\u636E\u5BF9\u6BD4",erpDocCompare:"ERP\u89C6\u89D2\u5355\u636E\u5BF9\u6BD4",
 precheckResult:"\u9884\u9A8C\u8BC1\u7ED3\u679C",performanceDiagnostics:"\u6027\u80FD\u8BCA\u65AD\u7ED3\u679C"};var OA_REQUIRED_HEADERS=["\u8868\u5355\u7F16\u53F7",
 "\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7","\u7533\u8BF7\u65E5\u671F","\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8","\u7269\u6599\u4EE3\u7801",
@@ -548,29 +547,30 @@ minMatchCount,MAX_HEADER_SCAN_ROWS)}catch(error){if(error instanceof HeaderDetec
 throw error}}function runScrapVariancePrecheck(root2){let issues;try{const oaSheet=getSheetByName(SHEET_NAMES.oa,root2);const erpSheet=getSheetByName(SHEET_NAMES.
 erp,root2);const headerIssues=[];const oaTable=readPrecheckTable("OA",oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,headerIssues);const erpTable=readPrecheckTable(
 "ERP",erpSheet,[...ERP_REQUIRED_HEADERS],MIN_ERP_HEADER_MATCH_COUNT,headerIssues);issues=headerIssues.length>0?headerIssues:buildPrecheckIssues(oaTable,erpTable)}catch(error){
-issues=[buildSystemErrorIssue(error)]}writePrecheckResults(issues,root2)}function buildDefaultQueryDialogState(){return{company:"",dept1:"",dept2:"",startDate:"",endDate:"",queryDirection:DEFAULT_QUERY_DIRECTION}}function normalizeQueryDialogState(input={}){
-const source=input!=null?input:{};const queryState={company:normalizeText(source.company),dept1:normalizeText(source.dept1),dept2:normalizeText(source.dept2),startDate:normalizeText(
-source.startDate),endDate:normalizeText(source.endDate),queryDirection:parseQueryDirection(normalizeText(source.queryDirection)||DEFAULT_QUERY_DIRECTION)};parseFilters(
-queryState);return queryState}var QUERY_DIALOG_RESULT_KEY="ScrapVarianceQueryDialogResult";var QUERY_DIALOG_TIMEOUT_MS=5*60*1e3;var QUERY_DIALOG_POLL_MS=250;function errorMessage8(error){return error instanceof
+issues=[buildSystemErrorIssue(error)]}writePrecheckResults(issues,root2)}function normalizeQueryDialogState(input={}){const source=input!=null?input:{};const queryState={company:normalizeText(source.company),dept1:normalizeText(source.
+dept1),dept2:normalizeText(source.dept2),startDate:normalizeText(source.startDate),endDate:normalizeText(source.endDate),queryDirection:parseQueryDirection(normalizeText(
+source.queryDirection)||DEFAULT_QUERY_DIRECTION)};parseFilters(queryState);return queryState}var QUERY_DIALOG_RESULT_KEY="ScrapVarianceQueryDialogResult";var QUERY_DIALOG_TIMEOUT_MS=5*60*1e3;var QUERY_DIALOG_POLL_MS=250;function errorMessage8(error){return error instanceof
 Error?error.message:String(error)}function getStorage(root2){var _a;const storage=(_a=root2.Application)==null?void 0:_a.PluginStorage;if(!storage){throw new Error(
 "\u5F53\u524D WPS \u73AF\u5883\u4E0D\u652F\u6301 PluginStorage\uFF0C\u65E0\u6CD5\u6253\u5F00\u67E5\u8BE2\u5F39\u7A97\u3002")}return storage}function clearDialogResult(root2){
 getStorage(root2).setItem(QUERY_DIALOG_RESULT_KEY,"")}function readDialogResult(root2){const raw=getStorage(root2).getItem(QUERY_DIALOG_RESULT_KEY);if(typeof raw!==
 "string"||!raw.trim()){return null}try{const parsed=JSON.parse(raw);if(typeof parsed.token!=="string"||parsed.action!=="query"&&parsed.action!=="cancel"){return null}
 return{token:parsed.token,action:parsed.action,state:parsed.state}}catch(e){return null}}function createDialogToken(){return`${Date.now()}-${Math.random().toString(
 36).slice(2)}`}function buildDialogUrl(token){var _a;const base=typeof((_a=globalThis.location)==null?void 0:_a.href)==="string"?globalThis.location.href:"http:\
-//127.0.0.1:3889/index.html";const url=new URL("ui/query-dialog.html",base);url.searchParams.set("token",token);return url.toString()}function pollQueryDialogResult(root2,token,runQuery,reportError){
-const result=readDialogResult(root2);if(!result||result.token!==token){return false}clearDialogResult(root2);if(result.action==="cancel"){return true}try{runQuery(
-normalizeQueryDialogState(result.state))}catch(error){reportError(error instanceof Error?error:new Error(errorMessage8(error)))}return true}function openQueryDialogAndRun(root2,runQuery,reportError){
-var _a;try{const showDialog=(_a=root2.Application)==null?void 0:_a.ShowDialog;if(typeof showDialog!=="function"){throw new Error("\u5F53\u524D WPS \u73AF\u5883\u4E0D\u652F\u6301 ShowDialog\uFF0C\u65E0\u6CD5\u6253\u5F00\u67E5\u8BE2\
-\u5F39\u7A97\u3002")}const token=createDialogToken();clearDialogResult(root2);showDialog(buildDialogUrl(token),"\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2\u6761\u4EF6",
-560,430,false);const startedAt=Date.now();const timer=globalThis.setInterval(()=>{if(pollQueryDialogResult(root2,token,runQuery,reportError)||Date.now()-startedAt>
-QUERY_DIALOG_TIMEOUT_MS){globalThis.clearInterval(timer)}},QUERY_DIALOG_POLL_MS)}catch(error){reportError(error)}}function isRecord(value){return typeof value==="object"&&value!==null}function getControlId(control){var _a,_b;if(!isRecord(control)){return""}return normalizeText(
-(_b=(_a=control.Id)!=null?_a:control.id)!=null?_b:control.ID)}function createRibbonHandlers(dependencies){var _a;const root2=(_a=dependencies.root)!=null?_a:globalThis;
-return{OnAddinLoad(ribbonUi){root2.ScrapVarianceRibbonUi=ribbonUi},OnAction(control){try{const controlId=getControlId(control);getButtonAction(dependencies.buttonActions,
-controlId).run()}catch(error){dependencies.reportError(error)}}}}function reportRuntimeError(error){var _a;const root2=globalThis;const message=error instanceof Error?error.message:String(error);if(typeof root2.alert==="funct\
+//127.0.0.1:3889/index.html";const url=new URL("ui/query-dialog.html",base);url.searchParams.set("token",token);return url.toString()}function buildDialogTimeoutError(){
+return new Error("\u67E5\u8BE2\u5F39\u7A97\u8D85\u65F6\uFF1A\u6CA1\u6709\u6536\u5230\u67E5\u8BE2\u6216\u53D6\u6D88\u7ED3\u679C\uFF0C\u8BF7\u5173\u95ED\u5F39\u7A97\u540E\u91CD\u8BD5\u3002")}
+function pollQueryDialogResult(root2,token,runQuery,reportError){const result=readDialogResult(root2);if(!result||result.token!==token){return false}clearDialogResult(
+root2);if(result.action==="cancel"){return true}try{runQuery(normalizeQueryDialogState(result.state))}catch(error){reportError(error instanceof Error?error:new Error(
+errorMessage8(error)))}return true}function openQueryDialogAndRun(root2,runQuery,reportError){var _a;const showDialog=(_a=root2.Application)==null?void 0:_a.ShowDialog;
+if(typeof showDialog!=="function"){throw new Error("\u5F53\u524D WPS \u73AF\u5883\u4E0D\u652F\u6301 ShowDialog\uFF0C\u65E0\u6CD5\u6253\u5F00\u67E5\u8BE2\u5F39\u7A97\u3002")}
+const token=createDialogToken();clearDialogResult(root2);showDialog(buildDialogUrl(token),"\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2\u6761\u4EF6",560,430,false);const startedAt=Date.
+now();const timer=globalThis.setInterval(()=>{if(pollQueryDialogResult(root2,token,runQuery,reportError)){globalThis.clearInterval(timer);return}if(Date.now()-startedAt>
+QUERY_DIALOG_TIMEOUT_MS){globalThis.clearInterval(timer);clearDialogResult(root2);reportError(buildDialogTimeoutError())}},QUERY_DIALOG_POLL_MS)}function isPromiseLike(value){return typeof value==="object"&&value!==null&&typeof value.then==="function"}function isRecord(value){return typeof value==="objec\
+t"&&value!==null}function getControlId(control){var _a,_b;if(!isRecord(control)){return""}return normalizeText((_b=(_a=control.Id)!=null?_a:control.id)!=null?_b:
+control.ID)}function createRibbonHandlers(dependencies){var _a;const root2=(_a=dependencies.root)!=null?_a:globalThis;return{OnAddinLoad(ribbonUi){root2.ScrapVarianceRibbonUi=
+ribbonUi},OnAction(control){try{const controlId=getControlId(control);const result=getButtonAction(dependencies.buttonActions,controlId).run();if(isPromiseLike(
+result)){void result.then(void 0,dependencies.reportError)}}catch(error){dependencies.reportError(error)}}}}function reportRuntimeError(error){var _a;const root2=globalThis;const message=error instanceof Error?error.message:String(error);if(typeof root2.alert==="funct\
 ion"){root2.alert(message);return}if(typeof((_a=root2.console)==null?void 0:_a.error)==="function"){root2.console.error(message)}}function createDefaultButtonActions(root2){
 return createButtonActions({runPrecheck:()=>runScrapVariancePrecheck(root2),setupOutputSheets:()=>setupOutputSheets(root2),queryCurrentSheet:()=>openQueryDialogAndRun(
-root2,state=>runCurrentSheetQueryWithState(root2,state),reportRuntimeError),queryCurrentSheetTest:()=>runCurrentSheetQueryWithState(root2,buildDefaultQueryDialogState()),
-toggleMaterialRows:()=>toggleMaterialRows(root2),runDiagnostics:()=>runPerformanceDiagnostics(root2)})}function createWpsRibbon(root2,buttonActions2){return createRibbonHandlers(
-{root:root2,buttonActions:buttonActions2,reportError:reportRuntimeError})}var root=globalThis;var buttonActions=createDefaultButtonActions(root);root.buttonActions=buttonActions;root.ribbon=createWpsRibbon(root,buttonActions);root.__WPS_RUN_ALL_BUTTON_TESTS__=
+root2,state=>runCurrentSheetQueryWithState(root2,state),reportRuntimeError),toggleMaterialRows:()=>toggleMaterialRows(root2),runDiagnostics:()=>runPerformanceDiagnostics(
+root2)})}function createWpsRibbon(root2,buttonActions2){return createRibbonHandlers({root:root2,buttonActions:buttonActions2,reportError:reportRuntimeError})}var root=globalThis;var buttonActions=createDefaultButtonActions(root);root.buttonActions=buttonActions;root.ribbon=createWpsRibbon(root,buttonActions);root.__WPS_RUN_ALL_BUTTON_TESTS__=
 ()=>runAllButtonActionTests(buttonActions);})();

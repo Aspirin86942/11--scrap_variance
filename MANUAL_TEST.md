@@ -24,11 +24,13 @@
    {
      name: "runPrecheck",
      ok: true,
-     message: "完成"
+     message: "已调用按钮 action"
    }
    ```
 
-`ok: false` 表示该 action 在当前 WPS 工作簿、当前活动工作表或当前选区下真实失败，`message` 是失败原因。不要手工改写为通过。
+`__WPS_RUN_ALL_BUTTON_TESTS__()` 会调用真实按钮背后的 action，不使用 Node mock，也不使用替代测试函数。`ok: false` 表示该 action 在当前 WPS 工作簿、当前活动工作表或当前选区下真实失败，`message` 是失败原因。不要手工改写为通过。
+
+`queryCurrentSheet` 的 `ok: true` 表示已经真实调用查询按钮 action，并且 WPS 接受了 `ShowDialog` 调用。随后需要在弹窗中点 `查询` 或 `取消` 来完成该次弹窗交互；如果 5 分钟内没有返回结果，加载项会报告查询弹窗超时。
 
 ## GUI 点击冒烟测试
 

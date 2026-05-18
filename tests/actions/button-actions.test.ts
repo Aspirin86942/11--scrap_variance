@@ -12,7 +12,6 @@ describe("button action registry", () => {
       runPrecheck: vi.fn(),
       setupOutputSheets: vi.fn(),
       queryCurrentSheet: vi.fn(),
-      queryCurrentSheetTest: vi.fn(),
       toggleMaterialRows: vi.fn(),
       runDiagnostics: vi.fn()
     };
@@ -29,25 +28,38 @@ describe("button action registry", () => {
     expect(actions.btnPrecheck.name).toBe("runPrecheck");
     expect(actions.btnSetupOutputSheets.name).toBe("setupOutputSheets");
     expect(actions.btnQueryCurrentSheet.name).toBe("queryCurrentSheet");
-    expect(actions.btnQueryCurrentSheet.test).toBe(runners.queryCurrentSheetTest);
     expect(actions.btnToggleMaterialRows.name).toBe("toggleMaterialRows");
     expect(actions.btnPerformanceDiagnostics.name).toBe("runDiagnostics");
   });
 
-  it("runs every registered test action and returns structured results", async () => {
+  it("runs every registered button action and returns structured results", async () => {
     const first = vi.fn();
     const second = vi.fn();
     const actions: ButtonActionRegistry = {
       btnFirst: { name: "runFirst", run: first },
-      btnSecond: { name: "runSecond", run: vi.fn(), test: second }
+      btnSecond: { name: "runSecond", run: second }
     };
 
     await expect(runAllButtonActionTests(actions)).resolves.toEqual([
-      { name: "runFirst", ok: true, message: "完成" },
-      { name: "runSecond", ok: true, message: "完成" }
+      { name: "runFirst", ok: true, message: "已调用按钮 action" },
+      { name: "runSecond", ok: true, message: "已调用按钮 action" }
     ]);
     expect(first).toHaveBeenCalledOnce();
     expect(second).toHaveBeenCalledOnce();
+  });
+
+  it("does not use alternate test handlers in the real WPS button runner", async () => {
+    const run = vi.fn();
+    const unusedTest = vi.fn();
+    const actions: ButtonActionRegistry = {
+      btnQueryCurrentSheet: { name: "queryCurrentSheet", run, test: unusedTest }
+    };
+
+    await expect(runAllButtonActionTests(actions)).resolves.toEqual([
+      { name: "queryCurrentSheet", ok: true, message: "已调用按钮 action" }
+    ]);
+    expect(run).toHaveBeenCalledOnce();
+    expect(unusedTest).not.toHaveBeenCalled();
   });
 
   it("captures action failures without converting them into fake success", async () => {

@@ -16,7 +16,6 @@ export interface ButtonActionRunners {
   runPrecheck(): unknown | Promise<unknown>;
   setupOutputSheets(): unknown | Promise<unknown>;
   queryCurrentSheet(): unknown | Promise<unknown>;
-  queryCurrentSheetTest?: () => unknown | Promise<unknown>;
   toggleMaterialRows(): unknown | Promise<unknown>;
   runDiagnostics(): unknown | Promise<unknown>;
 }
@@ -26,14 +25,6 @@ function errorMessage(error: unknown): string {
 }
 
 export function createButtonActions(runners: ButtonActionRunners): ButtonActionRegistry {
-  const queryCurrentSheet: ButtonAction = {
-    name: "queryCurrentSheet",
-    run: runners.queryCurrentSheet
-  };
-  if (runners.queryCurrentSheetTest) {
-    queryCurrentSheet.test = runners.queryCurrentSheetTest;
-  }
-
   return {
     btnPrecheck: {
       name: "runPrecheck",
@@ -43,7 +34,10 @@ export function createButtonActions(runners: ButtonActionRunners): ButtonActionR
       name: "setupOutputSheets",
       run: runners.setupOutputSheets
     },
-    btnQueryCurrentSheet: queryCurrentSheet,
+    btnQueryCurrentSheet: {
+      name: "queryCurrentSheet",
+      run: runners.queryCurrentSheet
+    },
     btnToggleMaterialRows: {
       name: "toggleMaterialRows",
       run: runners.toggleMaterialRows
@@ -69,8 +63,8 @@ export async function runAllButtonActionTests(actions: ButtonActionRegistry): Pr
 
   for (const action of Object.values(actions)) {
     try {
-      await (action.test ?? action.run)();
-      results.push({ name: action.name, ok: true, message: "完成" });
+      await action.run();
+      results.push({ name: action.name, ok: true, message: "已调用按钮 action" });
     } catch (error) {
       results.push({ name: action.name, ok: false, message: errorMessage(error) });
     }
