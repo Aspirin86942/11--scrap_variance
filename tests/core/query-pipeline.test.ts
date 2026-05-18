@@ -1,0 +1,39 @@
+import { describe, expect, it } from "vitest";
+import { parseFilters } from "../../src/core/build-oa-rows";
+import { runQueryCorePipeline } from "../../src/core/query-pipeline";
+import { generateBenchmarkData } from "../../src/perf/benchmark-data";
+import { createMetricsRecorder } from "../../src/perf/metrics";
+
+describe("query core pipeline", () => {
+  it("runs the existing core stages and returns output matrices", () => {
+    const data = generateBenchmarkData(30);
+    const metrics = createMetricsRecorder({
+      performance: { now: () => 1 },
+      process: {
+        memoryUsage: () => ({
+          heapUsed: 10 * 1024 * 1024,
+          rss: 20 * 1024 * 1024
+        })
+      }
+    });
+
+    const result = runQueryCorePipeline(data.oaRows, data.erpRows, parseFilters(data.filters), metrics);
+
+    expect(result.oaGroupedRows.size).toBeGreaterThan(0);
+    expect(result.erpRowsForOa.size).toBeGreaterThan(0);
+    expect(result.erpOnlyRows.size).toBeGreaterThan(0);
+    expect(result.detailRows.length).toBeGreaterThan(0);
+    expect(result.summaryRows.length).toBeGreaterThan(0);
+    expect(result.summaryValues[0]).toContain("差异类型摘要");
+    expect(result.detailValues[0]).toContain("ERP日期");
+    expect(metrics.stages.map((stage) => stage.name)).toEqual([
+      "build_oa_rows",
+      "collect_oa_forms",
+      "build_erp_rows_for_oa",
+      "build_erp_only_rows",
+      "compare_rows",
+      "build_summary_rows",
+      "build_output_matrix"
+    ]);
+  });
+});
