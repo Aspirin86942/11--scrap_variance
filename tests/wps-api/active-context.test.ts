@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getActiveSheet, getSelectedRowNumber, insertRowsBelow, deleteRows } from "../../src/wps-api/active-context";
-import type { ScrapVarianceGlobal } from "../../src/types/wps";
+import type { ScrapVarianceGlobal, WpsSheet } from "../../src/types/wps";
 import { createFakeApplication, createFakeSheet } from "./fakes";
 
 describe("active WPS context", () => {
@@ -27,5 +27,34 @@ describe("active WPS context", () => {
 
     expect(sheet.rowInserts).toEqual([{ afterRow: 3, rowCount: 2 }]);
     expect(sheet.rowDeletes).toEqual([{ startRow: 4, rowCount: 2 }]);
+  });
+
+  it("falls back to Range insert and delete when EntireRow is unavailable", () => {
+    const operations: string[] = [];
+    const sheet: WpsSheet = {
+      Name: "OA视角单据对比",
+      Range(address: string) {
+        return {
+          Insert(): void {
+            operations.push(`insert:${address}`);
+          },
+          Delete(): void {
+            operations.push(`delete:${address}`);
+          }
+        };
+      }
+    };
+
+    insertRowsBelow(sheet, 6, 3);
+    deleteRows(sheet, 7, 2);
+
+    expect(operations).toEqual(["insert:7:9", "delete:7:8"]);
+  });
+
+  it("rejects invalid selected rows", () => {
+    const root: ScrapVarianceGlobal = { Application: createFakeApplication([]) };
+    root.Application!.Selection = { Row: 0 };
+
+    expect(() => getSelectedRowNumber(root)).toThrow("当前选区无法识别为有效单据行。");
   });
 });
