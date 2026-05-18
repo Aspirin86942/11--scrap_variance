@@ -45,6 +45,54 @@ describe("perf memory", () => {
     });
   });
 
+  it("returns explicit unknown memory when process memory sampling throws", () => {
+    expect(
+      getMemorySample({
+        process: {
+          memoryUsage: () => {
+            throw new Error("memory unavailable");
+          }
+        }
+      })
+    ).toEqual({
+      available: false,
+      heapUsedMb: UNKNOWN_MEMORY,
+      rssMb: UNKNOWN_MEMORY
+    });
+  });
+
+  it("returns explicit unknown memory when process memory values are not finite", () => {
+    expect(
+      getMemorySample({
+        process: {
+          memoryUsage: () => ({
+            heapUsed: Number.NaN,
+            rss: 20 * 1024 * 1024
+          })
+        }
+      })
+    ).toEqual({
+      available: false,
+      heapUsedMb: UNKNOWN_MEMORY,
+      rssMb: UNKNOWN_MEMORY
+    });
+
+    expect(
+      getMemorySample({
+        process: {
+          memoryUsage: () => ({
+            heapUsed: 10 * 1024 * 1024,
+            rss: Number.POSITIVE_INFINITY
+          })
+        }
+      })
+    ).toEqual({
+      available: false,
+      heapUsedMb: UNKNOWN_MEMORY,
+      rssMb: UNKNOWN_MEMORY
+    });
+  });
+
   it("calculates heap delta only when both samples are available", () => {
     expect(
       memoryDeltaMb(
@@ -164,6 +212,110 @@ describe("metrics recorder", () => {
       },
       heapDeltaMb: 2,
       note: "stage failed"
+    });
+  });
+
+  it("rethrows original action error when memory sampling is broken", () => {
+    let currentTime = 100;
+    const root = {
+      performance: {
+        now: () => {
+          currentTime += 25;
+          return currentTime;
+        }
+      },
+      process: {
+        memoryUsage: () => {
+          throw new Error("memory unavailable");
+        }
+      }
+    };
+    const metrics = createMetricsRecorder(root);
+    const originalError = new Error("action failed");
+    let thrownError: unknown;
+
+    try {
+      metrics.measure("stage_c", { inputRows: 7, outputRows: () => 99 }, () => {
+        throw originalError;
+      });
+    } catch (error) {
+      thrownError = error;
+    }
+
+    expect(thrownError).toBe(originalError);
+    expect(metrics.stages).toHaveLength(1);
+    expect(metrics.stages[0]).toEqual({
+      name: "stage_c",
+      inputRows: 7,
+      outputRows: 0,
+      timeMs: 25,
+      memoryBefore: {
+        available: false,
+        heapUsedMb: UNKNOWN_MEMORY,
+        rssMb: UNKNOWN_MEMORY
+      },
+      memoryAfter: {
+        available: false,
+        heapUsedMb: UNKNOWN_MEMORY,
+        rssMb: UNKNOWN_MEMORY
+      },
+      heapDeltaMb: UNKNOWN_MEMORY,
+      note: "action failed"
+    });
+  });
+
+  it("returns action result and records note when outputRows callback throws", () => {
+    let currentTime = 100;
+    let currentHeap = 5 * 1024 * 1024;
+    const root = {
+      performance: {
+        now: () => {
+          currentTime += 25;
+          return currentTime;
+        }
+      },
+      process: {
+        memoryUsage: () => {
+          currentHeap += 2 * 1024 * 1024;
+          return {
+            heapUsed: currentHeap,
+            rss: currentHeap + 10 * 1024 * 1024
+          };
+        }
+      }
+    };
+    const metrics = createMetricsRecorder(root);
+
+    const value = metrics.measure(
+      "stage_d",
+      {
+        inputRows: 2,
+        outputRows: () => {
+          throw new Error("bad rows");
+        }
+      },
+      () => ["A", "B"]
+    );
+
+    expect(value).toEqual(["A", "B"]);
+    expect(metrics.stages).toHaveLength(1);
+    expect(metrics.stages[0]).toEqual({
+      name: "stage_d",
+      inputRows: 2,
+      outputRows: 0,
+      timeMs: 25,
+      memoryBefore: {
+        available: true,
+        heapUsedMb: 7,
+        rssMb: 17
+      },
+      memoryAfter: {
+        available: true,
+        heapUsedMb: 9,
+        rssMb: 19
+      },
+      heapDeltaMb: 2,
+      note: "outputRows 统计失败：bad rows"
     });
   });
 });

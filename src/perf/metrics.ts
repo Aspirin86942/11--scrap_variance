@@ -23,14 +23,30 @@ export interface MetricsRecorder {
   measure<T>(name: string, options: MeasureOptions<T>, action: () => T): T;
 }
 
-function resolveOutputRows<T>(value: T, outputRows: number | ((value: T) => number) | undefined): number {
+interface OutputRowsResult {
+  outputRows: number;
+  note?: string;
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function resolveOutputRows<T>(value: T, outputRows: number | ((value: T) => number) | undefined): OutputRowsResult {
   if (typeof outputRows === "function") {
-    return outputRows(value);
+    try {
+      return { outputRows: outputRows(value) };
+    } catch (error) {
+      return {
+        outputRows: 0,
+        note: `outputRows 统计失败：${errorMessage(error)}`
+      };
+    }
   }
   if (typeof outputRows === "number" && Number.isFinite(outputRows)) {
-    return outputRows;
+    return { outputRows };
   }
-  return 0;
+  return { outputRows: 0 };
 }
 
 function roundMs(value: number): number {
@@ -49,15 +65,16 @@ export function createMetricsRecorder(root: unknown = globalThis): MetricsRecord
         const value = action();
         const endedAt = nowMs(root);
         const memoryAfter = getMemorySample(root);
+        const outputRowsResult = resolveOutputRows(value, options.outputRows);
         stages.push({
           name,
           inputRows: options.inputRows ?? 0,
-          outputRows: resolveOutputRows(value, options.outputRows),
+          outputRows: outputRowsResult.outputRows,
           timeMs: roundMs(endedAt - startedAt),
           memoryBefore,
           memoryAfter,
           heapDeltaMb: memoryDeltaMb(memoryBefore, memoryAfter),
-          note: options.note ?? ""
+          note: outputRowsResult.note ?? options.note ?? ""
         });
         return value;
       } catch (error) {
@@ -71,7 +88,7 @@ export function createMetricsRecorder(root: unknown = globalThis): MetricsRecord
           memoryBefore,
           memoryAfter,
           heapDeltaMb: memoryDeltaMb(memoryBefore, memoryAfter),
-          note: error instanceof Error ? error.message : String(error)
+          note: errorMessage(error)
         });
         throw error;
       }

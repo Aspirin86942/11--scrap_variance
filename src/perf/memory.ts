@@ -16,6 +16,14 @@ export interface UnknownMemorySample {
 
 export type MemorySample = AvailableMemorySample | UnknownMemorySample;
 
+function unknownMemorySample(): UnknownMemorySample {
+  return {
+    available: false,
+    heapUsedMb: UNKNOWN_MEMORY,
+    rssMb: UNKNOWN_MEMORY
+  };
+}
+
 interface ProcessRoot {
   process?: {
     memoryUsage?: () => {
@@ -33,20 +41,23 @@ export function getMemorySample(root: unknown = globalThis): MemorySample {
   const processRoot = root as ProcessRoot;
   const usage = processRoot.process?.memoryUsage;
   if (typeof usage !== "function") {
-    return {
-      available: false,
-      heapUsedMb: UNKNOWN_MEMORY,
-      rssMb: UNKNOWN_MEMORY
-    };
+    return unknownMemorySample();
   }
 
-  const sample = usage();
-  if (typeof sample.heapUsed !== "number" || typeof sample.rss !== "number") {
-    return {
-      available: false,
-      heapUsedMb: UNKNOWN_MEMORY,
-      rssMb: UNKNOWN_MEMORY
-    };
+  let sample: { heapUsed?: number; rss?: number };
+  try {
+    sample = usage();
+  } catch {
+    return unknownMemorySample();
+  }
+
+  if (
+    typeof sample.heapUsed !== "number" ||
+    typeof sample.rss !== "number" ||
+    !Number.isFinite(sample.heapUsed) ||
+    !Number.isFinite(sample.rss)
+  ) {
+    return unknownMemorySample();
   }
 
   return {
