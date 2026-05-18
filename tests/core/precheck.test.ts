@@ -15,6 +15,7 @@ function table(rows: Array<Record<string, unknown>>): ParsedTable {
 function oaRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     表单编号: "F1",
+    金蝶云单据编号: "KD-F1",
     申请日期: "2026/5/1",
     公司简称: "数控",
     一级部门: "生产",
@@ -57,14 +58,14 @@ describe("precheck core", () => {
   it("builds one blocking issue for header detection failure", () => {
     const issue = buildHeaderDetectionIssue("OA", {
       issueType: "无法识别表头",
-      message: "OA 表无法识别表头：已扫描 UsedRange 前 20 行，最多命中 0/9 个必需字段。",
-      missingHeaders: ["表单编号", "申请日期"],
+      message: "OA 表无法识别表头：已扫描 UsedRange 前 20 行，最多命中 0/10 个必需字段。",
+      missingHeaders: ["表单编号", "金蝶云单据编号", "申请日期"],
       headerRowNumber: "相对 UsedRange 第 1 行"
     });
 
     expect(issue.level).toBe("错误");
     expect(issue.issueType).toBe("无法识别表头");
-    expect(issue.reason).toContain("最多命中 0/9 个必需字段");
+    expect(issue.reason).toContain("最多命中 0/10 个必需字段");
     expect(issue.suggestion).toContain("表头文字是否与模板完全一致");
   });
 
@@ -151,6 +152,34 @@ describe("precheck core", () => {
     expect(
       issues.find((issue) => issue.source === "ERP" && issue.issueType === "业务键重复")?.rowNumber
     ).toBe("2,3");
+  });
+
+  it("reports missing OA Kingdee document number header as a blocking header issue", () => {
+    const issues = buildPrecheckIssues(
+      table([
+        {
+          表单编号: "F1",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "A",
+          物料名称: "A物料",
+          数量: 1,
+          实际预算金额mx: 10
+        }
+      ]),
+      table([erpRow()])
+    );
+    const issue = issues.find((candidate) => candidate.source === "OA" && candidate.issueType === "缺少关键列");
+
+    expect(issue).toMatchObject({
+      level: "错误",
+      source: "OA",
+      fieldName: "表头",
+      issueType: "缺少关键列"
+    });
+    expect(issue?.reason).toContain("金蝶云单据编号");
   });
 
   it("deduplicates missing ERP source-form reminders by source form and keeps the first row", () => {

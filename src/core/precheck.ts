@@ -1,32 +1,10 @@
+import { ERP_REQUIRED_HEADERS, OA_REQUIRED_HEADERS } from "../constants";
 import type { IssueLevel, OutputMatrix, ParsedTable, PrecheckIssue, RawRow, SheetSource } from "../types/scrap";
 import { normalizeDateKey } from "../utils/date";
 import { parseDecimal } from "../utils/decimal";
 import { isBlankValue, normalizeText } from "../utils/text";
 
 const PRECHECK_RESULT_HEADERS = ["级别", "数据源", "行号", "字段名", "原值", "问题类型", "原因", "处理建议"];
-const OA_REQUIRED_HEADERS = [
-  "表单编号",
-  "申请日期",
-  "公司简称",
-  "一级部门",
-  "二级部门",
-  "物料代码",
-  "物料名称",
-  "数量",
-  "实际预算金额mx"
-];
-const ERP_REQUIRED_HEADERS = [
-  "单据编号",
-  "日期",
-  "源单单号",
-  "区分公司简称",
-  "一级部门",
-  "二级部门",
-  "物料编码",
-  "物料名称",
-  "实发数量",
-  "总成本"
-];
 
 function getRows(table: ParsedTable | null | undefined): RawRow[] {
   return table?.rows ?? [];
@@ -36,7 +14,7 @@ function hasHeader(table: ParsedTable | null | undefined, fieldName: string): bo
   return (table?.headers ?? []).some((header) => normalizeText(header) === fieldName);
 }
 
-function findMissingHeaders(table: ParsedTable | null | undefined, requiredHeaders: string[]): string[] {
+function findMissingHeaders(table: ParsedTable | null | undefined, requiredHeaders: readonly string[]): string[] {
   const headerSet = new Set((table?.headers ?? []).map((header) => normalizeText(header)).filter(Boolean));
   return requiredHeaders.filter((header) => !headerSet.has(header));
 }
