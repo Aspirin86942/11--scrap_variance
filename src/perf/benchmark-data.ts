@@ -70,6 +70,7 @@ export function generateBenchmarkData(rowCount: number): BenchmarkDataSet {
       continue;
     }
     if (scenario === 1) {
+      erpRows.push(makeErpRow(index));
       erpRows.push(
         makeErpRow(index, {
           单据编号: `ERPONLY${pad(index, 6)}`,
@@ -102,16 +103,6 @@ export function generateBenchmarkData(rowCount: number): BenchmarkDataSet {
         makeErpRow(index, {
           单据编号: `QOUT${pad(index, 6)}-B`,
           日期: makeDate(index + 2),
-          实发数量: 0,
-          总成本: 0
-        })
-      );
-    }
-    if (scenario === 5) {
-      erpRows.push(
-        makeErpRow(index, {
-          单据编号: `QOUT${pad(index, 6)}-C`,
-          日期: makeDate(index + 3),
           实发数量: 0,
           总成本: 0
         })

@@ -1,5 +1,5 @@
 import { buildErpOnlyRows, buildErpRowsForOa } from "./build-erp-rows";
-import { buildOaRows, collectSelectedOaForms } from "./build-oa-rows";
+import { buildOaRows, collectSelectedOaForms, parseFilters } from "./build-oa-rows";
 import { buildSummaryRows, detailRowsToValues, summaryRowsToValues } from "./build-summary-rows";
 import { compareRows } from "./compare-rows";
 import { createMetricsRecorder, type MetricsRecorder } from "../perf/metrics";
@@ -27,13 +27,15 @@ export interface QueryCorePipelineResult {
 export function runQueryCorePipeline(
   oaRows: RawRow[],
   erpRows: RawRow[],
-  filters: QueryFilters,
+  filters: Partial<QueryFilters> | Record<string, unknown> | null | undefined,
   metrics: MetricsRecorder = createMetricsRecorder()
 ): QueryCorePipelineResult {
+  const activeFilters = parseFilters(filters);
+
   const oaGroupedRows = metrics.measure(
     "build_oa_rows",
     { inputRows: oaRows.length, outputRows: (rows: Map<string, OaAggRow>) => rows.size },
-    () => buildOaRows(oaRows, filters)
+    () => buildOaRows(oaRows, activeFilters)
   );
 
   const currentOaFormNumbers = metrics.measure(
@@ -51,7 +53,7 @@ export function runQueryCorePipeline(
   const erpOnlyRows = metrics.measure(
     "build_erp_only_rows",
     { inputRows: erpRows.length, outputRows: (rows: Map<string, ErpAggRow>) => rows.size },
-    () => buildErpOnlyRows(erpRows, currentOaFormNumbers, filters)
+    () => buildErpOnlyRows(erpRows, currentOaFormNumbers, activeFilters)
   );
 
   const detailRows = metrics.measure(
@@ -73,8 +75,7 @@ export function runQueryCorePipeline(
     "build_output_matrix",
     {
       inputRows: detailRows.length + summaryRows.length,
-      outputRows: (values: { summaryValues: OutputMatrix; detailValues: OutputMatrix }) =>
-        values.summaryValues.length + values.detailValues.length
+      outputRows: detailRows.length + summaryRows.length
     },
     () => ({
       summaryValues: summaryRowsToValues(summaryRows),

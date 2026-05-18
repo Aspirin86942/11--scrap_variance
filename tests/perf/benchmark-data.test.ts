@@ -18,6 +18,9 @@ describe("benchmark data generator", () => {
     expect(first.oaRows).toHaveLength(20);
     expect(first.erpRows.length).toBeGreaterThan(20);
     expect(first.erpRows.some((row) => String(row["源单单号"]).startsWith("ERPONLY"))).toBe(true);
+    expect(
+      first.erpRows.some((row) => row["源单单号"] === "F000001" && row["物料编码"] === "MAT-0001")
+    ).toBe(true);
     expect(first.erpRows.some((row) => String(row["物料编码"]).endsWith("-ERP"))).toBe(true);
     expect(first.erpRows.some((row) => row["实发数量"] === 2)).toBe(true);
     expect(first.erpRows.some((row) => row["单据编号"] === "QOUT000004-B")).toBe(true);
