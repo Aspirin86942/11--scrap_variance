@@ -9,6 +9,8 @@ export interface RecordedWrite {
 export interface FakeSheet extends WpsSheet {
   writes: RecordedWrite[];
   clears: string[];
+  rowInserts: Array<{ afterRow: number; rowCount: number }>;
+  rowDeletes: Array<{ startRow: number; rowCount: number }>;
   rangeValues: Map<string, unknown>;
   failWriteAddresses: Set<string>;
   failNextBulkWrite: boolean;
@@ -24,6 +26,11 @@ interface ParsedRangeAddress {
   startCol: number;
   endRow: number;
   endCol: number;
+}
+
+interface ParsedRowRangeAddress {
+  startRow: number;
+  endRow: number;
 }
 
 function columnIndex(columnName: string): number {
@@ -54,6 +61,20 @@ function parseRangeAddress(address: string): ParsedRangeAddress | null {
     startCol: Math.min(start.col, end.col),
     endRow: Math.max(start.row, end.row),
     endCol: Math.max(start.col, end.col)
+  };
+}
+
+function parseRowRangeAddress(address: string): ParsedRowRangeAddress | null {
+  const match = address.match(/^(\d+):(\d+)$/);
+  if (!match) {
+    return null;
+  }
+
+  const startRow = Number(match[1]);
+  const endRow = Number(match[2]);
+  return {
+    startRow: Math.min(startRow, endRow),
+    endRow: Math.max(startRow, endRow)
   };
 }
 
@@ -121,12 +142,16 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
     },
     writes: [],
     clears: [],
+    rowInserts: [],
+    rowDeletes: [],
     rangeValues: new FakeRangeValues(),
     failWriteAddresses: new Set<string>(),
     failNextBulkWrite: false,
     usedRangeValue2ReadCount: 0,
     Range(address: string): WpsRange {
-      return {
+      const rowRange = parseRowRangeAddress(address);
+      const rowCount = rowRange ? rowRange.endRow - rowRange.startRow + 1 : 0;
+      const range: WpsRange = {
         get Value(): unknown {
           return sheet.rangeValues.get(address);
         },
@@ -148,6 +173,19 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
           sheet.writes.push({ address, value });
         }
       };
+
+      if (rowRange) {
+        range.EntireRow = {
+          Insert(): void {
+            sheet.rowInserts.push({ afterRow: rowRange.startRow - 1, rowCount });
+          },
+          Delete(): void {
+            sheet.rowDeletes.push({ startRow: rowRange.startRow, rowCount });
+          }
+        };
+      }
+
+      return range;
     }
   };
   Object.defineProperty(sheet.UsedRange, "Value2", {

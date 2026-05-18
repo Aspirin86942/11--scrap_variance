@@ -36,7 +36,7 @@ function assignRangeValue(range: WpsRange, value: OutputMatrix): void {
   range.Value2 = value;
 }
 
-function clearRange(sheet: WpsSheet, address: string): void {
+export function clearRange(sheet: WpsSheet, address: string): void {
   const range = sheet.Range(address);
   if (typeof range.ClearContents !== "function") {
     throw new Error(`清空区域失败：${sheet.Name}!${address} 不支持 ClearContents。`);

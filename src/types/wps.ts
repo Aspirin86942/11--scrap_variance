@@ -3,10 +3,18 @@ import type { RibbonQueryState } from "./scrap";
 export type WpsCellValue = string | number | boolean | Date | null | undefined;
 export type WpsMatrix = WpsCellValue[][];
 
+export interface WpsRowOperationTarget {
+  Insert?: () => void;
+  Delete?: () => void;
+}
+
 export interface WpsRange {
   Value?: unknown;
   Value2?: unknown;
   Row?: number;
+  EntireRow?: WpsRowOperationTarget;
+  Insert?: () => void;
+  Delete?: () => void;
   ClearContents?: () => void;
 }
 
@@ -29,6 +37,8 @@ export interface WpsWorkbook {
 
 export interface WpsApplication {
   ActiveWorkbook?: WpsWorkbook;
+  ActiveSheet?: WpsSheet;
+  Selection?: WpsRange;
   Worksheets?: WpsSheets;
   Sheets?: WpsSheets;
 }
