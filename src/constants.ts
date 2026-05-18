@@ -8,6 +8,7 @@ export const SHEET_NAMES = {
 
 export const OA_REQUIRED_HEADERS = [
   "表单编号",
+  "金蝶云单据编号",
   "申请日期",
   "公司简称",
   "一级部门",
@@ -47,8 +48,10 @@ export const SUMMARY_HEADERS = [
 export const DETAIL_HEADERS = [
   "差异类型",
   "OA表单编号",
+  "OA金蝶云单据编号",
   "OA申请日期",
   "ERP出库单号",
+  "ERP源单单号",
   "ERP日期",
   "物料编码",
   "物料名称",

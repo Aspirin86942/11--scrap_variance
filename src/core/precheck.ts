@@ -1,32 +1,10 @@
+import { ERP_REQUIRED_HEADERS, OA_REQUIRED_HEADERS } from "../constants";
 import type { IssueLevel, OutputMatrix, ParsedTable, PrecheckIssue, RawRow, SheetSource } from "../types/scrap";
 import { normalizeDateKey } from "../utils/date";
 import { parseDecimal } from "../utils/decimal";
 import { isBlankValue, normalizeText } from "../utils/text";
 
 const PRECHECK_RESULT_HEADERS = ["级别", "数据源", "行号", "字段名", "原值", "问题类型", "原因", "处理建议"];
-const OA_REQUIRED_HEADERS = [
-  "表单编号",
-  "申请日期",
-  "公司简称",
-  "一级部门",
-  "二级部门",
-  "物料代码",
-  "物料名称",
-  "数量",
-  "实际预算金额mx"
-];
-const ERP_REQUIRED_HEADERS = [
-  "单据编号",
-  "日期",
-  "源单单号",
-  "区分公司简称",
-  "一级部门",
-  "二级部门",
-  "物料编码",
-  "物料名称",
-  "实发数量",
-  "总成本"
-];
 
 function getRows(table: ParsedTable | null | undefined): RawRow[] {
   return table?.rows ?? [];
@@ -36,7 +14,7 @@ function hasHeader(table: ParsedTable | null | undefined, fieldName: string): bo
   return (table?.headers ?? []).some((header) => normalizeText(header) === fieldName);
 }
 
-function findMissingHeaders(table: ParsedTable | null | undefined, requiredHeaders: string[]): string[] {
+function findMissingHeaders(table: ParsedTable | null | undefined, requiredHeaders: readonly string[]): string[] {
   const headerSet = new Set((table?.headers ?? []).map((header) => normalizeText(header)).filter(Boolean));
   return requiredHeaders.filter((header) => !headerSet.has(header));
 }
@@ -194,6 +172,32 @@ function validateRequiredCell(source: "OA" | "ERP", rows: RawRow[], fieldName: s
         "关键字段为空",
         `${source} 第 ${String(row._rowNumber ?? "")} 行 ${fieldName} 为空，查询时无法稳定关联或汇总。`,
         "补齐该字段，或确认该行是否应从原始数据中删除。"
+      )
+    );
+  }
+
+  return issues;
+}
+
+function validateBlankKingdeeDocNumber(rows: RawRow[], fieldName: string): PrecheckIssue[] {
+  const issues: PrecheckIssue[] = [];
+
+  for (const row of rows) {
+    if (!isBlankValue(row[fieldName])) {
+      continue;
+    }
+
+    // 空金蝶编号只影响 OA 金蝶单号方向的关联结果，不作为阻断错误处理。
+    issues.push(
+      buildIssue(
+        "提醒",
+        "OA",
+        row._rowNumber ?? "",
+        fieldName,
+        "",
+        "金蝶云单据编号为空",
+        `OA 第 ${String(row._rowNumber ?? "")} 行金蝶云单据编号为空，OA金蝶单号查ERP 时会归为 OA有申请，ERP无出库。`,
+        "OA金蝶单号查ERP 时，如果该 OA 已经生成金蝶出库单，请补齐金蝶云单据编号；如果尚未生成，可以保留该提醒。"
       )
     );
   }
@@ -359,6 +363,9 @@ export function buildPrecheckIssues(
   );
   appendValidationIfHeaderExists(issues, erpTable, "物料编码", (rows, fieldName) =>
     validateRequiredCell("ERP", rows, fieldName)
+  );
+  appendValidationIfHeaderExists(issues, oaTable, "金蝶云单据编号", (rows, fieldName) =>
+    validateBlankKingdeeDocNumber(rows, fieldName)
   );
 
   if (hasHeader(oaTable, "表单编号") && hasHeader(oaTable, "物料代码")) {

@@ -75,6 +75,7 @@ export function buildOaRows(
     }
 
     const formNumber = normalizeText(row["表单编号"]);
+    const kingdeeDocNumber = normalizeText(row["金蝶云单据编号"]);
     const itemCode = normalizeText(row["物料代码"]);
     if (!formNumber || !itemCode) {
       continue;
@@ -86,6 +87,52 @@ export function buildOaRows(
       // 同一 OA 表单和物料保持一个聚合粒度，后续差异比较依赖这个稳定键。
       target = {
         formNumber,
+        kingdeeDocNumber,
+        itemCode,
+        itemName: normalizeText(row["物料名称"]),
+        company: normalizeText(row["公司简称"]),
+        dept1: normalizeText(row["一级部门"]),
+        dept2: normalizeText(row["二级部门"]),
+        oaDate: "",
+        quantity: zeroDecimal(),
+        amount: zeroDecimal()
+      };
+      result.set(key, target);
+    }
+    if (!target.kingdeeDocNumber && kingdeeDocNumber) {
+      target.kingdeeDocNumber = kingdeeDocNumber;
+    }
+
+    target.oaDate = appendUniqueJoinedText(target.oaDate, dateKey);
+    target.quantity = addDecimal(target.quantity, parseDecimal(row["数量"], "数量"));
+    target.amount = addDecimal(target.amount, parseDecimal(row["实际预算金额mx"], "实际预算金额mx"));
+  }
+
+  return result;
+}
+
+export function buildOaRowsForFormNumbers(
+  oaRows?: RawRow[] | null,
+  formNumbers?: Set<string> | null
+): Map<string, OaAggRow> {
+  const result = new Map<string, OaAggRow>();
+  const activeFormNumbers = formNumbers ?? new Set<string>();
+
+  for (const row of oaRows ?? []) {
+    const formNumber = normalizeText(row["表单编号"]);
+    const itemCode = normalizeText(row["物料代码"]);
+    if (!formNumber || !itemCode || !activeFormNumbers.has(formNumber)) {
+      continue;
+    }
+
+    const dateKey = normalizeDateKey(row["申请日期"]);
+    const kingdeeDocNumber = normalizeText(row["金蝶云单据编号"]);
+    const key = makeDetailKey(formNumber, itemCode);
+    let target = result.get(key);
+    if (!target) {
+      target = {
+        formNumber,
+        kingdeeDocNumber,
         itemCode,
         itemName: normalizeText(row["物料名称"]),
         company: normalizeText(row["公司简称"]),
@@ -98,6 +145,9 @@ export function buildOaRows(
       result.set(key, target);
     }
 
+    if (!target.kingdeeDocNumber && kingdeeDocNumber) {
+      target.kingdeeDocNumber = kingdeeDocNumber;
+    }
     target.oaDate = appendUniqueJoinedText(target.oaDate, dateKey);
     target.quantity = addDecimal(target.quantity, parseDecimal(row["数量"], "数量"));
     target.amount = addDecimal(target.amount, parseDecimal(row["实际预算金额mx"], "实际预算金额mx"));

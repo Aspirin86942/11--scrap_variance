@@ -17,6 +17,8 @@ function buildFormNumberSet(groupedRows: Map<string, ErpAggRow> | null | undefin
 
 function buildDifference(differenceType: string, oa?: OaAggRow, erp?: ErpAggRow): DetailRow {
   const formNumber = normalizeText(oa?.formNumber || erp?.formNumber || erp?.sourceFormNumber);
+  const oaKingdeeDocNumber = normalizeText(oa?.kingdeeDocNumber);
+  const erpSourceFormNumber = normalizeText(erp?.sourceFormNumber);
   const itemCode = normalizeText(oa?.itemCode || erp?.itemCode);
   const itemName = normalizeText(oa?.itemName || erp?.itemName);
   const company = normalizeText(oa?.company || erp?.company);
@@ -30,8 +32,10 @@ function buildDifference(differenceType: string, oa?: OaAggRow, erp?: ErpAggRow)
   return {
     differenceType,
     formNumber,
+    oaKingdeeDocNumber,
     oaDate: oa?.oaDate ?? "",
     erpDocNumbers: erp?.erpDocNumbers ?? "",
+    erpSourceFormNumber,
     erpDate: erp?.erpDate ?? "",
     itemCode,
     itemName,
@@ -50,7 +54,7 @@ function buildDifference(differenceType: string, oa?: OaAggRow, erp?: ErpAggRow)
     ),
     remark:
       differenceType === "ERP出库对应OA未在当前OA数据中找到"
-        ? "请用 ERP 源单单号回 OA 系统补查。"
+        ? "请用 ERP 源单单号回 OA 系统补查，或确认 OA 导出表是否包含该流程。"
         : ""
   };
 }

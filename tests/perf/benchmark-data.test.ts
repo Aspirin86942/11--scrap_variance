@@ -16,6 +16,7 @@ describe("benchmark data generator", () => {
     expect(first).toEqual(second);
     expect(first.name).toBe("20");
     expect(first.oaRows).toHaveLength(20);
+    expect(first.oaRows[1]?.["金蝶云单据编号"]).toBe("QOUT000001");
     expect(first.erpRows.length).toBeGreaterThan(20);
     expect(first.erpRows.some((row) => String(row["源单单号"]).startsWith("ERPONLY"))).toBe(true);
     expect(

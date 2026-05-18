@@ -1,4 +1,5 @@
 import type Decimal from "decimal.js-light";
+import type { QueryDirection } from "../core/query-direction";
 import type { WpsCellValue, WpsMatrix } from "./wps";
 
 export type SheetSource = "OA" | "ERP" | "系统";
@@ -27,6 +28,7 @@ export interface QueryFilters {
 
 export interface OaAggRow {
   formNumber: string;
+  kingdeeDocNumber: string;
   itemCode: string;
   itemName: string;
   company: string;
@@ -54,8 +56,10 @@ export interface ErpAggRow {
 export interface DetailRow {
   differenceType: string;
   formNumber: string;
+  oaKingdeeDocNumber: string;
   oaDate: string;
   erpDocNumbers: string;
+  erpSourceFormNumber: string;
   erpDate: string;
   itemCode: string;
   itemName: string;
@@ -69,6 +73,11 @@ export interface DetailRow {
   erpCost: number;
   amountDiff: number;
   remark: string;
+}
+
+export interface PanelQueryInput {
+  filters: QueryFilters;
+  queryDirection: QueryDirection;
 }
 
 export interface SummaryRow {

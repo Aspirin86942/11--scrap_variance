@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildErpOnlyRows, buildErpRowsForOa } from "../../src/core/build-erp-rows";
-import { buildOaRows, collectSelectedOaForms, parseFilters } from "../../src/core/build-oa-rows";
+import {
+  buildErpOnlyRows,
+  buildErpRowsByErpFilters,
+  buildErpRowsForOa,
+  buildErpRowsForOaKingdee,
+  collectErpSourceForms,
+  splitErpRowsByOaForms
+} from "../../src/core/build-erp-rows";
+import { buildOaRows, buildOaRowsForFormNumbers, collectSelectedOaForms, parseFilters } from "../../src/core/build-oa-rows";
 import { buildSummaryRows, detailRowsToValues, summaryRowsToValues } from "../../src/core/build-summary-rows";
 import { compareRows } from "../../src/core/compare-rows";
 import type { RawRow } from "../../src/types/scrap";
@@ -17,6 +24,7 @@ describe("query core", () => {
     const rows: RawRow[] = [
       {
         表单编号: "CHBF2026050001",
+        金蝶云单据编号: "KD-CHBF2026050001",
         申请日期: "2026/5/1",
         公司简称: "数控",
         一级部门: "生产运营中心",
@@ -28,6 +36,7 @@ describe("query core", () => {
       },
       {
         表单编号: "CHBF2026050001",
+        金蝶云单据编号: "KD-CHBF2026050001",
         申请日期: "2026/5/1",
         公司简称: "数控",
         一级部门: "生产运营中心",
@@ -39,6 +48,7 @@ describe("query core", () => {
       },
       {
         表单编号: "CHBF2026060001",
+        金蝶云单据编号: "KD-CHBF2026060001",
         申请日期: "2026/6/1",
         公司简称: "数控",
         一级部门: "生产运营中心",
@@ -58,6 +68,133 @@ describe("query core", () => {
     expect(grouped.get("CHBF2026050001||MAT-A")?.amount.toString()).toBe("25.3");
   });
 
+  it("keeps OA Kingdee document number and writes the new detail columns", () => {
+    const filters = parseFilters({});
+    const oaGrouped = buildOaRows(
+      [
+        {
+          表单编号: "F-KD",
+          金蝶云单据编号: "OUT-KD",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 2,
+          实际预算金额mx: 20
+        }
+      ],
+      filters
+    );
+    const details = compareRows(oaGrouped, new Map(), new Map());
+    const values = detailRowsToValues(details);
+
+    expect(oaGrouped.get("F-KD||MAT-A")?.kingdeeDocNumber).toBe("OUT-KD");
+    expect(values[0]).toEqual([
+      "差异类型",
+      "OA表单编号",
+      "OA金蝶云单据编号",
+      "OA申请日期",
+      "ERP出库单号",
+      "ERP源单单号",
+      "ERP日期",
+      "物料编码",
+      "物料名称",
+      "公司简称",
+      "一级部门",
+      "二级部门",
+      "OA数量合计",
+      "ERP实发数量合计",
+      "数量差额",
+      "OA实际预算金额mx合计",
+      "ERP总成本合计",
+      "金额差额",
+      "备注"
+    ]);
+    expect(values[1]).toEqual([
+      "OA有申请，ERP无出库",
+      "F-KD",
+      "OUT-KD",
+      "2026-05-01",
+      "",
+      "",
+      "",
+      "MAT-A",
+      "物料A",
+      "数控",
+      "生产",
+      "仓储",
+      2,
+      0,
+      2,
+      20,
+      0,
+      20,
+      ""
+    ]);
+  });
+
+  it("keeps the first nonblank OA Kingdee document number for each aggregate", () => {
+    const filters = parseFilters({});
+    const oaGrouped = buildOaRows(
+      [
+        {
+          表单编号: "F-BLANK-FIRST",
+          金蝶云单据编号: "",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 1,
+          实际预算金额mx: 10
+        },
+        {
+          表单编号: "F-BLANK-FIRST",
+          金蝶云单据编号: "KD-1",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 2,
+          实际预算金额mx: 20
+        },
+        {
+          表单编号: "F-NONBLANK-FIRST",
+          金蝶云单据编号: "KD-FIRST",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-B",
+          物料名称: "物料B",
+          数量: 3,
+          实际预算金额mx: 30
+        },
+        {
+          表单编号: "F-NONBLANK-FIRST",
+          金蝶云单据编号: "KD-LATER",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-B",
+          物料名称: "物料B",
+          数量: 4,
+          实际预算金额mx: 40
+        }
+      ],
+      filters
+    );
+
+    expect(oaGrouped.get("F-BLANK-FIRST||MAT-A")?.kingdeeDocNumber).toBe("KD-1");
+    expect(oaGrouped.get("F-NONBLANK-FIRST||MAT-B")?.kingdeeDocNumber).toBe("KD-FIRST");
+  });
+
   it("groups matched ERP rows and keeps ERP-only rows based on current OA filters", () => {
     const filters = parseFilters({
       company: "数控",
@@ -70,6 +207,7 @@ describe("query core", () => {
       [
         {
           表单编号: "CHBF2026050001",
+          金蝶云单据编号: "KD-CHBF2026050001",
           申请日期: "2026/5/1",
           公司简称: "数控",
           一级部门: "生产运营中心",
@@ -131,6 +269,313 @@ describe("query core", () => {
     expect(erpOnly.get("CHBF9999999999||MAT-Z")?.erpDate).toBe("2026-05-04");
   });
 
+  it("matches ERP rows by OA Kingdee document number in OA direction", () => {
+    const filters = parseFilters({
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026-05-01",
+      endDate: "2026-05-31"
+    });
+    const oaGrouped = buildOaRows(
+      [
+        {
+          表单编号: "OA-001",
+          金蝶云单据编号: "ERP-001",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 2,
+          实际预算金额mx: 20
+        }
+      ],
+      filters
+    );
+    const erpForOa = buildErpRowsForOaKingdee(
+      [
+        {
+          单据编号: "ERP-001",
+          日期: "2026/6/1",
+          源单单号: "SOURCE-001",
+          区分公司简称: "其他公司",
+          一级部门: "其他部门",
+          二级部门: "其他二级",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 2,
+          总成本: 21
+        }
+      ],
+      oaGrouped
+    );
+
+    const details = compareRows(oaGrouped, erpForOa, new Map());
+
+    expect(erpForOa.get("OA-001||MAT-A")?.sourceFormNumber).toBe("SOURCE-001");
+    expect(details[0]).toMatchObject({
+      differenceType: "OA和ERP都有，数量一致",
+      formNumber: "OA-001",
+      oaKingdeeDocNumber: "ERP-001",
+      erpDocNumbers: "ERP-001",
+      erpSourceFormNumber: "SOURCE-001",
+      amountDiff: -1
+    });
+  });
+
+  it("counts a shared OA Kingdee ERP document once per OA form", () => {
+    const oaGrouped = buildOaRows(
+      [
+        {
+          表单编号: "OA-MULTI",
+          金蝶云单据编号: "ERP-MULTI",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 2,
+          实际预算金额mx: 20
+        },
+        {
+          表单编号: "OA-MULTI",
+          金蝶云单据编号: "ERP-MULTI",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-B",
+          物料名称: "物料B",
+          数量: 3,
+          实际预算金额mx: 30
+        }
+      ],
+      parseFilters({})
+    );
+
+    const erpForOa = buildErpRowsForOaKingdee(
+      [
+        {
+          单据编号: "ERP-MULTI",
+          日期: "2026/5/2",
+          源单单号: "SOURCE-MULTI",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 2,
+          总成本: 20
+        },
+        {
+          单据编号: "ERP-MULTI",
+          日期: "2026/5/2",
+          源单单号: "SOURCE-MULTI",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-B",
+          物料名称: "物料B",
+          实发数量: 3,
+          总成本: 30
+        }
+      ],
+      oaGrouped
+    );
+
+    expect(erpForOa.get("OA-MULTI||MAT-A")?.quantity.toString()).toBe("2");
+    expect(erpForOa.get("OA-MULTI||MAT-A")?.cost.toString()).toBe("20");
+    expect(erpForOa.get("OA-MULTI||MAT-A")?.erpDocNumbers).toBe("ERP-MULTI");
+    expect(erpForOa.get("OA-MULTI||MAT-B")?.quantity.toString()).toBe("3");
+    expect(erpForOa.get("OA-MULTI||MAT-B")?.cost.toString()).toBe("30");
+    expect(erpForOa.get("OA-MULTI||MAT-B")?.erpDocNumbers).toBe("ERP-MULTI");
+  });
+
+  it("treats blank OA Kingdee number as OA without ERP shipment", () => {
+    const oaGrouped = buildOaRows(
+      [
+        {
+          表单编号: "OA-BLANK",
+          金蝶云单据编号: "",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 1,
+          实际预算金额mx: 10
+        }
+      ],
+      parseFilters({})
+    );
+
+    const erpForOa = buildErpRowsForOaKingdee(
+      [
+        {
+          单据编号: "ERP-IGNORED",
+          日期: "2026/5/2",
+          源单单号: "OA-BLANK",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 10
+        }
+      ],
+      oaGrouped
+    );
+
+    expect(compareRows(oaGrouped, erpForOa, new Map())[0]?.differenceType).toBe("OA有申请，ERP无出库");
+  });
+
+  it("filters ERP first and compares back to OA in ERP source direction", () => {
+    const filters = parseFilters({
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026-05-01",
+      endDate: "2026-05-31"
+    });
+    const erpGrouped = buildErpRowsByErpFilters(
+      [
+        {
+          单据编号: "ERP-KEEP-A",
+          日期: "2026/5/2",
+          源单单号: "OA-KEEP",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 10
+        },
+        {
+          单据编号: "ERP-KEEP-B",
+          日期: "2026/5/3",
+          源单单号: "OA-KEEP",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 12
+        },
+        {
+          单据编号: "ERP-OUT-DATE",
+          日期: "2026/6/1",
+          源单单号: "OA-OUT",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 10
+        }
+      ],
+      filters
+    );
+    const oaGrouped = buildOaRowsForFormNumbers(
+      [
+        {
+          表单编号: "OA-KEEP",
+          金蝶云单据编号: "ERP-KEEP-A",
+          申请日期: "2026/4/1",
+          公司简称: "其他公司",
+          一级部门: "其他部门",
+          二级部门: "其他二级",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 2,
+          实际预算金额mx: 20
+        }
+      ],
+      collectErpSourceForms(erpGrouped)
+    );
+    const split = splitErpRowsByOaForms(erpGrouped, collectSelectedOaForms(oaGrouped));
+
+    const details = compareRows(oaGrouped, split.erpRowsForOa, split.erpOnlyRows);
+
+    expect([...erpGrouped.keys()]).toEqual(["OA-KEEP||MAT-A"]);
+    expect(split.erpRowsForOa.get("OA-KEEP||MAT-A")?.erpDocNumbers).toBe("ERP-KEEP-A,ERP-KEEP-B");
+    expect(details[0]).toMatchObject({
+      differenceType: "OA和ERP都有，数量一致",
+      formNumber: "OA-KEEP",
+      oaKingdeeDocNumber: "ERP-KEEP-A",
+      erpSourceFormNumber: "OA-KEEP",
+      erpCost: 22,
+      amountDiff: -2
+    });
+  });
+
+  it("keeps filtered ERP rows with missing OA as ERP-only in ERP direction", () => {
+    const erpGrouped = buildErpRowsByErpFilters(
+      [
+        {
+          单据编号: "ERP-MISSING",
+          日期: "2026/5/2",
+          源单单号: "OA-MISSING",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 10
+        }
+      ],
+      parseFilters({ company: "数控", startDate: "2026-05-01", endDate: "2026-05-31" })
+    );
+    const split = splitErpRowsByOaForms(erpGrouped, new Set());
+
+    expect(compareRows(new Map(), split.erpRowsForOa, split.erpOnlyRows)[0]).toMatchObject({
+      differenceType: "ERP出库对应OA未在当前OA数据中找到",
+      formNumber: "OA-MISSING",
+      erpDocNumbers: "ERP-MISSING",
+      erpSourceFormNumber: "OA-MISSING"
+    });
+  });
+
+  it("keeps filtered ERP rows with blank source form as ERP-only in ERP direction", () => {
+    const erpGrouped = buildErpRowsByErpFilters(
+      [
+        {
+          单据编号: "ERP-BLANK-SOURCE",
+          日期: "2026/5/2",
+          源单单号: "",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-A",
+          物料名称: "物料A",
+          实发数量: 1,
+          总成本: 10
+        }
+      ],
+      parseFilters({ company: "数控", startDate: "2026-05-01", endDate: "2026-05-31" })
+    );
+    const split = splitErpRowsByOaForms(erpGrouped, new Set(["OA-IRRELEVANT"]));
+    const details = compareRows(new Map(), split.erpRowsForOa, split.erpOnlyRows);
+
+    expect([...erpGrouped.keys()]).toEqual(["||MAT-A"]);
+    expect(split.erpRowsForOa.size).toBe(0);
+    expect(split.erpOnlyRows.get("||MAT-A")?.erpDocNumbers).toBe("ERP-BLANK-SOURCE");
+    expect(details[0]).toMatchObject({
+      differenceType: "ERP出库对应OA未在当前OA数据中找到",
+      formNumber: "",
+      erpDocNumbers: "ERP-BLANK-SOURCE",
+      erpSourceFormNumber: ""
+    });
+  });
+
   it("deduplicates aggregate dates without changing the grouping key", () => {
     const filters = parseFilters({
       company: "数控",
@@ -141,9 +586,9 @@ describe("query core", () => {
     });
     const grouped = buildOaRows(
       [
-        { 表单编号: "F-DATE", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 1, 实际预算金额mx: 10 },
-        { 表单编号: "F-DATE", 申请日期: "2026-05-01", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 2, 实际预算金额mx: 20 },
-        { 表单编号: "F-DATE", 申请日期: "2026/5/2", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 3, 实际预算金额mx: 30 }
+        { 表单编号: "F-DATE", 金蝶云单据编号: "KD-F-DATE", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 1, 实际预算金额mx: 10 },
+        { 表单编号: "F-DATE", 金蝶云单据编号: "KD-F-DATE", 申请日期: "2026-05-01", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 2, 实际预算金额mx: 20 },
+        { 表单编号: "F-DATE", 金蝶云单据编号: "KD-F-DATE", 申请日期: "2026/5/2", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 3, 实际预算金额mx: 30 }
       ],
       filters
     );
@@ -158,6 +603,7 @@ describe("query core", () => {
       [
         {
           表单编号: "CHBF2026050001",
+          金蝶云单据编号: "KD-CHBF2026050001",
           申请日期: "2026/5/1",
           公司简称: "数控",
           一级部门: "生产",
@@ -198,6 +644,7 @@ describe("query core", () => {
       [
         {
           表单编号: "F-MISMATCH",
+          金蝶云单据编号: "KD-F-MISMATCH",
           申请日期: "2026/5/1",
           公司简称: "数控",
           一级部门: "生产",
@@ -296,6 +743,7 @@ describe("query core", () => {
       [
         {
           表单编号: "F-DOC",
+          金蝶云单据编号: "KD-F-DOC",
           申请日期: "2026/5/1",
           公司简称: "数控",
           一级部门: "生产",
@@ -326,8 +774,8 @@ describe("query core", () => {
     const filters = parseFilters({});
     const oaGrouped = buildOaRows(
       [
-        { 表单编号: "F-SAME", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "A", 物料名称: "A物料", 数量: "1.004", 实际预算金额mx: 10 },
-        { 表单编号: "F-DIFF", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "B", 物料名称: "B物料", 数量: "1.004", 实际预算金额mx: 10 }
+        { 表单编号: "F-SAME", 金蝶云单据编号: "KD-F-SAME", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "A", 物料名称: "A物料", 数量: "1.004", 实际预算金额mx: 10 },
+        { 表单编号: "F-DIFF", 金蝶云单据编号: "KD-F-DIFF", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "B", 物料名称: "B物料", 数量: "1.004", 实际预算金额mx: 10 }
       ],
       filters
     );
@@ -351,9 +799,9 @@ describe("query core", () => {
     const filters = parseFilters({});
     const oaGrouped = buildOaRows(
       [
-        { 表单编号: "F-DEC", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "A", 物料名称: "A物料", 数量: "0.335", 实际预算金额mx: "0.335" },
-        { 表单编号: "F-DEC", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "A", 物料名称: "A物料", 数量: "0.335", 实际预算金额mx: "0.335" },
-        { 表单编号: "F-DEC", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "A", 物料名称: "A物料", 数量: "0.335", 实际预算金额mx: "0.335" }
+        { 表单编号: "F-DEC", 金蝶云单据编号: "KD-F-DEC", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "A", 物料名称: "A物料", 数量: "0.335", 实际预算金额mx: "0.335" },
+        { 表单编号: "F-DEC", 金蝶云单据编号: "KD-F-DEC", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "A", 物料名称: "A物料", 数量: "0.335", 实际预算金额mx: "0.335" },
+        { 表单编号: "F-DEC", 金蝶云单据编号: "KD-F-DEC", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "A", 物料名称: "A物料", 数量: "0.335", 实际预算金额mx: "0.335" }
       ],
       filters
     );
@@ -372,7 +820,7 @@ describe("query core", () => {
     const filters = parseFilters({});
     const oaGrouped = buildOaRows(
       [
-        { 表单编号: "F-DATE-OUT", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 2, 实际预算金额mx: 20 }
+        { 表单编号: "F-DATE-OUT", 金蝶云单据编号: "KD-F-DATE-OUT", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 2, 实际预算金额mx: 20 }
       ],
       filters
     );
@@ -390,8 +838,10 @@ describe("query core", () => {
     expect(values[0]).toEqual([
       "差异类型",
       "OA表单编号",
+      "OA金蝶云单据编号",
       "OA申请日期",
       "ERP出库单号",
+      "ERP源单单号",
       "ERP日期",
       "物料编码",
       "物料名称",
@@ -409,8 +859,10 @@ describe("query core", () => {
     expect(values[1]).toEqual([
       "OA和ERP都有，数量一致",
       "F-DATE-OUT",
+      "KD-F-DATE-OUT",
       "2026-05-01",
       "QOUT1,QOUT2",
+      "F-DATE-OUT",
       "2026-05-03、2026-05-04",
       "MAT-A",
       "物料A",
@@ -431,8 +883,8 @@ describe("query core", () => {
     const filters = parseFilters({});
     const oaGrouped = buildOaRows(
       [
-        { 表单编号: "F1", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "A", 物料名称: "A物料", 数量: 2, 实际预算金额mx: 20 },
-        { 表单编号: "F2", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "B", 物料名称: "B物料", 数量: 3, 实际预算金额mx: 30 }
+        { 表单编号: "F1", 金蝶云单据编号: "KD-F1", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "A", 物料名称: "A物料", 数量: 2, 实际预算金额mx: 20 },
+        { 表单编号: "F2", 金蝶云单据编号: "KD-F2", 申请日期: "2026/5/1", 公司简称: "数控", 一级部门: "生产", 二级部门: "仓储", 物料代码: "B", 物料名称: "B物料", 数量: 3, 实际预算金额mx: 30 }
       ],
       filters
     );
@@ -494,8 +946,10 @@ describe("query core", () => {
       [
         "差异类型",
         "OA表单编号",
+        "OA金蝶云单据编号",
         "OA申请日期",
         "ERP出库单号",
+        "ERP源单单号",
         "ERP日期",
         "物料编码",
         "物料名称",
