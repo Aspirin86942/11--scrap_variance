@@ -23,6 +23,20 @@ function getSheet(root: ScrapVarianceGlobal, index: number): WpsSheet {
   return sheet;
 }
 
+function getFakeSheetByName(root: ScrapVarianceGlobal, sheetName: string): FakeSheet {
+  const sheets = root.Application?.ActiveWorkbook?.Worksheets;
+  if (!sheets) {
+    throw new Error("missing fake worksheets");
+  }
+  for (let index = 1; index <= sheets.Count; index += 1) {
+    const sheet = sheets.Item(index) as FakeSheet;
+    if (sheet.Name === sheetName) {
+      return sheet;
+    }
+  }
+  throw new Error(`missing fake sheet ${sheetName}`);
+}
+
 function setActiveSheet(root: ScrapVarianceGlobal, sheet: WpsSheet): void {
   if (!root.Application) {
     throw new Error("missing fake application");
@@ -171,8 +185,8 @@ describe("TypeScript macro orchestration", () => {
       ["OUT2", "2026/5/2", "F2", "装备", "生产", "仓储", "MAT-B", "物料B", 1, 10]
     ]);
     const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    panelSheet.rangeValues.set("B2:B7", [["数控"], [""], [""], [""], [""], ["OA金蝶单号查ERP"]]);
     const root = makeRoot([oaSheet, erpSheet, panelSheet]);
-    root.ScrapVarianceRibbonState = { company: "数控" };
     setActiveSheet(root, panelSheet);
 
     runScrapVarianceQuery(root);
@@ -187,7 +201,7 @@ describe("TypeScript macro orchestration", () => {
   it("runScrapVarianceQuery clears output and writes a no-match message when filters match nothing", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
     const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
-    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    const panelSheet = createFakeSheet(SHEET_NAMES.detailOutput);
     panelSheet.rangeValues.set("CB1:CC1", [["legacy_detail", "A1:S6"]]);
     const root = makeRoot([oaSheet, erpSheet, panelSheet]);
     root.ScrapVarianceRibbonState = { company: "不存在公司" };
@@ -205,7 +219,7 @@ describe("TypeScript macro orchestration", () => {
   it("runScrapVarianceQuery writes the ERP no-match message for ERP source direction", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
     const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
-    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    const panelSheet = createFakeSheet(SHEET_NAMES.detailOutput);
     const root = makeRoot([oaSheet, erpSheet, panelSheet]);
     root.ScrapVarianceRibbonState = {
       company: "不存在公司",
@@ -225,7 +239,7 @@ describe("TypeScript macro orchestration", () => {
   it("runScrapVarianceQuery writes an error for an invalid query direction", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
     const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
-    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    const panelSheet = createFakeSheet(SHEET_NAMES.detailOutput);
     const root = makeRoot([oaSheet, erpSheet, panelSheet]);
     root.ScrapVarianceRibbonState = { queryDirection: "坏方向" as typeof QUERY_DIRECTIONS.oaKingdeeToErp };
     setActiveSheet(root, panelSheet);
@@ -250,7 +264,7 @@ describe("TypeScript macro orchestration", () => {
       [...ERP_REQUIRED_HEADERS],
       ["OUT1", "2026/5/2", "F1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
     ]);
-    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    const panelSheet = createFakeSheet(SHEET_NAMES.detailOutput);
     const root = makeRoot([oaSheet, erpSheet, panelSheet]);
     root.ScrapVarianceRibbonState = {
       company: "数控",
@@ -312,14 +326,15 @@ describe("TypeScript macro orchestration", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
     const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
     const panelSheet = createFakeSheet(SHEET_NAMES.panel);
-    panelSheet.rangeValues.set("B2:B6", [[""], [""], [""], [""], [""]]);
     const root = makeRoot([oaSheet, erpSheet, panelSheet]);
 
+    setupQueryPanel(root);
     runPerformanceDiagnostics(root);
 
-    const diagnosticsSheet = getSheet(root, 4) as FakeSheet;
+    const diagnosticsSheet = getFakeSheetByName(root, SHEET_NAMES.performanceDiagnostics);
     const output = flattenWrites(diagnosticsSheet);
     expect(diagnosticsSheet.Name).toBe(SHEET_NAMES.performanceDiagnostics);
+    expect(panelSheet.Name).toBe(SHEET_NAMES.detailOutput);
     expect(panelSheet.clears).toEqual([]);
     expect(output).toContain("类别");
     expect(output).toContain("read_oa_used_range");
@@ -367,13 +382,19 @@ describe("TypeScript macro orchestration", () => {
       [...ERP_REQUIRED_HEADERS],
       ["OUT1", "2026/5/2", "F1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
     ]);
-    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
-    panelSheet.rangeValues.set("B2:B7", [["数控"], ["生产"], ["仓储"], ["2026/5/1"], ["2026/5/31"], ["ERP源单查OA"]]);
-    const root = makeRoot([oaSheet, erpSheet, panelSheet]);
+    const root = makeRoot([oaSheet, erpSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31",
+      queryDirection: QUERY_DIRECTIONS.erpSourceToOa
+    };
 
     runPerformanceDiagnostics(root);
 
-    const diagnosticsSheet = getSheet(root, 4) as FakeSheet;
+    const diagnosticsSheet = getFakeSheetByName(root, SHEET_NAMES.performanceDiagnostics);
     const output = flattenWrites(diagnosticsSheet);
     const initialWrite = diagnosticsSheet.writes[0];
     if (!initialWrite || !Array.isArray(initialWrite.value)) {
@@ -431,7 +452,7 @@ describe("TypeScript macro orchestration", () => {
     const root = makeRoot([diagnosticsSheet]);
 
     expect(() => runPerformanceDiagnostics(root)).toThrow(
-      /性能诊断失败：.*找不到工作表：查询面板.*错误信息写入也失败：.*range write failed: A1:G2/s
+      /性能诊断失败：.*找不到工作表：查询OA-存货报废申请单.*错误信息写入也失败：.*range write failed: A1:G2/s
     );
   });
 });

@@ -1,4 +1,4 @@
-import { WRITE_CHUNK_ROWS } from "../constants";
+import { SHEET_NAMES, WRITE_CHUNK_ROWS } from "../constants";
 import { parseFilters } from "../core/build-oa-rows";
 import { parseQueryDirection } from "../core/query-direction";
 import type { PanelQueryInput, QueryFilters } from "../types/scrap";
@@ -70,6 +70,28 @@ export function safeWriteQueryError(message: string, root?: ScrapVarianceGlobal)
   }
 }
 
+function syncActivePanelInputToRibbonState(root?: ScrapVarianceGlobal): void {
+  const app = root?.Application ?? (globalThis as ScrapVarianceGlobal).Application;
+  const activeSheet = app?.ActiveSheet;
+  if (!activeSheet || activeSheet.Name !== SHEET_NAMES.panel) {
+    return;
+  }
+
+  const queryInput = readPanelQueryInput(activeSheet.Range("B2:B7"));
+  const currentState = root?.ScrapVarianceRibbonState ?? {};
+  const nextState = {
+    ...currentState,
+    ...queryInput.filters,
+    queryDirection: queryInput.queryDirection
+  };
+  if (root) {
+    root.ScrapVarianceRibbonState = nextState;
+  } else {
+    (globalThis as ScrapVarianceGlobal).ScrapVarianceRibbonState = nextState;
+  }
+}
+
 export function runScrapVarianceQuery(root?: ScrapVarianceGlobal): void {
+  syncActivePanelInputToRibbonState(root);
   runCurrentSheetQuery(root);
 }

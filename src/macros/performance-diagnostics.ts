@@ -13,12 +13,12 @@ import { runQueryCorePipeline } from "../core/query-pipeline";
 import { parseTableFromMatrix } from "../core/table-parser";
 import { createMetricsRecorder, type StageMetric } from "../perf/metrics";
 import { probeRuntimeCapabilities, type RuntimeCapability } from "../perf/runtime-probe";
+import { getRibbonState, readRibbonFilters } from "../ribbon/state";
 import type { OutputMatrix } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
 import { readUsedRangeMatrix } from "../wps-api/read-sheet-data";
 import { ensureSheet, getSheetByName } from "../wps-api/workbook";
 import { clearDiagnosticsOutput, writeMatrixBulkOrChunks } from "../wps-api/write-results";
-import { readPanelQueryInput } from "./scrap-variance-query";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -74,13 +74,13 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
     const diagnosticsSheet = ensureSheet(SHEET_NAMES.performanceDiagnostics, root);
     const metrics = createMetricsRecorder(root ?? globalThis);
     const capabilities = probeRuntimeCapabilities(root ?? globalThis, globalThis);
-    const panel = getSheetByName(SHEET_NAMES.panel, root);
     const oaSheet = getSheetByName(SHEET_NAMES.oa, root);
     const erpSheet = getSheetByName(SHEET_NAMES.erp, root);
 
-    const queryInput = metrics.measure("read_filters", { inputRows: 6, outputRows: 6 }, () =>
-      readPanelQueryInput(panel.Range("B2:B7"))
-    );
+    const queryInput = metrics.measure("read_filters", { inputRows: 6, outputRows: 6 }, () => ({
+      filters: readRibbonFilters(root),
+      queryDirection: getRibbonState(root).queryDirection
+    }));
     const oaUsedRange = metrics.measure("read_oa_used_range", { outputRows: (value) => value.matrix.length }, () =>
       readUsedRangeMatrix(oaSheet)
     );
