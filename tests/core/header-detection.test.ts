@@ -7,8 +7,8 @@ describe("detectHeaderRow", () => {
     const matrix = [
       ["导出条件", "", ""],
       ["制表人", "", ""],
-      [" 表单编号 ", "申请日期", "公司简称", "一级部门", "二级部门", "物料代码", "物料名称", "数量", "实际预算金额mx"],
-      ["F001", "2026/5/1", "数控", "生产运营中心", "仓储部", "MAT-A", "物料A", 2, 20]
+      [" 表单编号 ", "金蝶云单据编号", "申请日期", "公司简称", "一级部门", "二级部门", "物料代码", "物料名称", "数量", "实际预算金额mx"],
+      ["F001", "KD-F001", "2026/5/1", "数控", "生产运营中心", "仓储部", "MAT-A", "物料A", 2, 20]
     ];
 
     const result = detectHeaderRow(matrix, [...OA_REQUIRED_HEADERS], {
@@ -22,7 +22,7 @@ describe("detectHeaderRow", () => {
       expect(result.headerRowIndex).toBe(2);
       expect(result.headerRowNumber).toBe(3);
       expect(result.columnIndex["表单编号"]).toBe(0);
-      expect(result.columnIndex["实际预算金额mx"]).toBe(8);
+      expect(result.columnIndex["实际预算金额mx"]).toBe(9);
     }
   });
 
@@ -75,7 +75,7 @@ describe("detectHeaderRow", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.issueType).toBe("无法识别表头");
-      expect(result.message).toContain("最多命中 0/9 个必需字段");
+      expect(result.message).toContain("最多命中 0/10 个必需字段");
       expect(result.headerRowNumber).toBe("相对 UsedRange 第 1 行");
     }
   });
@@ -85,6 +85,7 @@ describe("detectHeaderRow", () => {
       [
         [
           "表单编号",
+          "金蝶云单据编号",
           "申请日期",
           "公司简称",
           "一级部门",
@@ -95,7 +96,7 @@ describe("detectHeaderRow", () => {
           "实际预算金额mx",
           "数量"
         ],
-        ["F001", "2026/5/1", "数控", "生产运营中心", "仓储部", "MAT-A", "物料A", 2, 20, 999]
+        ["F001", "KD-F001", "2026/5/1", "数控", "生产运营中心", "仓储部", "MAT-A", "物料A", 2, 20, 999]
       ],
       [...OA_REQUIRED_HEADERS],
       {

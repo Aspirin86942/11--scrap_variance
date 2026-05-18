@@ -128,6 +128,66 @@ describe("query core", () => {
     ]);
   });
 
+  it("keeps the first nonblank OA Kingdee document number for each aggregate", () => {
+    const filters = parseFilters({});
+    const oaGrouped = buildOaRows(
+      [
+        {
+          表单编号: "F-BLANK-FIRST",
+          金蝶云单据编号: "",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 1,
+          实际预算金额mx: 10
+        },
+        {
+          表单编号: "F-BLANK-FIRST",
+          金蝶云单据编号: "KD-1",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: 2,
+          实际预算金额mx: 20
+        },
+        {
+          表单编号: "F-NONBLANK-FIRST",
+          金蝶云单据编号: "KD-FIRST",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-B",
+          物料名称: "物料B",
+          数量: 3,
+          实际预算金额mx: 30
+        },
+        {
+          表单编号: "F-NONBLANK-FIRST",
+          金蝶云单据编号: "KD-LATER",
+          申请日期: "2026/5/1",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-B",
+          物料名称: "物料B",
+          数量: 4,
+          实际预算金额mx: 40
+        }
+      ],
+      filters
+    );
+
+    expect(oaGrouped.get("F-BLANK-FIRST||MAT-A")?.kingdeeDocNumber).toBe("KD-1");
+    expect(oaGrouped.get("F-NONBLANK-FIRST||MAT-B")?.kingdeeDocNumber).toBe("KD-FIRST");
+  });
+
   it("groups matched ERP rows and keeps ERP-only rows based on current OA filters", () => {
     const filters = parseFilters({
       company: "数控",
