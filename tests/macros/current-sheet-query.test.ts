@@ -8,7 +8,7 @@ import {
 } from "../../src/constants";
 import { QUERY_DIRECTIONS } from "../../src/core/query-direction";
 import { unsupportedOutputSheetMessage } from "../../src/core/output-sheets";
-import { runCurrentSheetQuery } from "../../src/macros/current-sheet-query";
+import { runCurrentSheetQuery, toggleMaterialRows } from "../../src/macros/current-sheet-query";
 import { setupOutputSheets } from "../../src/macros/output-sheets";
 import type { OutputMatrix } from "../../src/types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../../src/types/wps";
@@ -250,5 +250,91 @@ describe("current sheet query macro", () => {
       address: "CB1:CC1",
       value: [["oa_doc_compare", "A1:A1"]]
     });
+  });
+
+  it("toggleMaterialRows inserts material rows below the selected OA summary row", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31"
+    };
+    setActiveSheet(root, oaCompareSheet);
+    root.Application!.Selection = { Row: 2 };
+    runCurrentSheetQuery(root);
+
+    toggleMaterialRows(root);
+
+    expect(oaCompareSheet.rowInserts).toEqual([{ afterRow: 2, rowCount: 1 }]);
+    expect(visibleWrites(oaCompareSheet)).toContainEqual({
+      address: "A3:P3",
+      value: [
+        [
+          "物料",
+          "数控",
+          "生产",
+          "仓储",
+          "2026-05-01",
+          "OA-001",
+          10,
+          100,
+          "ERP-778",
+          9,
+          91,
+          1,
+          9,
+          "MAT-A",
+          "物料A",
+          ""
+        ]
+      ]
+    });
+    expect(oaCompareSheet.writes).toContainEqual({
+      address: "CB1:CC1",
+      value: [["oa_doc_compare", "A1:P3"]]
+    });
+  });
+
+  it("toggleMaterialRows deletes continuous material rows when the selected summary is expanded", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    setActiveSheet(root, oaCompareSheet);
+    root.Application!.Selection = { Row: 2 };
+    runCurrentSheetQuery(root);
+    oaCompareSheet.rangeValues.set("A3:A3", [["物料"]]);
+    oaCompareSheet.rangeValues.set("A4:A4", [["汇总"]]);
+    oaCompareSheet.rangeValues.set("CB1:CC1", [["oa_doc_compare", "A1:P3"]]);
+
+    toggleMaterialRows(root);
+
+    expect(oaCompareSheet.rowDeletes).toEqual([{ startRow: 3, rowCount: 1 }]);
+    expect(oaCompareSheet.writes).toContainEqual({
+      address: "CB1:CC1",
+      value: [["oa_doc_compare", "A1:P2"]]
+    });
+  });
+
+  it("toggleMaterialRows rejects unsupported active sheets without touching source sheets", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const root = makeRoot([oaSheet, erpSheet]);
+    setActiveSheet(root, oaSheet);
+
+    expect(() => toggleMaterialRows(root)).toThrow(unsupportedOutputSheetMessage());
+    expect(oaSheet.writes).toEqual([]);
+    expect(oaSheet.clears).toEqual([]);
+    expect(erpSheet.writes).toEqual([]);
+    expect(erpSheet.clears).toEqual([]);
   });
 });

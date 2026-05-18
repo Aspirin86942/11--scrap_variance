@@ -7,18 +7,25 @@ import {
   SHEET_NAMES,
   WRITE_CHUNK_ROWS
 } from "../constants";
-import { buildErpDocCompare, buildOaDocCompare, docCompareRowsToValues } from "../core/doc-compare";
+import {
+  buildErpDocCompare,
+  buildMaterialRowsForDocSummary,
+  buildOaDocCompare,
+  docCompareRowsToValues
+} from "../core/doc-compare";
 import { detectOutputSheetKind, unsupportedOutputSheetMessage } from "../core/output-sheets";
 import { QUERY_DIRECTIONS } from "../core/query-direction";
 import { runQueryCorePipeline } from "../core/query-pipeline";
 import { getRibbonState, readRibbonFilters } from "../ribbon/state";
 import type { OutputMatrix, OutputSheetKind, QueryFilters, RawRow } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
-import { getActiveSheet } from "../wps-api/active-context";
-import { clearPreviousToolOutput, saveOutputMetadata } from "../wps-api/output-metadata";
+import { deleteRows, getActiveSheet, getSelectedRowNumber, insertRowsBelow } from "../wps-api/active-context";
+import { adjustOutputMetadataRows, clearPreviousToolOutput, saveOutputMetadata } from "../wps-api/output-metadata";
 import { readSheetTable } from "../wps-api/read-sheet-data";
 import { getSheetByName } from "../wps-api/workbook";
 import { rangeAddress, writeMatrixBulkOrChunks } from "../wps-api/write-results";
+import { normalizeMatrix } from "../utils/matrix";
+import { normalizeText } from "../utils/text";
 import { setupOutputSheets } from "./output-sheets";
 
 interface SourceRows {
@@ -147,6 +154,77 @@ export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
 
     clearPreviousToolOutput(activeSheet, kind);
     writeOutputWithMetadata(activeSheet, kind, result.values ?? [[result.noResultMessage]]);
+  } catch (error) {
+    safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error));
+  }
+}
+
+function readCellText(sheet: WpsSheet, row: number, column: string): string {
+  const range = sheet.Range(`${column}${row}`);
+  const matrix = normalizeMatrix(range.Value2 ?? range.Value);
+  return normalizeText(matrix[0]?.[0]);
+}
+
+function countMaterialRowsBelow(sheet: WpsSheet, summaryRowNumber: number): number {
+  let count = 0;
+  for (let row = summaryRowNumber + 1; row < summaryRowNumber + 100000; row += 1) {
+    if (readCellText(sheet, row, "A") !== "物料") {
+      break;
+    }
+    count += 1;
+  }
+  return count;
+}
+
+export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
+  const activeSheet = getActiveSheet(root);
+  const kind = detectOutputSheetKind(activeSheet.Name);
+  if (!kind) {
+    throw new Error(unsupportedOutputSheetMessage());
+  }
+  if (kind === "legacy_detail") {
+    safeWriteCurrentSheetError(activeSheet, kind, "当前工作表不支持展开物料。");
+    return;
+  }
+
+  try {
+    const selectedRow = getSelectedRowNumber(root);
+    if (readCellText(activeSheet, selectedRow, "A") !== "汇总") {
+      throw new Error("请选中行类型为 汇总 的单据行。");
+    }
+
+    const existingMaterialRows = countMaterialRowsBelow(activeSheet, selectedRow);
+    if (existingMaterialRows > 0) {
+      deleteRows(activeSheet, selectedRow + 1, existingMaterialRows);
+      adjustOutputMetadataRows(activeSheet, -existingMaterialRows);
+      return;
+    }
+
+    const filters = readRibbonFilters(root);
+    const { oaRows, erpRows } = readSourceRows(root);
+    const result = kind === "oa_doc_compare"
+      ? buildOaDocCompare(oaRows, erpRows, filters)
+      : buildErpDocCompare(oaRows, erpRows, filters);
+    const selectedDocNumber = readCellText(activeSheet, selectedRow, "F");
+    const summaryRow = result.summaryRows.find((row) => row.primaryDocNumber === selectedDocNumber);
+    if (!summaryRow) {
+      throw new Error(`找不到可展开的单据：${selectedDocNumber}`);
+    }
+
+    const materialRows = buildMaterialRowsForDocSummary(result, summaryRow);
+    if (materialRows.length === 0) {
+      throw new Error(`当前单据没有可展开物料：${selectedDocNumber}`);
+    }
+
+    insertRowsBelow(activeSheet, selectedRow, materialRows.length);
+    writeMatrixBulkOrChunks(
+      activeSheet,
+      selectedRow + 1,
+      1,
+      docCompareRowsToValues(kind, materialRows).slice(1),
+      WRITE_CHUNK_ROWS
+    );
+    adjustOutputMetadataRows(activeSheet, materialRows.length);
   } catch (error) {
     safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error));
   }

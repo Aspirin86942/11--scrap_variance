@@ -42,6 +42,26 @@ function isSafeA1RectangleAddress(value: string): boolean {
   return startCol <= endCol && startRow <= endRow;
 }
 
+function parseA1RectangleAddress(
+  value: string
+): { startColumn: string; startRow: number; endColumn: string; endRow: number } | null {
+  if (!isSafeA1RectangleAddress(value)) {
+    return null;
+  }
+
+  const match = value.match(A1_RECTANGLE_ADDRESS_PATTERN);
+  if (!match) {
+    return null;
+  }
+
+  return {
+    startColumn: (match[1] ?? "").toUpperCase(),
+    startRow: Number(match[2]),
+    endColumn: (match[3] ?? "").toUpperCase(),
+    endRow: Number(match[4])
+  };
+}
+
 export function readOutputMetadata(sheet: WpsSheet): OutputMetadata | null {
   const range = sheet.Range(METADATA_ADDRESS);
   const matrix = normalizeMatrix(range.Value2 ?? range.Value);
@@ -66,4 +86,22 @@ export function clearPreviousToolOutput(sheet: WpsSheet, expectedKind: OutputShe
   }
 
   clearRange(sheet, metadata.rangeAddress);
+}
+
+export function adjustOutputMetadataRows(sheet: WpsSheet, rowDelta: number): void {
+  const metadata = readOutputMetadata(sheet);
+  if (!metadata || rowDelta === 0) {
+    return;
+  }
+
+  const parsed = parseA1RectangleAddress(metadata.rangeAddress);
+  if (!parsed) {
+    return;
+  }
+
+  const nextEndRow = Math.max(parsed.startRow, parsed.endRow + rowDelta);
+  saveOutputMetadata(sheet, {
+    kind: metadata.kind,
+    rangeAddress: `${parsed.startColumn}${parsed.startRow}:${parsed.endColumn}${nextEndRow}`
+  });
 }
