@@ -179,6 +179,32 @@ function validateRequiredCell(source: "OA" | "ERP", rows: RawRow[], fieldName: s
   return issues;
 }
 
+function validateBlankKingdeeDocNumber(rows: RawRow[], fieldName: string): PrecheckIssue[] {
+  const issues: PrecheckIssue[] = [];
+
+  for (const row of rows) {
+    if (!isBlankValue(row[fieldName])) {
+      continue;
+    }
+
+    // 空金蝶编号只影响 OA 金蝶单号方向的关联结果，不作为阻断错误处理。
+    issues.push(
+      buildIssue(
+        "提醒",
+        "OA",
+        row._rowNumber ?? "",
+        fieldName,
+        "",
+        "金蝶云单据编号为空",
+        `OA 第 ${String(row._rowNumber ?? "")} 行金蝶云单据编号为空，OA金蝶单号查ERP 时会归为 OA有申请，ERP无出库。`,
+        "OA金蝶单号查ERP 时，如果该 OA 已经生成金蝶出库单，请补齐金蝶云单据编号；如果尚未生成，可以保留该提醒。"
+      )
+    );
+  }
+
+  return issues;
+}
+
 function buildCompositeKey(row: RawRow, fieldNames: string[]): string {
   const parts: string[] = [];
 
@@ -337,6 +363,9 @@ export function buildPrecheckIssues(
   );
   appendValidationIfHeaderExists(issues, erpTable, "物料编码", (rows, fieldName) =>
     validateRequiredCell("ERP", rows, fieldName)
+  );
+  appendValidationIfHeaderExists(issues, oaTable, "金蝶云单据编号", (rows, fieldName) =>
+    validateBlankKingdeeDocNumber(rows, fieldName)
   );
 
   if (hasHeader(oaTable, "表单编号") && hasHeader(oaTable, "物料代码")) {

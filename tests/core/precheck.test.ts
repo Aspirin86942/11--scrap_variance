@@ -173,6 +173,7 @@ describe("precheck core", () => {
     );
     const issue = issues.find((candidate) => candidate.source === "OA" && candidate.issueType === "缺少关键列");
 
+    expect(issues).toHaveLength(1);
     expect(issue).toMatchObject({
       level: "错误",
       source: "OA",
@@ -180,6 +181,28 @@ describe("precheck core", () => {
       issueType: "缺少关键列"
     });
     expect(issue?.reason).toContain("金蝶云单据编号");
+  });
+
+  it("warns but does not block when OA Kingdee document number is blank", () => {
+    const issues = buildPrecheckIssues(table([oaRow({ 金蝶云单据编号: "" })]), table([erpRow()]));
+    const issue = issues.find((candidate) => candidate.fieldName === "金蝶云单据编号");
+
+    expect(issue).toMatchObject({
+      level: "提醒",
+      source: "OA",
+      rowNumber: 2,
+      rawValue: "",
+      issueType: "金蝶云单据编号为空"
+    });
+    expect(issue?.suggestion).toContain("OA金蝶单号查ERP");
+    expect(
+      issues.some(
+        (candidate) =>
+          candidate.fieldName === "金蝶云单据编号" &&
+          candidate.level === "错误" &&
+          candidate.issueType === "关键字段为空"
+      )
+    ).toBe(false);
   });
 
   it("deduplicates missing ERP source-form reminders by source form and keeps the first row", () => {
