@@ -135,6 +135,33 @@ describe("current sheet query macro", () => {
     expect(erpSheet.writes).toEqual([]);
   });
 
+  it("runCurrentSheetQuery treats blank department and date filters as all when only company is set", () => {
+    const oaSheet = makeOaSheet([
+      validOaRow(),
+      ["OA-002", "ERP-999", "2026/4/1", "装备", "其他一级", "其他二级", "MAT-B", "物料B", 2, 20]
+    ]);
+    const erpSheet = makeErpSheet([
+      validErpRow(),
+      ["ERP-999", "2026/4/2", "OA-002", "装备", "其他一级", "其他二级", "MAT-B", "物料B", 2, 20]
+    ]);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控"
+    };
+    setActiveSheet(root, oaCompareSheet);
+
+    runCurrentSheetQuery(root);
+
+    const output = flattenWrites(oaCompareSheet);
+    expect(output).toContain("数控");
+    expect(output).toContain("OA-001");
+    expect(output).not.toContain("装备");
+    expect(output).not.toContain("查询条件没有匹配到 OA 数据。");
+  });
+
   it("runCurrentSheetQuery writes only ERP document compare output for the active ERP compare sheet", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();

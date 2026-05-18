@@ -148,6 +148,41 @@ describe("WPS ribbon entrypoint", () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
+  it("createRibbonHandlers clears stale filters before accepting a fresh company-only query", () => {
+    const reportError = vi.fn();
+    const root: ScrapVarianceGlobal = {
+      ScrapVarianceRibbonState: {
+        company: "不存在公司",
+        dept1: "旧一级部门",
+        dept2: "旧二级部门",
+        startDate: "2099/1/1",
+        endDate: "2099/12/31"
+      }
+    };
+    const ribbon = createRibbonHandlers({
+      root,
+      runPrecheck: vi.fn(),
+      setupOutputSheets: vi.fn(),
+      queryCurrentSheet: vi.fn(),
+      toggleMaterialRows: vi.fn(),
+      runDiagnostics: vi.fn(),
+      reportError
+    });
+
+    ribbon.OnCompanyChange(" 数控 ");
+
+    expect(root.ScrapVarianceRibbonState).toEqual(
+      expect.objectContaining({
+        company: "数控",
+        dept1: "",
+        dept2: "",
+        startDate: "",
+        endDate: ""
+      })
+    );
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
   it("createRibbonHandlers accepts direction selection carried on the WPS control object", () => {
     const reportError = vi.fn();
     const root: ScrapVarianceGlobal = {};

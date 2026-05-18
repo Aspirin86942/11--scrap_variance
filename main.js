@@ -553,8 +553,8 @@ var _a,_b,_c;if(fallback!==void 0){return normalizeText(fallback)}if(!isRecord(c
 var _a,_b,_c,_d,_e,_f,_g;if(fallback!==void 0){return fallback}if(!isRecord(controlOrSelection)){return controlOrSelection}return(_g=(_f=(_e=(_d=(_c=(_b=(_a=controlOrSelection.
 selectedId)!=null?_a:controlOrSelection.SelectedId)!=null?_b:controlOrSelection.selectedIndex)!=null?_c:controlOrSelection.SelectedIndex)!=null?_d:controlOrSelection.
 Value)!=null?_e:controlOrSelection.value)!=null?_f:controlOrSelection.Index)!=null?_g:controlOrSelection.index}function createRibbonHandlers(dependencies){var _a;
-const root2=(_a=dependencies.root)!=null?_a:globalThis;const updateInput=(key,controlOrText,text)=>{try{updateRibbonState(root2,key,getControlText(controlOrText,
-text))}catch(error){dependencies.reportError(error)}};const updateDirection=(key,controlOrSelection,selectedIdOrIndex)=>{var _a2;try{const selection=getDirectionSelection(
+const root2=(_a=dependencies.root)!=null?_a:globalThis;resetRibbonState(root2);const updateInput=(key,controlOrText,text)=>{try{updateRibbonState(root2,key,getControlText(
+controlOrText,text))}catch(error){dependencies.reportError(error)}};const updateDirection=(key,controlOrSelection,selectedIdOrIndex)=>{var _a2;try{const selection=getDirectionSelection(
 controlOrSelection,selectedIdOrIndex);const index=typeof selection==="number"?selection:Number(selection);updateRibbonState(root2,key,(_a2=DIRECTION_LABELS[index])!=
 null?_a2:selection)}catch(error){dependencies.reportError(error)}};return{OnAddinLoad(ribbonUi){root2.ScrapVarianceRibbonUi=ribbonUi;resetRibbonState(root2)},OnAction(control){
 try{const controlId=getControlId(control);switch(controlId){case"btnPrecheck":dependencies.runPrecheck();return;case"btnSetupOutputSheets":dependencies.setupOutputSheets();

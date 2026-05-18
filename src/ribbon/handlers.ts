@@ -60,6 +60,7 @@ export function getDirectionSelection(controlOrSelection: RibbonControl | unknow
 
 export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonApi {
   const root = dependencies.root ?? (globalThis as ScrapVarianceGlobal);
+  resetRibbonState(root);
 
   const updateInput = (key: string, controlOrText?: unknown, text?: unknown): void => {
     try {
