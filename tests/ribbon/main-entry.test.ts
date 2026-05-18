@@ -82,6 +82,56 @@ describe("WPS ribbon entrypoint", () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
+  it("createRibbonHandlers accepts input values carried on the WPS control object", () => {
+    const reportError = vi.fn();
+    const root: ScrapVarianceGlobal = {};
+    const ribbon = createRibbonHandlers({
+      root,
+      runPrecheck: vi.fn(),
+      setupOutputSheets: vi.fn(),
+      queryCurrentSheet: vi.fn(),
+      toggleMaterialRows: vi.fn(),
+      runDiagnostics: vi.fn(),
+      reportError
+    });
+
+    ribbon.OnInputChange({ Id: "company", Text: " 波峰 " });
+    ribbon.OnInputChange({ Id: "startDate", Value: "2026/1/1" });
+    ribbon.OnInputChange({ Id: "endDate", text: "2026/5/1" });
+
+    expect(root.ScrapVarianceRibbonState).toEqual(
+      expect.objectContaining({
+        company: "波峰",
+        startDate: "2026/1/1",
+        endDate: "2026/5/1"
+      })
+    );
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("createRibbonHandlers accepts direction selection carried on the WPS control object", () => {
+    const reportError = vi.fn();
+    const root: ScrapVarianceGlobal = {};
+    const ribbon = createRibbonHandlers({
+      root,
+      runPrecheck: vi.fn(),
+      setupOutputSheets: vi.fn(),
+      queryCurrentSheet: vi.fn(),
+      toggleMaterialRows: vi.fn(),
+      runDiagnostics: vi.fn(),
+      reportError
+    });
+
+    ribbon.OnDirectionChange({ Id: "queryDirection", selectedIndex: 1 });
+
+    expect(root.ScrapVarianceRibbonState).toEqual(
+      expect.objectContaining({
+        queryDirection: "ERP源单查OA"
+      })
+    );
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
   it("createRibbonHandlers reports unknown ribbon button errors", () => {
     const reportError = vi.fn();
     const ribbon = createRibbonHandlers({

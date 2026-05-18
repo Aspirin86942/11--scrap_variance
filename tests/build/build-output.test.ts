@@ -11,6 +11,10 @@ function readText(relativePath: string): string {
   return readFileSync(resolve(repoRoot, relativePath), "utf-8");
 }
 
+function normalizeJsContinuedLines(source: string): string {
+  return source.replace(/\\\r?\n/g, "");
+}
+
 describe("WPS add-in generated bundle", () => {
   it("keeps index.html pointed at the generated root main.js", () => {
     const html = readText("index.html");
@@ -50,15 +54,16 @@ describe("WPS add-in generated bundle", () => {
 
   it("bundles the real ribbon handlers instead of the temporary placeholder", () => {
     const source = readText("main.js");
+    const searchableSource = normalizeJsContinuedLines(source);
     const entry = readText("src/main.ts");
     const handlers = readText("src/ribbon/handlers.ts");
 
-    expect(source).not.toContain("ribbon handlers are not implemented yet");
-    expect(source).not.toContain("加载项入口尚未完成");
-    expect(source).toContain("btnPrecheck");
-    expect(source).toContain("btnSetupOutputSheets");
-    expect(source).toContain("btnQueryCurrentSheet");
-    expect(source).toContain("btnToggleMaterialRows");
+    expect(searchableSource).not.toContain("ribbon handlers are not implemented yet");
+    expect(searchableSource).not.toContain("加载项入口尚未完成");
+    expect(searchableSource).toContain("btnPrecheck");
+    expect(searchableSource).toContain("btnSetupOutputSheets");
+    expect(searchableSource).toContain("btnQueryCurrentSheet");
+    expect(searchableSource).toContain("btnToggleMaterialRows");
     expect(handlers).toContain("未知功能区按钮");
     expect(entry).toContain("reportRuntimeError");
   });

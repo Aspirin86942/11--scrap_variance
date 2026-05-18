@@ -47,13 +47,23 @@ export interface RibbonControl {
   Id?: string;
   id?: string;
   ID?: string;
+  Text?: string;
+  text?: string;
+  Value?: string | number;
+  value?: string | number;
+  selectedId?: string | number;
+  SelectedId?: string | number;
+  selectedIndex?: string | number;
+  SelectedIndex?: string | number;
+  Index?: string | number;
+  index?: string | number;
 }
 
 export interface RibbonApi {
   OnAddinLoad(ribbonUi: unknown): void;
   OnAction(control: RibbonControl): void;
-  OnInputChange(control: RibbonControl, text: string): void;
-  OnDirectionChange(control: RibbonControl, selectedIdOrIndex: string | number): void;
+  OnInputChange(control: RibbonControl, text?: string): void;
+  OnDirectionChange(control: RibbonControl, selectedIdOrIndex?: string | number): void;
   GetDirectionCount(control: RibbonControl): number;
   GetDirectionLabel(control: RibbonControl, index: number): string;
   GetDirectionSelectedIndex(control: RibbonControl): number;

@@ -1,5 +1,6 @@
 import { QUERY_DIRECTIONS } from "../core/query-direction";
 import type { RibbonApi, RibbonControl, ScrapVarianceGlobal } from "../types/wps";
+import { normalizeText } from "../utils/text";
 import { getRibbonState, updateRibbonState } from "./state";
 
 export interface RibbonDependencies {
@@ -16,6 +17,24 @@ const DIRECTION_LABELS = [QUERY_DIRECTIONS.oaKingdeeToErp, QUERY_DIRECTIONS.erpS
 
 export function getControlId(control: RibbonControl): string {
   return control.Id ?? control.id ?? control.ID ?? "";
+}
+
+export function getControlText(control: RibbonControl, fallback?: unknown): string {
+  return normalizeText(fallback ?? control.Text ?? control.text ?? control.Value ?? control.value);
+}
+
+export function getDirectionSelection(control: RibbonControl, fallback?: unknown): unknown {
+  return (
+    fallback ??
+    control.selectedId ??
+    control.SelectedId ??
+    control.selectedIndex ??
+    control.SelectedIndex ??
+    control.Value ??
+    control.value ??
+    control.Index ??
+    control.index
+  );
 }
 
 export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonApi {
@@ -52,17 +71,18 @@ export function createRibbonHandlers(dependencies: RibbonDependencies): RibbonAp
         dependencies.reportError(error);
       }
     },
-    OnInputChange(control: RibbonControl, text: string): void {
+    OnInputChange(control: RibbonControl, text?: string): void {
       try {
-        updateRibbonState(root, getControlId(control), text);
+        updateRibbonState(root, getControlId(control), getControlText(control, text));
       } catch (error) {
         dependencies.reportError(error);
       }
     },
-    OnDirectionChange(control: RibbonControl, selectedIdOrIndex: string | number): void {
+    OnDirectionChange(control: RibbonControl, selectedIdOrIndex?: string | number): void {
       try {
-        const index = typeof selectedIdOrIndex === "number" ? selectedIdOrIndex : Number(selectedIdOrIndex);
-        updateRibbonState(root, getControlId(control), DIRECTION_LABELS[index] ?? selectedIdOrIndex);
+        const selection = getDirectionSelection(control, selectedIdOrIndex);
+        const index = typeof selection === "number" ? selection : Number(selection);
+        updateRibbonState(root, getControlId(control), DIRECTION_LABELS[index] ?? selection);
       } catch (error) {
         dependencies.reportError(error);
       }
