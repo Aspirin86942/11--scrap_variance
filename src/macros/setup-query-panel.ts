@@ -5,6 +5,8 @@ import { normalizeText } from "../utils/text";
 import { ensureSheet } from "../wps-api/workbook";
 import { writeMatrixBulkOrChunks } from "../wps-api/write-results";
 
+const RUN_QUERY_FUNCTION_NAME = "runScrapVarianceQuery";
+
 function readRangeText(sheet: WpsSheet, address: string): string {
   const range = sheet.Range(address);
   return normalizeText(range.Value2 ?? range.Value);
@@ -30,10 +32,12 @@ export function setupQueryPanel(root?: ScrapVarianceGlobal): WpsSheet {
     WRITE_CHUNK_ROWS
   );
 
-  if (readRangeText(sheet, "B7") === "") {
-    writeMatrixBulkOrChunks(sheet, 7, 2, [[DEFAULT_QUERY_DIRECTION], ["runScrapVarianceQuery"]], WRITE_CHUNK_ROWS);
+  const existingDirection = readRangeText(sheet, "B7");
+  if (existingDirection === "" || existingDirection === RUN_QUERY_FUNCTION_NAME) {
+    // 旧版面板把运行函数放在 B7；升级时需要把 B7 迁移为查询方向。
+    writeMatrixBulkOrChunks(sheet, 7, 2, [[DEFAULT_QUERY_DIRECTION], [RUN_QUERY_FUNCTION_NAME]], WRITE_CHUNK_ROWS);
   } else {
-    writeMatrixBulkOrChunks(sheet, 8, 2, [["runScrapVarianceQuery"]], WRITE_CHUNK_ROWS);
+    writeMatrixBulkOrChunks(sheet, 8, 2, [[RUN_QUERY_FUNCTION_NAME]], WRITE_CHUNK_ROWS);
   }
 
   return sheet;

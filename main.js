@@ -326,16 +326,15 @@ safeChunkRows){const chunk=values.slice(rowOffset,rowOffset+safeChunkRows);const
 startRow+rowOffset,startCol,chunk.length,chunkWidth);try{assignRangeValue(sheet.Range(chunkAddress),chunk)}catch(chunkWriteError){const chunkNumber=Math.floor(rowOffset/
 safeChunkRows)+1;throw new Error(`\u6574\u5757\u5199\u5165\u5931\u8D25\uFF1A${address}\uFF1B${errorMessage3(fullWriteError)}\u3002\u5206\u5757\u5199\u5165\u5931\u8D25\uFF1A\u7B2C ${chunkNumber}\
  \u5757 ${chunkAddress}\uFF1B${errorMessage3(chunkWriteError)}`)}}}}function clearQueryOutput(sheet){clearRange(sheet,`A9:S${MAX_OUTPUT_CLEAR_ROW}`)}function clearPrecheckOutput(sheet){
-clearRange(sheet,`A1:H${MAX_PRECHECK_CLEAR_ROW}`)}function clearDiagnosticsOutput(sheet){clearRange(sheet,`A1:G${MAX_DIAGNOSTICS_CLEAR_ROW}`)}function readRangeText(sheet,address){var _a;const range=sheet.Range(address);return normalizeText((_a=range.Value2)!=null?_a:range.Value)}function setupQueryPanel(root2){
-const sheet=ensureSheet(SHEET_NAMES.panel,root2);writeMatrixBulkOrChunks(sheet,1,1,[["\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2"],["\u516C\u53F8\u7B80\u79F0"],["\u4E00\u7EA7\u90E8\u95E8"],
-["\u4E8C\u7EA7\u90E8\u95E8"],["\u5F00\u59CB\u65E5\u671F"],["\u7ED3\u675F\u65E5\u671F"],["\u67E5\u8BE2\u65B9\u5411"],["\u8FD0\u884C\u51FD\u6570"]],WRITE_CHUNK_ROWS);
-if(readRangeText(sheet,"B7")===""){writeMatrixBulkOrChunks(sheet,7,2,[[DEFAULT_QUERY_DIRECTION],["runScrapVarianceQuery"]],WRITE_CHUNK_ROWS)}else{writeMatrixBulkOrChunks(
-sheet,8,2,[["runScrapVarianceQuery"]],WRITE_CHUNK_ROWS)}return sheet}function errorMessage4(error){return error instanceof Error?error.message:String(error)}function readRangeValue(range){if(range.Value2!==void 0){return range.Value2}
+clearRange(sheet,`A1:H${MAX_PRECHECK_CLEAR_ROW}`)}function clearDiagnosticsOutput(sheet){clearRange(sheet,`A1:G${MAX_DIAGNOSTICS_CLEAR_ROW}`)}var RUN_QUERY_FUNCTION_NAME="runScrapVarianceQuery";function readRangeText(sheet,address){var _a;const range=sheet.Range(address);return normalizeText((_a=range.
+Value2)!=null?_a:range.Value)}function setupQueryPanel(root2){const sheet=ensureSheet(SHEET_NAMES.panel,root2);writeMatrixBulkOrChunks(sheet,1,1,[["\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2"],
+["\u516C\u53F8\u7B80\u79F0"],["\u4E00\u7EA7\u90E8\u95E8"],["\u4E8C\u7EA7\u90E8\u95E8"],["\u5F00\u59CB\u65E5\u671F"],["\u7ED3\u675F\u65E5\u671F"],["\u67E5\u8BE2\u65B9\u5411"],
+["\u8FD0\u884C\u51FD\u6570"]],WRITE_CHUNK_ROWS);const existingDirection=readRangeText(sheet,"B7");if(existingDirection===""||existingDirection===RUN_QUERY_FUNCTION_NAME){
+writeMatrixBulkOrChunks(sheet,7,2,[[DEFAULT_QUERY_DIRECTION],[RUN_QUERY_FUNCTION_NAME]],WRITE_CHUNK_ROWS)}else{writeMatrixBulkOrChunks(sheet,8,2,[[RUN_QUERY_FUNCTION_NAME]],
+WRITE_CHUNK_ROWS)}return sheet}function errorMessage4(error){return error instanceof Error?error.message:String(error)}function readRangeValue(range){if(range.Value2!==void 0){return range.Value2}
 return range.Value}function normalizePanelDateValue(value){if(value===null||value===void 0||value===0||normalizeText(value)===""){return""}return value}function panelFilterValues(rawValue){
-return normalizeMatrix(rawValue).flat().slice(0,6)}function readPanelFilters(panelRange){const values=panelFilterValues(readRangeValue(panelRange));return parseFilters(
-{company:values[0],dept1:values[1],dept2:values[2],startDate:normalizePanelDateValue(values[3]),endDate:normalizePanelDateValue(values[4])})}function readPanelQueryInput(panelRange){
-const values=panelFilterValues(readRangeValue(panelRange));return{filters:parseFilters({company:values[0],dept1:values[1],dept2:values[2],startDate:normalizePanelDateValue(
-values[3]),endDate:normalizePanelDateValue(values[4])}),queryDirection:parseQueryDirection(values[5])}}function assertQueryOutputLimit(summaryRowCount,detailRowCount){
+return normalizeMatrix(rawValue).flat().slice(0,6)}function readPanelQueryInput(panelRange){const values=panelFilterValues(readRangeValue(panelRange));return{filters:parseFilters({company:values[0],dept1:values[1],
+dept2:values[2],startDate:normalizePanelDateValue(values[3]),endDate:normalizePanelDateValue(values[4])}),queryDirection:parseQueryDirection(values[5])}}function assertQueryOutputLimit(summaryRowCount,detailRowCount){
 const plannedRows=1+summaryRowCount+1+detailRowCount;const lastOutputRow=9+plannedRows-1;if(lastOutputRow>MAX_OUTPUT_CLEAR_ROW){throw new Error(`\u67E5\u8BE2\u7ED3\u679C\u9700\u8981\u5199\u5230\u7B2C ${lastOutputRow}\
  \u884C\uFF0C\u8D85\u8FC7\u5F53\u524D\u6E05\u7406\u4E0A\u9650 MAX_OUTPUT_CLEAR_ROW=${MAX_OUTPUT_CLEAR_ROW}\u3002\u8BF7\u8C03\u6574 MAX_OUTPUT_CLEAR_ROW \u540E\u91CD\u65B0\u8FD0\u884C\u3002`)}}
 function safeWriteQueryError(message,root2){try{const panel=setupQueryPanel(root2);clearQueryOutput(panel);writeMatrixBulkOrChunks(panel,9,1,[["\u9519\u8BEF",message]],
@@ -355,20 +354,20 @@ clearDiagnosticsOutput(sheet);writeMatrixBulkOrChunks(sheet,1,1,rows,WRITE_CHUNK
 performanceDiagnostics,root2);writeDiagnosticsRows(sheet,[[...DIAGNOSTICS_HEADERS],["\u9519\u8BEF","performance_diagnostics",NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,
 NOT_APPLICABLE,message]])}function runPerformanceDiagnostics(root2){try{const diagnosticsSheet=ensureSheet(SHEET_NAMES.performanceDiagnostics,root2);const metrics=createMetricsRecorder(
 root2!=null?root2:globalThis);const capabilities=probeRuntimeCapabilities(root2!=null?root2:globalThis,globalThis);const panel=getSheetByName(SHEET_NAMES.panel,
-root2);const oaSheet=getSheetByName(SHEET_NAMES.oa,root2);const erpSheet=getSheetByName(SHEET_NAMES.erp,root2);const filters=metrics.measure("read_filters",{inputRows:5,
-outputRows:5},()=>readPanelFilters(panel.Range("B2:B6")));const oaUsedRange=metrics.measure("read_oa_used_range",{outputRows:value=>value.matrix.length},()=>readUsedRangeMatrix(
-oaSheet));const oaTable=metrics.measure("parse_oa_table",{inputRows:oaUsedRange.matrix.length,outputRows:value=>value.rows.length},()=>parseTableFromMatrix(oaUsedRange.
-matrix,[...OA_REQUIRED_HEADERS],{minMatchCount:MIN_OA_HEADER_MATCH_COUNT,maxScanRows:MAX_HEADER_SCAN_ROWS,usedRangeStartRow:oaUsedRange.usedRangeStartRow}));const erpUsedRange=metrics.
-measure("read_erp_used_range",{outputRows:value=>value.matrix.length},()=>readUsedRangeMatrix(erpSheet));const erpTable=metrics.measure("parse_erp_table",{inputRows:erpUsedRange.
-matrix.length,outputRows:value=>value.rows.length},()=>parseTableFromMatrix(erpUsedRange.matrix,[...ERP_REQUIRED_HEADERS],{minMatchCount:MIN_ERP_HEADER_MATCH_COUNT,
-maxScanRows:MAX_HEADER_SCAN_ROWS,usedRangeStartRow:erpUsedRange.usedRangeStartRow}));const result=runQueryCorePipeline(oaTable.rows,erpTable.rows,filters,metrics);
-const rows=[[...DIAGNOSTICS_HEADERS],...capabilityRows(capabilities),...metricRows(metrics.stages),["\u7ED3\u679C\u89C4\u6A21","result_rows",oaTable.rows.length+
-erpTable.rows.length,result.detailRows.length+result.summaryRows.length,NOT_APPLICABLE,NOT_APPLICABLE,`OA\u805A\u5408=${result.oaGroupedRows.size}\uFF1BERP\u5339\u914D\u805A\u5408=${result.
-erpRowsForOa.size}\uFF1BERP-only\u805A\u5408=${result.erpOnlyRows.size}`]];const writeStageRow=rows.length+1;metrics.measure("write_diagnostics_sheet",{inputRows:rows.
-length,outputRows:rows.length},()=>{writeDiagnosticsRows(diagnosticsSheet,rows);return rows.length});const writeStage=metrics.stages[metrics.stages.length-1];if(writeStage){
-writeMatrixBulkOrChunks(diagnosticsSheet,writeStageRow,1,metricRows([writeStage]),WRITE_CHUNK_ROWS)}}catch(error){const originalMessage=errorMessage5(error);try{
-writeDiagnosticsError(root2,originalMessage)}catch(writeError){throw new Error(`\u6027\u80FD\u8BCA\u65AD\u5931\u8D25\uFF1A${originalMessage}; \u9519\u8BEF\u4FE1\u606F\u5199\u5165\u4E5F\u5931\u8D25\uFF1A${errorMessage5(
-writeError)}`)}}}var PRECHECK_RESULT_HEADERS=["\u7EA7\u522B","\u6570\u636E\u6E90","\u884C\u53F7","\u5B57\u6BB5\u540D","\u539F\u503C","\u95EE\u9898\u7C7B\u578B","\u539F\u56E0","\u5904\
+root2);const oaSheet=getSheetByName(SHEET_NAMES.oa,root2);const erpSheet=getSheetByName(SHEET_NAMES.erp,root2);const queryInput=metrics.measure("read_filters",{
+inputRows:6,outputRows:6},()=>readPanelQueryInput(panel.Range("B2:B7")));const oaUsedRange=metrics.measure("read_oa_used_range",{outputRows:value=>value.matrix.
+length},()=>readUsedRangeMatrix(oaSheet));const oaTable=metrics.measure("parse_oa_table",{inputRows:oaUsedRange.matrix.length,outputRows:value=>value.rows.length},
+()=>parseTableFromMatrix(oaUsedRange.matrix,[...OA_REQUIRED_HEADERS],{minMatchCount:MIN_OA_HEADER_MATCH_COUNT,maxScanRows:MAX_HEADER_SCAN_ROWS,usedRangeStartRow:oaUsedRange.
+usedRangeStartRow}));const erpUsedRange=metrics.measure("read_erp_used_range",{outputRows:value=>value.matrix.length},()=>readUsedRangeMatrix(erpSheet));const erpTable=metrics.
+measure("parse_erp_table",{inputRows:erpUsedRange.matrix.length,outputRows:value=>value.rows.length},()=>parseTableFromMatrix(erpUsedRange.matrix,[...ERP_REQUIRED_HEADERS],
+{minMatchCount:MIN_ERP_HEADER_MATCH_COUNT,maxScanRows:MAX_HEADER_SCAN_ROWS,usedRangeStartRow:erpUsedRange.usedRangeStartRow}));const result=runQueryCorePipeline(
+oaTable.rows,erpTable.rows,queryInput.filters,metrics,queryInput.queryDirection);const rows=[[...DIAGNOSTICS_HEADERS],...capabilityRows(capabilities),...metricRows(
+metrics.stages),["\u7ED3\u679C\u89C4\u6A21","result_rows",oaTable.rows.length+erpTable.rows.length,result.detailRows.length+result.summaryRows.length,NOT_APPLICABLE,
+NOT_APPLICABLE,`OA\u805A\u5408=${result.oaGroupedRows.size}\uFF1BERP\u5339\u914D\u805A\u5408=${result.erpRowsForOa.size}\uFF1BERP-only\u805A\u5408=${result.erpOnlyRows.
+size}`]];const writeStageRow=rows.length+1;metrics.measure("write_diagnostics_sheet",{inputRows:rows.length,outputRows:rows.length},()=>{writeDiagnosticsRows(diagnosticsSheet,
+rows);return rows.length});const writeStage=metrics.stages[metrics.stages.length-1];if(writeStage){writeMatrixBulkOrChunks(diagnosticsSheet,writeStageRow,1,metricRows(
+[writeStage]),WRITE_CHUNK_ROWS)}}catch(error){const originalMessage=errorMessage5(error);try{writeDiagnosticsError(root2,originalMessage)}catch(writeError){throw new Error(
+`\u6027\u80FD\u8BCA\u65AD\u5931\u8D25\uFF1A${originalMessage}; \u9519\u8BEF\u4FE1\u606F\u5199\u5165\u4E5F\u5931\u8D25\uFF1A${errorMessage5(writeError)}`)}}}var PRECHECK_RESULT_HEADERS=["\u7EA7\u522B","\u6570\u636E\u6E90","\u884C\u53F7","\u5B57\u6BB5\u540D","\u539F\u503C","\u95EE\u9898\u7C7B\u578B","\u539F\u56E0","\u5904\
 \u7406\u5EFA\u8BAE"];function getRows(table){var _a;return(_a=table==null?void 0:table.rows)!=null?_a:[]}function hasHeader(table,fieldName){var _a;return((_a=table==
 null?void 0:table.headers)!=null?_a:[]).some(header=>normalizeText(header)===fieldName)}function findMissingHeaders(table,requiredHeaders){var _a;const headerSet=new Set(
 ((_a=table==null?void 0:table.headers)!=null?_a:[]).map(header=>normalizeText(header)).filter(Boolean));return requiredHeaders.filter(header=>!headerSet.has(header))}

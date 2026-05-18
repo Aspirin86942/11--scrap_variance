@@ -18,7 +18,7 @@ import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
 import { readUsedRangeMatrix } from "../wps-api/read-sheet-data";
 import { ensureSheet, getSheetByName } from "../wps-api/workbook";
 import { clearDiagnosticsOutput, writeMatrixBulkOrChunks } from "../wps-api/write-results";
-import { readPanelFilters } from "./scrap-variance-query";
+import { readPanelQueryInput } from "./scrap-variance-query";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -78,8 +78,8 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
     const oaSheet = getSheetByName(SHEET_NAMES.oa, root);
     const erpSheet = getSheetByName(SHEET_NAMES.erp, root);
 
-    const filters = metrics.measure("read_filters", { inputRows: 5, outputRows: 5 }, () =>
-      readPanelFilters(panel.Range("B2:B6"))
+    const queryInput = metrics.measure("read_filters", { inputRows: 6, outputRows: 6 }, () =>
+      readPanelQueryInput(panel.Range("B2:B7"))
     );
     const oaUsedRange = metrics.measure("read_oa_used_range", { outputRows: (value) => value.matrix.length }, () =>
       readUsedRangeMatrix(oaSheet)
@@ -108,7 +108,13 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
         })
     );
 
-    const result = runQueryCorePipeline(oaTable.rows, erpTable.rows, filters, metrics);
+    const result = runQueryCorePipeline(
+      oaTable.rows,
+      erpTable.rows,
+      queryInput.filters,
+      metrics,
+      queryInput.queryDirection
+    );
     const rows: OutputMatrix = [
       [...DIAGNOSTICS_HEADERS],
       ...capabilityRows(capabilities),

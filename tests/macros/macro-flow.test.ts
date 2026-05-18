@@ -95,6 +95,34 @@ describe("TypeScript macro orchestration", () => {
     expect(panelSheet.writes.map((write) => write.address)).not.toContain("B7:B8");
   });
 
+  it("setupQueryPanel migrates old B7 run function to the default query direction", () => {
+    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    panelSheet.rangeValues.set("B2:B7", [
+      ["数控"],
+      ["生产"],
+      ["仓储"],
+      ["2026/5/1"],
+      ["2026/5/31"],
+      ["runScrapVarianceQuery"]
+    ]);
+    const root = makeRoot([panelSheet]);
+
+    setupQueryPanel(root);
+
+    expect(panelSheet.Range("B2:B7").Value2).toEqual([
+      ["数控"],
+      ["生产"],
+      ["仓储"],
+      ["2026/5/1"],
+      ["2026/5/31"],
+      ["OA金蝶单号查ERP"]
+    ]);
+    expect(panelSheet.writes).toContainEqual({
+      address: "B7:B8",
+      value: [["OA金蝶单号查ERP"], ["runScrapVarianceQuery"]]
+    });
+  });
+
   it("runScrapVariancePrecheck detects OA headers below UsedRange row 1 and writes no-issue status", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [
       ["导出条件"],
@@ -316,6 +344,45 @@ describe("TypeScript macro orchestration", () => {
     const initialRowCount = (initialWrite.value as OutputMatrix).length;
     expect(initialWrite.address).toBe(`A1:G${initialRowCount}`);
     expect(writeStageAppend.address).toBe(`A${initialRowCount + 1}:G${initialRowCount + 1}`);
+  });
+
+  it("runPerformanceDiagnostics uses the selected ERP source query direction", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [
+      [...OA_REQUIRED_HEADERS],
+      ["F1", "OUT1", "2026/4/1", "其他公司", "其他部门", "其他二级", "MAT-A", "物料A", 1, 10]
+    ]);
+    const erpSheet = createFakeSheet(SHEET_NAMES.erp, [
+      [...ERP_REQUIRED_HEADERS],
+      ["OUT1", "2026/5/2", "F1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
+    ]);
+    const panelSheet = createFakeSheet(SHEET_NAMES.panel);
+    panelSheet.rangeValues.set("B2:B7", [["数控"], ["生产"], ["仓储"], ["2026/5/1"], ["2026/5/31"], ["ERP源单查OA"]]);
+    const root = makeRoot([oaSheet, erpSheet, panelSheet]);
+
+    runPerformanceDiagnostics(root);
+
+    const diagnosticsSheet = getSheet(root, 4) as FakeSheet;
+    const output = flattenWrites(diagnosticsSheet);
+    const initialWrite = diagnosticsSheet.writes[0];
+    if (!initialWrite || !Array.isArray(initialWrite.value)) {
+      throw new Error("missing diagnostics writes");
+    }
+    const initialRows = initialWrite.value as OutputMatrix;
+    const readFiltersRow = initialRows.find((row) => row[0] === "阶段耗时" && row[1] === "read_filters");
+
+    expect(output).toContain("build_erp_rows_by_erp_filters");
+    expect(output).not.toContain("build_erp_rows_for_oa");
+    expect(readFiltersRow?.[2]).toBe(6);
+    expect(readFiltersRow?.[3]).toBe(6);
+    expect(initialRows).toContainEqual([
+      "结果规模",
+      "result_rows",
+      2,
+      2,
+      "不适用",
+      "不适用",
+      "OA聚合=1；ERP匹配聚合=1；ERP-only聚合=0"
+    ]);
   });
 
   it("runPerformanceDiagnostics writes an error row when diagnostics fails", () => {
