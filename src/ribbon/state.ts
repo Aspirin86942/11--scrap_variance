@@ -13,19 +13,18 @@ export const DEFAULT_RIBBON_STATE: RibbonQueryState = {
   queryDirection: DEFAULT_QUERY_DIRECTION
 };
 
-const RIBBON_STATE_KEYS = new Set<keyof RibbonQueryState>([
-  "company",
-  "dept1",
-  "dept2",
-  "startDate",
-  "endDate",
-  "queryDirection"
-]);
+const RIBBON_STATE_KEYS = new Set(Object.keys(DEFAULT_RIBBON_STATE));
 
 export function getRibbonState(root: ScrapVarianceGlobal = globalThis as ScrapVarianceGlobal): RibbonQueryState {
+  const state = root.ScrapVarianceRibbonState ?? {};
+
   return {
-    ...DEFAULT_RIBBON_STATE,
-    ...(root.ScrapVarianceRibbonState ?? {})
+    company: normalizeText(state.company),
+    dept1: normalizeText(state.dept1),
+    dept2: normalizeText(state.dept2),
+    startDate: normalizeText(state.startDate),
+    endDate: normalizeText(state.endDate),
+    queryDirection: parseQueryDirection(state.queryDirection)
   };
 }
 
@@ -34,7 +33,7 @@ export function updateRibbonState(
   key: string,
   value: unknown
 ): void {
-  if (!RIBBON_STATE_KEYS.has(key as keyof RibbonQueryState)) {
+  if (!RIBBON_STATE_KEYS.has(key)) {
     throw new Error(`未知功能区输入项：${key}`);
   }
 
