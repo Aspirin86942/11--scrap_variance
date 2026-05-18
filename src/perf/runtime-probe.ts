@@ -1,3 +1,5 @@
+import { getMemorySample } from "./memory";
+
 export interface RuntimeCapability {
   name: string;
   supported: boolean;
@@ -17,9 +19,6 @@ interface RuntimeProbeRoot {
   setTimeout?: unknown;
   Promise?: unknown;
   Worker?: unknown;
-  process?: {
-    memoryUsage?: unknown;
-  };
 }
 
 function capability(name: string, supported: boolean): RuntimeCapability {
@@ -34,17 +33,8 @@ function hasFunction(rootValue: unknown, fallbackValue: unknown): boolean {
   return typeof rootValue === "function" || typeof fallbackValue === "function";
 }
 
-function isFiniteNumber(value: unknown): value is number {
-  return typeof value === "number" && Number.isFinite(value);
-}
-
-function hasMemoryApi(...roots: RuntimeProbeRoot[]): boolean {
-  return roots.some((root) => {
-    if (typeof root.process?.memoryUsage === "function") {
-      return true;
-    }
-    return isFiniteNumber(root.performance?.memory?.usedJSHeapSize);
-  });
+function hasMemoryApi(...roots: unknown[]): boolean {
+  return roots.some((root) => getMemorySample(root).available);
 }
 
 export function probeRuntimeCapabilities(root: unknown = globalThis, fallbackRoot: unknown = globalThis): RuntimeCapability[] {

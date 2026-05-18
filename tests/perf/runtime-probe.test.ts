@@ -67,4 +67,76 @@ describe("runtime capability probe", () => {
 
     expect(capabilities).toContainEqual({ name: "memory_api", supported: false, note: "不支持" });
   });
+
+  it("reports memory_api unsupported when process memory throws and no performance memory exists", () => {
+    const capabilities = probeRuntimeCapabilities(
+      {
+        process: {
+          memoryUsage: () => {
+            throw new Error("memory unavailable");
+          }
+        }
+      },
+      {}
+    );
+
+    expect(capabilities).toContainEqual({ name: "memory_api", supported: false, note: "不支持" });
+  });
+
+  it.each([
+    ["heapUsed", { heapUsed: Number.NaN, rss: 2 }],
+    ["rss", { heapUsed: 1, rss: Number.POSITIVE_INFINITY }]
+  ])("reports memory_api unsupported when process memory returns invalid %s", (_field, memoryUsage) => {
+    const capabilities = probeRuntimeCapabilities(
+      {
+        process: {
+          memoryUsage: () => memoryUsage
+        }
+      },
+      {}
+    );
+
+    expect(capabilities).toContainEqual({ name: "memory_api", supported: false, note: "不支持" });
+  });
+
+  it("reports memory_api supported when process memory throws but performance memory is reliable", () => {
+    const capabilities = probeRuntimeCapabilities(
+      {
+        performance: {
+          memory: {
+            usedJSHeapSize: 3
+          }
+        },
+        process: {
+          memoryUsage: () => {
+            throw new Error("memory unavailable");
+          }
+        }
+      },
+      {}
+    );
+
+    expect(capabilities).toContainEqual({ name: "memory_api", supported: true, note: "支持" });
+  });
+
+  it("reports memory_api supported when process memory is invalid but performance memory is reliable", () => {
+    const capabilities = probeRuntimeCapabilities(
+      {
+        performance: {
+          memory: {
+            usedJSHeapSize: 4
+          }
+        },
+        process: {
+          memoryUsage: () => ({
+            heapUsed: "1",
+            rss: 2
+          })
+        }
+      },
+      {}
+    );
+
+    expect(capabilities).toContainEqual({ name: "memory_api", supported: true, note: "支持" });
+  });
 });

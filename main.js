@@ -257,13 +257,11 @@ matrix.length;rowIndex+=1){const rawRow=(_a=matrix[rowIndex])!=null?_a:[];const 
 for(let colIndex=0;colIndex<headerResult.headers.length;colIndex+=1){const header=normalizeText(headerResult.headers[colIndex]);if(!header){continue}const value=rawRow[colIndex];
 row[header]=value;if(!isBlankValue(value)){hasValue=true}}if(hasValue){rows.push(row)}}return{headers:headerResult.headers,rows,headerRowNumber:headerResult.headerRowNumber,
 columnIndex:headerResult.columnIndex,matrix}}function capability(name,supported){return{name,supported,note:supported?"\u652F\u6301":"\u4E0D\u652F\u6301"}}function hasFunction(rootValue,fallbackValue){return typeof rootValue===
-"function"||typeof fallbackValue==="function"}function isFiniteNumber2(value){return typeof value==="number"&&Number.isFinite(value)}function hasMemoryApi(...roots){
-return roots.some(root2=>{var _a,_b,_c;if(typeof((_a=root2.process)==null?void 0:_a.memoryUsage)==="function"){return true}return isFiniteNumber2((_c=(_b=root2.
-performance)==null?void 0:_b.memory)==null?void 0:_c.usedJSHeapSize)})}function probeRuntimeCapabilities(root2=globalThis,fallbackRoot=globalThis){var _a,_b,_c,
-_d;const runtime=root2;const fallbackRuntime=fallbackRoot;return[capability("performance.now",hasFunction((_a=runtime.performance)==null?void 0:_a.now,(_b=fallbackRuntime.
-performance)==null?void 0:_b.now)),capability("console.log",hasFunction((_c=runtime.console)==null?void 0:_c.log,(_d=fallbackRuntime.console)==null?void 0:_d.log)),
-capability("setTimeout",hasFunction(runtime.setTimeout,fallbackRuntime.setTimeout)),capability("Promise",hasFunction(runtime.Promise,fallbackRuntime.Promise)),capability(
-"Worker",hasFunction(runtime.Worker,fallbackRuntime.Worker)),capability("memory_api",hasMemoryApi(runtime,fallbackRuntime))]}function isArray(value){return Object.prototype.toString.call(value)==="[object Array]"}function isNumericKey(key){return/^\d+$/.test(key)}function sortedNumericKeys(value){
+"function"||typeof fallbackValue==="function"}function hasMemoryApi(...roots){return roots.some(root2=>getMemorySample(root2).available)}function probeRuntimeCapabilities(root2=globalThis,fallbackRoot=globalThis){
+var _a,_b,_c,_d;const runtime=root2;const fallbackRuntime=fallbackRoot;return[capability("performance.now",hasFunction((_a=runtime.performance)==null?void 0:_a.
+now,(_b=fallbackRuntime.performance)==null?void 0:_b.now)),capability("console.log",hasFunction((_c=runtime.console)==null?void 0:_c.log,(_d=fallbackRuntime.console)==
+null?void 0:_d.log)),capability("setTimeout",hasFunction(runtime.setTimeout,fallbackRuntime.setTimeout)),capability("Promise",hasFunction(runtime.Promise,fallbackRuntime.
+Promise)),capability("Worker",hasFunction(runtime.Worker,fallbackRuntime.Worker)),capability("memory_api",hasMemoryApi(runtime,fallbackRuntime))]}function isArray(value){return Object.prototype.toString.call(value)==="[object Array]"}function isNumericKey(key){return/^\d+$/.test(key)}function sortedNumericKeys(value){
 return Object.keys(value).filter(isNumericKey).map(Number).sort((left,right)=>left-right)}function numericObjectToArray(value){const keys=sortedNumericKeys(value);
 if(keys.length===0){return null}const offset=keys[0]===0?0:1;const result=[];for(const key of keys){result[key-offset]=value[String(key)]}return result}function numericObjectToMatrix(value){
 const rowKeys=sortedNumericKeys(value);if(rowKeys.length===0){return null}const firstRow=value[String(rowKeys[0])];if(firstRow&&typeof firstRow==="object"&&(isArray(
