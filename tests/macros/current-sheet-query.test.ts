@@ -302,6 +302,52 @@ describe("current sheet query macro", () => {
     });
   });
 
+  it("toggleMaterialRows inserts material rows below the selected ERP summary row", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31"
+    };
+    setActiveSheet(root, erpCompareSheet);
+    root.Application!.Selection = { Row: 2 };
+    runCurrentSheetQuery(root);
+
+    toggleMaterialRows(root);
+
+    expect(erpCompareSheet.rowInserts).toEqual([{ afterRow: 2, rowCount: 1 }]);
+    expect(visibleWrites(erpCompareSheet)).toContainEqual({
+      address: "A3:P3",
+      value: [
+        [
+          "物料",
+          "数控",
+          "生产",
+          "仓储",
+          "2026-05-02",
+          "ERP-778",
+          9,
+          91,
+          "OA-001",
+          10,
+          100,
+          -1,
+          -9,
+          "MAT-A",
+          "物料A",
+          ""
+        ]
+      ]
+    });
+  });
+
   it("toggleMaterialRows deletes continuous material rows when the selected summary is expanded", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
@@ -336,5 +382,25 @@ describe("current sheet query macro", () => {
     expect(oaSheet.clears).toEqual([]);
     expect(erpSheet.writes).toEqual([]);
     expect(erpSheet.clears).toEqual([]);
+  });
+
+  it("toggleMaterialRows rejects non-summary selections without clearing existing output", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    setActiveSheet(root, oaCompareSheet);
+    root.Application!.Selection = { Row: 1 };
+    runCurrentSheetQuery(root);
+    const writesBefore = [...oaCompareSheet.writes];
+
+    expect(() => toggleMaterialRows(root)).toThrow("请选中行类型为 汇总 的单据行。");
+
+    expect(oaCompareSheet.clears).toEqual([]);
+    expect(oaCompareSheet.rowInserts).toEqual([]);
+    expect(oaCompareSheet.rowDeletes).toEqual([]);
+    expect(oaCompareSheet.writes).toEqual(writesBefore);
   });
 });

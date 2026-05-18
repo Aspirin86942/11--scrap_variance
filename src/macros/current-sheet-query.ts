@@ -183,49 +183,44 @@ export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
     throw new Error(unsupportedOutputSheetMessage());
   }
   if (kind === "legacy_detail") {
-    safeWriteCurrentSheetError(activeSheet, kind, "当前工作表不支持展开物料。");
+    throw new Error("当前工作表不支持展开物料。");
+  }
+
+  const selectedRow = getSelectedRowNumber(root);
+  if (readCellText(activeSheet, selectedRow, "A") !== "汇总") {
+    throw new Error("请选中行类型为 汇总 的单据行。");
+  }
+
+  const existingMaterialRows = countMaterialRowsBelow(activeSheet, selectedRow);
+  if (existingMaterialRows > 0) {
+    deleteRows(activeSheet, selectedRow + 1, existingMaterialRows);
+    adjustOutputMetadataRows(activeSheet, -existingMaterialRows);
     return;
   }
 
-  try {
-    const selectedRow = getSelectedRowNumber(root);
-    if (readCellText(activeSheet, selectedRow, "A") !== "汇总") {
-      throw new Error("请选中行类型为 汇总 的单据行。");
-    }
-
-    const existingMaterialRows = countMaterialRowsBelow(activeSheet, selectedRow);
-    if (existingMaterialRows > 0) {
-      deleteRows(activeSheet, selectedRow + 1, existingMaterialRows);
-      adjustOutputMetadataRows(activeSheet, -existingMaterialRows);
-      return;
-    }
-
-    const filters = readRibbonFilters(root);
-    const { oaRows, erpRows } = readSourceRows(root);
-    const result = kind === "oa_doc_compare"
-      ? buildOaDocCompare(oaRows, erpRows, filters)
-      : buildErpDocCompare(oaRows, erpRows, filters);
-    const selectedDocNumber = readCellText(activeSheet, selectedRow, "F");
-    const summaryRow = result.summaryRows.find((row) => row.primaryDocNumber === selectedDocNumber);
-    if (!summaryRow) {
-      throw new Error(`找不到可展开的单据：${selectedDocNumber}`);
-    }
-
-    const materialRows = buildMaterialRowsForDocSummary(result, summaryRow);
-    if (materialRows.length === 0) {
-      throw new Error(`当前单据没有可展开物料：${selectedDocNumber}`);
-    }
-
-    insertRowsBelow(activeSheet, selectedRow, materialRows.length);
-    writeMatrixBulkOrChunks(
-      activeSheet,
-      selectedRow + 1,
-      1,
-      docCompareRowsToValues(kind, materialRows).slice(1),
-      WRITE_CHUNK_ROWS
-    );
-    adjustOutputMetadataRows(activeSheet, materialRows.length);
-  } catch (error) {
-    safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error));
+  const filters = readRibbonFilters(root);
+  const { oaRows, erpRows } = readSourceRows(root);
+  const result = kind === "oa_doc_compare"
+    ? buildOaDocCompare(oaRows, erpRows, filters)
+    : buildErpDocCompare(oaRows, erpRows, filters);
+  const selectedDocNumber = readCellText(activeSheet, selectedRow, "F");
+  const summaryRow = result.summaryRows.find((row) => row.primaryDocNumber === selectedDocNumber);
+  if (!summaryRow) {
+    throw new Error(`找不到可展开的单据：${selectedDocNumber}`);
   }
+
+  const materialRows = buildMaterialRowsForDocSummary(result, summaryRow);
+  if (materialRows.length === 0) {
+    throw new Error(`当前单据没有可展开物料：${selectedDocNumber}`);
+  }
+
+  insertRowsBelow(activeSheet, selectedRow, materialRows.length);
+  writeMatrixBulkOrChunks(
+    activeSheet,
+    selectedRow + 1,
+    1,
+    docCompareRowsToValues(kind, materialRows).slice(1),
+    WRITE_CHUNK_ROWS
+  );
+  adjustOutputMetadataRows(activeSheet, materialRows.length);
 }

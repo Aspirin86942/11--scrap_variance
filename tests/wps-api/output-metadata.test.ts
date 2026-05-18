@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 import type { WpsSheet } from "../../src/types/wps";
-import { saveOutputMetadata, readOutputMetadata, clearPreviousToolOutput } from "../../src/wps-api/output-metadata";
+import {
+  adjustOutputMetadataRows,
+  saveOutputMetadata,
+  readOutputMetadata,
+  clearPreviousToolOutput
+} from "../../src/wps-api/output-metadata";
 import { createFakeSheet } from "./fakes";
 
 describe("output metadata", () => {
@@ -65,5 +70,28 @@ describe("output metadata", () => {
     expect(invalidKind.clears).toEqual([]);
     expect(invalidAddress.clears).toEqual([]);
     expect(invalidShape.clears).toEqual([]);
+  });
+
+  it("adjusts recorded output range rows without crossing the start row", () => {
+    const sheet = createFakeSheet("OA视角单据对比");
+    saveOutputMetadata(sheet, { kind: "oa_doc_compare", rangeAddress: "A1:P3" });
+
+    adjustOutputMetadataRows(sheet, 2);
+    expect(readOutputMetadata(sheet)).toEqual({ kind: "oa_doc_compare", rangeAddress: "A1:P5" });
+
+    adjustOutputMetadataRows(sheet, -10);
+    expect(readOutputMetadata(sheet)).toEqual({ kind: "oa_doc_compare", rangeAddress: "A1:P1" });
+  });
+
+  it("does not adjust missing or invalid output metadata", () => {
+    const missing = createFakeSheet("OA视角单据对比");
+    const invalid = createFakeSheet("OA视角单据对比");
+    invalid.rangeValues.set("CB1:CC1", [["oa_doc_compare", "1:1048576"]]);
+
+    adjustOutputMetadataRows(missing, 1);
+    adjustOutputMetadataRows(invalid, 1);
+
+    expect(missing.writes).toEqual([]);
+    expect(invalid.writes).toEqual([]);
   });
 });
