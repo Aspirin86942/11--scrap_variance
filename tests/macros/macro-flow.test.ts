@@ -37,7 +37,7 @@ function precheckIssueRows(sheet: FakeSheet): OutputMatrix {
 }
 
 function validOaRow(): Array<string | number> {
-  return ["F1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10];
+  return ["F1", "OUT1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10];
 }
 
 function validErpRow(): Array<string | number> {
@@ -122,7 +122,7 @@ describe("TypeScript macro orchestration", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [
       [...OA_REQUIRED_HEADERS],
       validOaRow(),
-      ["F2", "2026/5/1", "装备", "生产", "仓储", "MAT-B", "物料B", 1, 10]
+      ["F2", "OUT2", "2026/5/1", "装备", "生产", "仓储", "MAT-B", "物料B", 1, 10]
     ]);
     const erpSheet = createFakeSheet(SHEET_NAMES.erp, [
       [...ERP_REQUIRED_HEADERS],

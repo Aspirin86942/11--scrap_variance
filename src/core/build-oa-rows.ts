@@ -75,6 +75,7 @@ export function buildOaRows(
     }
 
     const formNumber = normalizeText(row["表单编号"]);
+    const kingdeeDocNumber = normalizeText(row["金蝶云单据编号"]);
     const itemCode = normalizeText(row["物料代码"]);
     if (!formNumber || !itemCode) {
       continue;
@@ -86,6 +87,7 @@ export function buildOaRows(
       // 同一 OA 表单和物料保持一个聚合粒度，后续差异比较依赖这个稳定键。
       target = {
         formNumber,
+        kingdeeDocNumber,
         itemCode,
         itemName: normalizeText(row["物料名称"]),
         company: normalizeText(row["公司简称"]),
@@ -96,6 +98,9 @@ export function buildOaRows(
         amount: zeroDecimal()
       };
       result.set(key, target);
+    }
+    if (!target.kingdeeDocNumber && kingdeeDocNumber) {
+      target.kingdeeDocNumber = kingdeeDocNumber;
     }
 
     target.oaDate = appendUniqueJoinedText(target.oaDate, dateKey);
