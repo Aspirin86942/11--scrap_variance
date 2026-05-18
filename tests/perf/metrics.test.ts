@@ -1,0 +1,104 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { UNKNOWN_MEMORY, getMemorySample, memoryDeltaMb } from "../../src/perf/memory";
+import { createMetricsRecorder } from "../../src/perf/metrics";
+import { nowMs } from "../../src/perf/timer";
+
+describe("perf timer", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("uses performance.now when available", () => {
+    expect(nowMs({ performance: { now: () => 12.34 } })).toBe(12.34);
+  });
+
+  it("falls back to Date.now when performance.now is absent", () => {
+    vi.spyOn(Date, "now").mockReturnValue(1234);
+
+    expect(nowMs({})).toBe(1234);
+  });
+});
+
+describe("perf memory", () => {
+  it("samples Node process memory when available", () => {
+    const sample = getMemorySample({
+      process: {
+        memoryUsage: () => ({
+          heapUsed: 10 * 1024 * 1024,
+          rss: 20 * 1024 * 1024
+        })
+      }
+    });
+
+    expect(sample).toEqual({
+      available: true,
+      heapUsedMb: 10,
+      rssMb: 20
+    });
+  });
+
+  it("returns explicit unknown memory when process memory is unavailable", () => {
+    expect(getMemorySample({})).toEqual({
+      available: false,
+      heapUsedMb: UNKNOWN_MEMORY,
+      rssMb: UNKNOWN_MEMORY
+    });
+  });
+
+  it("calculates heap delta only when both samples are available", () => {
+    expect(
+      memoryDeltaMb(
+        { available: true, heapUsedMb: 10, rssMb: 20 },
+        { available: true, heapUsedMb: 13.456, rssMb: 22 }
+      )
+    ).toBe(3.46);
+    expect(
+      memoryDeltaMb(
+        { available: false, heapUsedMb: UNKNOWN_MEMORY, rssMb: UNKNOWN_MEMORY },
+        { available: true, heapUsedMb: 13, rssMb: 22 }
+      )
+    ).toBe(UNKNOWN_MEMORY);
+  });
+});
+
+describe("metrics recorder", () => {
+  it("records stage timing, memory, and row counts", () => {
+    let currentTime = 100;
+    let currentHeap = 5 * 1024 * 1024;
+    const root = {
+      performance: {
+        now: () => {
+          currentTime += 25;
+          return currentTime;
+        }
+      },
+      process: {
+        memoryUsage: () => {
+          currentHeap += 2 * 1024 * 1024;
+          return {
+            heapUsed: currentHeap,
+            rss: currentHeap + 10 * 1024 * 1024
+          };
+        }
+      }
+    };
+    const metrics = createMetricsRecorder(root);
+
+    const value = metrics.measure("stage_a", { inputRows: 3, outputRows: (rows: string[]) => rows.length }, () => [
+      "A",
+      "B"
+    ]);
+
+    expect(value).toEqual(["A", "B"]);
+    expect(metrics.stages).toHaveLength(1);
+    expect(metrics.stages[0]).toEqual(
+      expect.objectContaining({
+        name: "stage_a",
+        inputRows: 3,
+        outputRows: 2,
+        timeMs: 25,
+        heapDeltaMb: 2
+      })
+    );
+  });
+});
