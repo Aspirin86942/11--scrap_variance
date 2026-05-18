@@ -38,7 +38,7 @@ describe("perf memory", () => {
     });
   });
 
-  it("samples browser performance memory when process memory is unavailable", () => {
+  it("samples browser performance heap while keeping rss unknown", () => {
     const sample = getMemorySample({
       performance: {
         memory: {
@@ -52,11 +52,11 @@ describe("perf memory", () => {
       available: true,
       source: "performance.memory",
       heapUsedMb: 12,
-      rssMb: 48
+      rssMb: UNKNOWN_MEMORY
     });
   });
 
-  it("uses usedJSHeapSize as rss fallback when performance total heap is unavailable", () => {
+  it("does not use performance heap values as rss fallback", () => {
     const sample = getMemorySample({
       performance: {
         memory: {
@@ -69,7 +69,52 @@ describe("perf memory", () => {
       available: true,
       source: "performance.memory",
       heapUsedMb: 15,
-      rssMb: 15
+      rssMb: UNKNOWN_MEMORY
+    });
+  });
+
+  it("falls back to browser performance memory when process memory sampling throws", () => {
+    const sample = getMemorySample({
+      process: {
+        memoryUsage: () => {
+          throw new Error("memory unavailable");
+        }
+      },
+      performance: {
+        memory: {
+          usedJSHeapSize: 21 * 1024 * 1024
+        }
+      }
+    });
+
+    expect(sample).toEqual({
+      available: true,
+      source: "performance.memory",
+      heapUsedMb: 21,
+      rssMb: UNKNOWN_MEMORY
+    });
+  });
+
+  it("falls back to browser performance memory when process memory values are invalid", () => {
+    const sample = getMemorySample({
+      process: {
+        memoryUsage: () => ({
+          heapUsed: Number.NaN,
+          rss: 20 * 1024 * 1024
+        })
+      },
+      performance: {
+        memory: {
+          usedJSHeapSize: 22 * 1024 * 1024
+        }
+      }
+    });
+
+    expect(sample).toEqual({
+      available: true,
+      source: "performance.memory",
+      heapUsedMb: 22,
+      rssMb: UNKNOWN_MEMORY
     });
   });
 
@@ -84,8 +129,7 @@ describe("perf memory", () => {
       getMemorySample({
         performance: {
           memory: {
-            usedJSHeapSize: "12",
-            totalJSHeapSize: 48 * 1024 * 1024
+            usedJSHeapSize: "12"
           }
         }
       })
@@ -95,8 +139,7 @@ describe("perf memory", () => {
       getMemorySample({
         performance: {
           memory: {
-            usedJSHeapSize: Number.NaN,
-            totalJSHeapSize: 48 * 1024 * 1024
+            usedJSHeapSize: Number.NaN
           }
         }
       })
@@ -106,8 +149,7 @@ describe("perf memory", () => {
       getMemorySample({
         performance: {
           memory: {
-            usedJSHeapSize: Number.POSITIVE_INFINITY,
-            totalJSHeapSize: 48 * 1024 * 1024
+            usedJSHeapSize: Number.POSITIVE_INFINITY
           }
         }
       })
@@ -173,8 +215,8 @@ describe("perf memory", () => {
   it("calculates heap delta only when both samples are available", () => {
     expect(
       memoryDeltaMb(
-        { available: true, source: "performance.memory", heapUsedMb: 10, rssMb: 20 },
-        { available: true, source: "performance.memory", heapUsedMb: 13.456, rssMb: 22 }
+        { available: true, source: "performance.memory", heapUsedMb: 10, rssMb: UNKNOWN_MEMORY },
+        { available: true, source: "performance.memory", heapUsedMb: 13.456, rssMb: UNKNOWN_MEMORY }
       )
     ).toBe(3.46);
     expect(

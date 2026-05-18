@@ -7,7 +7,7 @@ export interface AvailableMemorySample {
   available: true;
   source: MemorySource;
   heapUsedMb: number;
-  rssMb: number;
+  rssMb: MemoryValue;
 }
 
 export interface UnknownMemorySample {
@@ -39,7 +39,6 @@ interface PerformanceMemoryRoot {
   performance?: {
     memory?: {
       usedJSHeapSize?: unknown;
-      totalJSHeapSize?: unknown;
     };
   };
 }
@@ -86,14 +85,11 @@ function getPerformanceMemorySample(root: unknown): MemorySample {
     return unknownMemorySample();
   }
 
-  const totalJSHeapSize = memory?.totalJSHeapSize;
-  const rssBytes = isFiniteNumber(totalJSHeapSize) ? totalJSHeapSize : usedJSHeapSize;
-
   return {
     available: true,
     source: "performance.memory",
     heapUsedMb: bytesToMb(usedJSHeapSize),
-    rssMb: bytesToMb(rssBytes)
+    rssMb: UNKNOWN_MEMORY
   };
 }
 
