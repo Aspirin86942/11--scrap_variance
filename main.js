@@ -1,13 +1,14 @@
 "use strict";(()=>{var SHEET_NAMES={oa:"\u67E5\u8BE2OA-\u5B58\u8D27\u62A5\u5E9F\u7533\u8BF7\u5355",erp:"\u67E5\u8BE2ERP-\u62A5\u5E9F\u660E\u7EC6\u8868",panel:"\u67E5\u8BE2\u9762\u677F",
 precheckResult:"\u9884\u9A8C\u8BC1\u7ED3\u679C",performanceDiagnostics:"\u6027\u80FD\u8BCA\u65AD\u7ED3\u679C"};var OA_REQUIRED_HEADERS=["\u8868\u5355\u7F16\u53F7",
-"\u7533\u8BF7\u65E5\u671F","\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8","\u7269\u6599\u4EE3\u7801","\u7269\u6599\u540D\u79F0",
-"\u6570\u91CF","\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"];var ERP_REQUIRED_HEADERS=["\u5355\u636E\u7F16\u53F7","\u65E5\u671F","\u6E90\u5355\u5355\u53F7","\u533A\u5206\u516C\u53F8\u7B80\u79F0",
-"\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8","\u7269\u6599\u7F16\u7801","\u7269\u6599\u540D\u79F0","\u5B9E\u53D1\u6570\u91CF","\u603B\u6210\u672C"];var SUMMARY_HEADERS=[
+"\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7","\u7533\u8BF7\u65E5\u671F","\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8","\u7269\u6599\u4EE3\u7801",
+"\u7269\u6599\u540D\u79F0","\u6570\u91CF","\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"];var ERP_REQUIRED_HEADERS=["\u5355\u636E\u7F16\u53F7","\u65E5\u671F","\u6E90\u5355\u5355\u53F7",
+"\u533A\u5206\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8","\u7269\u6599\u7F16\u7801","\u7269\u6599\u540D\u79F0","\u5B9E\u53D1\u6570\u91CF",
+"\u603B\u6210\u672C"];var SUMMARY_HEADERS=["\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8","OA\u6570\u91CF\u5408\u8BA1","ERP\u5B9E\u53D1\u6570\
+\u91CF\u5408\u8BA1","\u6570\u91CF\u5DEE\u989D","OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1","ERP\u603B\u6210\u672C\u5408\u8BA1","\u91D1\u989D\u5DEE\u989D",
+"\u5DEE\u5F02\u7C7B\u578B\u6458\u8981"];var DETAIL_HEADERS=["\u5DEE\u5F02\u7C7B\u578B","OA\u8868\u5355\u7F16\u53F7","OA\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7",
+"OA\u7533\u8BF7\u65E5\u671F","ERP\u51FA\u5E93\u5355\u53F7","ERP\u6E90\u5355\u5355\u53F7","ERP\u65E5\u671F","\u7269\u6599\u7F16\u7801","\u7269\u6599\u540D\u79F0",
 "\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8","OA\u6570\u91CF\u5408\u8BA1","ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1","\u6570\u91CF\u5DEE\u989D",
-"OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1","ERP\u603B\u6210\u672C\u5408\u8BA1","\u91D1\u989D\u5DEE\u989D","\u5DEE\u5F02\u7C7B\u578B\u6458\u8981"];var DETAIL_HEADERS=[
-"\u5DEE\u5F02\u7C7B\u578B","OA\u8868\u5355\u7F16\u53F7","OA\u7533\u8BF7\u65E5\u671F","ERP\u51FA\u5E93\u5355\u53F7","ERP\u65E5\u671F","\u7269\u6599\u7F16\u7801",
-"\u7269\u6599\u540D\u79F0","\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8","OA\u6570\u91CF\u5408\u8BA1","ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1",
-"\u6570\u91CF\u5DEE\u989D","OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1","ERP\u603B\u6210\u672C\u5408\u8BA1","\u91D1\u989D\u5DEE\u989D","\u5907\u6CE8"];var DIAGNOSTICS_HEADERS=["\u7C7B\u522B","\u9636\u6BB5","\u8F93\u5165\u884C\u6570","\u8F93\u51FA\u884C\u6570","\u8017\u65F6ms","\u5185\u5B58MB","\u8BF4\u660E"];var NOT_APPLICABLE="\
+"OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1","ERP\u603B\u6210\u672C\u5408\u8BA1","\u91D1\u989D\u5DEE\u989D","\u5907\u6CE8"];var DIAGNOSTICS_HEADERS=["\u7C7B\u522B","\u9636\u6BB5","\u8F93\u5165\u884C\u6570","\u8F93\u51FA\u884C\u6570","\u8017\u65F6ms","\u5185\u5B58MB","\u8BF4\u660E"];var NOT_APPLICABLE="\
 \u4E0D\u9002\u7528";var DIFFERENCE_TYPE_PRIORITY=["OA\u6709\u7533\u8BF7\uFF0CERP\u65E0\u51FA\u5E93","ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230",
 "OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u7269\u6599\u660E\u7EC6\u4E0D\u4E00\u81F4","OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u6570\u91CF\u4E0D\u540C","OA\u548CERP\u90FD\u6709\uFF0C\u6570\u91CF\u4E00\u81F4"];
 var MAX_HEADER_SCAN_ROWS=20;var MIN_OA_HEADER_MATCH_COUNT=5;var MIN_ERP_HEADER_MATCH_COUNT=5;var MAX_OUTPUT_CLEAR_ROW=2e5;var MAX_PRECHECK_CLEAR_ROW=2e5;var MAX_DIAGNOSTICS_CLEAR_ROW=2e5;
@@ -143,26 +144,42 @@ dept1&&normalizeText(dept1)!==activeFilters.dept1){return false}if(activeFilters
 return`${normalizeText(formNumber)}||${normalizeText(itemCode)}`}function buildOaRows(oaRows,filters){const result=new Map;const activeRows=oaRows!=null?oaRows:
 [];const activeFilters=filters!=null?filters:parseFilters();for(const row of activeRows){const dateKey=normalizeDateKey(row["\u7533\u8BF7\u65E5\u671F"]);if(!isDateInRange(
 dateKey,activeFilters)){continue}if(!matchesOrgFilters(row["\u516C\u53F8\u7B80\u79F0"],row["\u4E00\u7EA7\u90E8\u95E8"],row["\u4E8C\u7EA7\u90E8\u95E8"],activeFilters)){
-continue}const formNumber=normalizeText(row["\u8868\u5355\u7F16\u53F7"]);const itemCode=normalizeText(row["\u7269\u6599\u4EE3\u7801"]);if(!formNumber||!itemCode){
-continue}const key=makeDetailKey(formNumber,itemCode);let target=result.get(key);if(!target){target={formNumber,itemCode,itemName:normalizeText(row["\u7269\u6599\u540D\u79F0"]),
-company:normalizeText(row["\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(row["\u4E8C\u7EA7\u90E8\u95E8"]),
-oaDate:"",quantity:zeroDecimal(),amount:zeroDecimal()};result.set(key,target)}target.oaDate=appendUniqueJoinedText(target.oaDate,dateKey);target.quantity=addDecimal(
-target.quantity,parseDecimal2(row["\u6570\u91CF"],"\u6570\u91CF"));target.amount=addDecimal(target.amount,parseDecimal2(row["\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"],
-"\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"))}return result}function collectSelectedOaForms(oaGroupedRows){const result=new Set;for(const row of(oaGroupedRows!=null?
-oaGroupedRows:new Map).values()){if(row.formNumber){result.add(row.formNumber)}}return result}function addErpRowToGroup(result,row,sourceFormNumber,itemCode,dateKey){const key=makeDetailKey(sourceFormNumber,itemCode);const docNumber=normalizeText(row["\u5355\u636E\
-\u7F16\u53F7"]);let target=result.get(key);if(!target){target={sourceFormNumber,formNumber:sourceFormNumber,itemCode,itemName:normalizeText(row["\u7269\u6599\u540D\u79F0"]),
-company:normalizeText(row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(row["\u4E8C\u7EA7\u90E8\u95E8"]),
-erpDate:"",quantity:zeroDecimal(),cost:zeroDecimal(),erpDocNumbers:""};result.set(key,target)}target.erpDate=appendUniqueJoinedText(target.erpDate,dateKey);target.
-erpDocNumbers=appendUniqueJoinedText(target.erpDocNumbers,docNumber,",");target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u5B9E\u53D1\u6570\u91CF"],
-"\u5B9E\u53D1\u6570\u91CF"));target.cost=addDecimal(target.cost,parseDecimal2(row["\u603B\u6210\u672C"],"\u603B\u6210\u672C"))}function buildErpRowsForOa(erpRows,oaGroupedRows){
-const result=new Map;const selectedForms=collectSelectedOaForms(oaGroupedRows);for(const row of erpRows!=null?erpRows:[]){const sourceFormNumber=normalizeText(row["\
-\u6E90\u5355\u5355\u53F7"]);const itemCode=normalizeText(row["\u7269\u6599\u7F16\u7801"]);if(!sourceFormNumber||!itemCode||!selectedForms.has(sourceFormNumber)){
-continue}const dateKey=normalizeDateKey(row["\u65E5\u671F"]);addErpRowToGroup(result,row,sourceFormNumber,itemCode,dateKey)}return result}function buildErpOnlyRows(erpRows,currentOaFormNumbers,filters){
-const result=new Map;const activeFormNumbers=currentOaFormNumbers!=null?currentOaFormNumbers:new Set;const activeFilters=filters!=null?filters:parseFilters();for(const row of erpRows!=
-null?erpRows:[]){const dateKey=normalizeDateKey(row["\u65E5\u671F"]);if(!isDateInRange(dateKey,activeFilters)){continue}if(!matchesOrgFilters(row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"],
-row["\u4E00\u7EA7\u90E8\u95E8"],row["\u4E8C\u7EA7\u90E8\u95E8"],activeFilters)){continue}const sourceFormNumber=normalizeText(row["\u6E90\u5355\u5355\u53F7"]);const itemCode=normalizeText(
-row["\u7269\u6599\u7F16\u7801"]);if(!sourceFormNumber||!itemCode||activeFormNumbers.has(sourceFormNumber)){continue}addErpRowToGroup(result,row,sourceFormNumber,
-itemCode,dateKey)}return result}function makeSummaryKey(row){return`${normalizeText(row.company)}||${normalizeText(row.dept1)}||${normalizeText(row.dept2)}`}function buildSummaryRows(detailRows){
+continue}const formNumber=normalizeText(row["\u8868\u5355\u7F16\u53F7"]);const kingdeeDocNumber=normalizeText(row["\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7"]);
+const itemCode=normalizeText(row["\u7269\u6599\u4EE3\u7801"]);if(!formNumber||!itemCode){continue}const key=makeDetailKey(formNumber,itemCode);let target=result.
+get(key);if(!target){target={formNumber,kingdeeDocNumber,itemCode,itemName:normalizeText(row["\u7269\u6599\u540D\u79F0"]),company:normalizeText(row["\u516C\u53F8\u7B80\u79F0"]),
+dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(row["\u4E8C\u7EA7\u90E8\u95E8"]),oaDate:"",quantity:zeroDecimal(),amount:zeroDecimal()};
+result.set(key,target)}if(!target.kingdeeDocNumber&&kingdeeDocNumber){target.kingdeeDocNumber=kingdeeDocNumber}target.oaDate=appendUniqueJoinedText(target.oaDate,
+dateKey);target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u6570\u91CF"],"\u6570\u91CF"));target.amount=addDecimal(target.amount,parseDecimal2(row["\
+\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"],"\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"))}return result}function buildOaRowsForFormNumbers(oaRows,formNumbers){const result=new Map;
+const activeFormNumbers=formNumbers!=null?formNumbers:new Set;for(const row of oaRows!=null?oaRows:[]){const formNumber=normalizeText(row["\u8868\u5355\u7F16\u53F7"]);
+const itemCode=normalizeText(row["\u7269\u6599\u4EE3\u7801"]);if(!formNumber||!itemCode||!activeFormNumbers.has(formNumber)){continue}const dateKey=normalizeDateKey(
+row["\u7533\u8BF7\u65E5\u671F"]);const kingdeeDocNumber=normalizeText(row["\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7"]);const key=makeDetailKey(formNumber,itemCode);
+let target=result.get(key);if(!target){target={formNumber,kingdeeDocNumber,itemCode,itemName:normalizeText(row["\u7269\u6599\u540D\u79F0"]),company:normalizeText(
+row["\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\u95E8"]),dept2:normalizeText(row["\u4E8C\u7EA7\u90E8\u95E8"]),oaDate:"",quantity:zeroDecimal(),
+amount:zeroDecimal()};result.set(key,target)}if(!target.kingdeeDocNumber&&kingdeeDocNumber){target.kingdeeDocNumber=kingdeeDocNumber}target.oaDate=appendUniqueJoinedText(
+target.oaDate,dateKey);target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u6570\u91CF"],"\u6570\u91CF"));target.amount=addDecimal(target.amount,parseDecimal2(
+row["\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"],"\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"))}return result}function collectSelectedOaForms(oaGroupedRows){const result=new Set;
+for(const row of(oaGroupedRows!=null?oaGroupedRows:new Map).values()){if(row.formNumber){result.add(row.formNumber)}}return result}function addErpRowToGroup(result,row,groupingFormNumber,itemCode,dateKey,sourceFormNumber=normalizeText(row["\u6E90\u5355\u5355\u53F7"])){const key=makeDetailKey(
+groupingFormNumber,itemCode);const docNumber=normalizeText(row["\u5355\u636E\u7F16\u53F7"]);let target=result.get(key);if(!target){target={sourceFormNumber,formNumber:groupingFormNumber,
+itemCode,itemName:normalizeText(row["\u7269\u6599\u540D\u79F0"]),company:normalizeText(row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"]),dept1:normalizeText(row["\u4E00\u7EA7\u90E8\
+\u95E8"]),dept2:normalizeText(row["\u4E8C\u7EA7\u90E8\u95E8"]),erpDate:"",quantity:zeroDecimal(),cost:zeroDecimal(),erpDocNumbers:""};result.set(key,target)}if(!target.
+sourceFormNumber&&sourceFormNumber){target.sourceFormNumber=sourceFormNumber}target.erpDate=appendUniqueJoinedText(target.erpDate,dateKey);target.erpDocNumbers=
+appendUniqueJoinedText(target.erpDocNumbers,docNumber,",");target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u5B9E\u53D1\u6570\u91CF"],"\u5B9E\u53D1\u6570\u91CF"));
+target.cost=addDecimal(target.cost,parseDecimal2(row["\u603B\u6210\u672C"],"\u603B\u6210\u672C"))}function indexErpRowsByDocNumber(erpRows){var _a;const result=new Map;for(const row of erpRows!=null?erpRows:[]){const docNumber=normalizeText(row["\u5355\u636E\u7F16\u53F7"]);
+if(!docNumber){continue}const rows=(_a=result.get(docNumber))!=null?_a:[];rows.push(row);result.set(docNumber,rows)}return result}function makeOaKingdeeLookupKey(formNumber,kingdeeDocNumber){
+return JSON.stringify([formNumber,kingdeeDocNumber])}function buildErpRowsForOaKingdee(erpRows,oaGroupedRows){var _a;const result=new Map;const erpByDocNumber=indexErpRowsByDocNumber(
+erpRows);const processedOaKingdeeDocs=new Set;for(const oa of(oaGroupedRows!=null?oaGroupedRows:new Map).values()){if(!oa.kingdeeDocNumber){continue}const oaKingdeeLookupKey=makeOaKingdeeLookupKey(
+oa.formNumber,oa.kingdeeDocNumber);if(processedOaKingdeeDocs.has(oaKingdeeLookupKey)){continue}processedOaKingdeeDocs.add(oaKingdeeLookupKey);for(const row of(_a=
+erpByDocNumber.get(oa.kingdeeDocNumber))!=null?_a:[]){const itemCode=normalizeText(row["\u7269\u6599\u7F16\u7801"]);if(!itemCode){continue}addErpRowToGroup(result,
+row,oa.formNumber,itemCode,normalizeDateKey(row["\u65E5\u671F"]))}}return result}function buildErpRowsByErpFilters(erpRows,filters){const result=new Map;const activeFilters=filters!=
+null?filters:parseFilters();for(const row of erpRows!=null?erpRows:[]){const dateKey=normalizeDateKey(row["\u65E5\u671F"]);if(!isDateInRange(dateKey,activeFilters)){
+continue}if(!matchesOrgFilters(row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"],row["\u4E00\u7EA7\u90E8\u95E8"],row["\u4E8C\u7EA7\u90E8\u95E8"],activeFilters)){continue}
+const sourceFormNumber=normalizeText(row["\u6E90\u5355\u5355\u53F7"]);const itemCode=normalizeText(row["\u7269\u6599\u7F16\u7801"]);if(!itemCode){continue}addErpRowToGroup(
+result,row,sourceFormNumber,itemCode,dateKey,sourceFormNumber)}return result}function collectErpSourceForms(erpGroupedRows){const result=new Set;for(const row of(erpGroupedRows!=
+null?erpGroupedRows:new Map).values()){const sourceFormNumber=normalizeText(row.sourceFormNumber||row.formNumber);if(sourceFormNumber){result.add(sourceFormNumber)}}
+return result}function splitErpRowsByOaForms(erpGroupedRows,oaFormNumbers){const erpRowsForOa=new Map;const erpOnlyRows=new Map;const activeOaFormNumbers=oaFormNumbers!=
+null?oaFormNumbers:new Set;for(const[key,row]of(erpGroupedRows!=null?erpGroupedRows:new Map).entries()){const sourceFormNumber=normalizeText(row.sourceFormNumber||
+row.formNumber);if(sourceFormNumber&&activeOaFormNumbers.has(sourceFormNumber)){erpRowsForOa.set(key,row)}else{erpOnlyRows.set(key,row)}}return{erpRowsForOa,erpOnlyRows}}function makeSummaryKey(row){return`${normalizeText(row.company)}||${normalizeText(row.dept1)}||${normalizeText(row.dept2)}`}function buildSummaryRows(detailRows){
 const grouped=new Map;for(const row of detailRows!=null?detailRows:[]){const key=makeSummaryKey(row);let summary=grouped.get(key);if(!summary){summary={company:normalizeText(
 row.company),dept1:normalizeText(row.dept1),dept2:normalizeText(row.dept2),oaQuantity:zeroDecimal(),erpQuantity:zeroDecimal(),oaAmount:zeroDecimal(),erpCost:zeroDecimal(),
 differenceTypes:new Set};grouped.set(key,summary)}summary.oaQuantity=addDecimal(summary.oaQuantity,parseDecimal2(row.oaQuantity,"OA\u6570\u91CF\u5408\u8BA1"));summary.
@@ -175,27 +192,30 @@ quantityDiff:decimalToNumber2(quantityDiff),oaAmount:decimalToNumber2(summary.oa
 differenceSummary:DIFFERENCE_TYPE_PRIORITY.filter(type=>summary.differenceTypes.has(type)).join("\u3001")})}return result}function summaryRowsToValues(summaryRows){
 return[[...SUMMARY_HEADERS],...(summaryRows!=null?summaryRows:[]).map(row=>[row.company,row.dept1,row.dept2,row.oaQuantity,row.erpQuantity,row.quantityDiff,row.
 oaAmount,row.erpCost,row.amountDiff,row.differenceSummary])]}function detailRowsToValues(detailRows){return[[...DETAIL_HEADERS],...(detailRows!=null?detailRows:
-[]).map(row=>[row.differenceType,row.formNumber,row.oaDate,row.erpDocNumbers,row.erpDate,row.itemCode,row.itemName,row.company,row.dept1,row.dept2,row.oaQuantity,
-row.erpQuantity,row.quantityDiff,row.oaAmount,row.erpCost,row.amountDiff,row.remark])]}function buildFormNumberSet(groupedRows){const result=new Set;for(const[key,row]of(groupedRows!=null?groupedRows:new Map).entries()){const formNumber=normalizeText(
+[]).map(row=>[row.differenceType,row.formNumber,row.oaKingdeeDocNumber,row.oaDate,row.erpDocNumbers,row.erpSourceFormNumber,row.erpDate,row.itemCode,row.itemName,
+row.company,row.dept1,row.dept2,row.oaQuantity,row.erpQuantity,row.quantityDiff,row.oaAmount,row.erpCost,row.amountDiff,row.remark])]}function buildFormNumberSet(groupedRows){const result=new Set;for(const[key,row]of(groupedRows!=null?groupedRows:new Map).entries()){const formNumber=normalizeText(
 row.formNumber||row.sourceFormNumber||key.split("||")[0]);if(formNumber){result.add(formNumber)}}return result}function buildDifference(differenceType,oa,erp){var _a,
-_b,_c;const formNumber=normalizeText((oa==null?void 0:oa.formNumber)||(erp==null?void 0:erp.formNumber)||(erp==null?void 0:erp.sourceFormNumber));const itemCode=normalizeText(
-(oa==null?void 0:oa.itemCode)||(erp==null?void 0:erp.itemCode));const itemName=normalizeText((oa==null?void 0:oa.itemName)||(erp==null?void 0:erp.itemName));const company=normalizeText(
+_b,_c;const formNumber=normalizeText((oa==null?void 0:oa.formNumber)||(erp==null?void 0:erp.formNumber)||(erp==null?void 0:erp.sourceFormNumber));const oaKingdeeDocNumber=normalizeText(
+oa==null?void 0:oa.kingdeeDocNumber);const erpSourceFormNumber=normalizeText(erp==null?void 0:erp.sourceFormNumber);const itemCode=normalizeText((oa==null?void 0:
+oa.itemCode)||(erp==null?void 0:erp.itemCode));const itemName=normalizeText((oa==null?void 0:oa.itemName)||(erp==null?void 0:erp.itemName));const company=normalizeText(
 (oa==null?void 0:oa.company)||(erp==null?void 0:erp.company));const dept1=normalizeText((oa==null?void 0:oa.dept1)||(erp==null?void 0:erp.dept1));const dept2=normalizeText(
 (oa==null?void 0:oa.dept2)||(erp==null?void 0:erp.dept2));const oaQuantity=oa?decimalToNumber2(oa.quantity):0;const erpQuantity=erp?decimalToNumber2(erp.quantity):
-0;const oaAmount=oa?decimalToNumber2(oa.amount):0;const erpCost=erp?decimalToNumber2(erp.cost):0;return{differenceType,formNumber,oaDate:(_a=oa==null?void 0:oa.
-oaDate)!=null?_a:"",erpDocNumbers:(_b=erp==null?void 0:erp.erpDocNumbers)!=null?_b:"",erpDate:(_c=erp==null?void 0:erp.erpDate)!=null?_c:"",itemCode,itemName,company,
-dept1,dept2,oaQuantity,erpQuantity,quantityDiff:decimalToNumber2(subtractDecimal(parseDecimal2(oaQuantity,"OA\u6570\u91CF\u5408\u8BA1"),parseDecimal2(erpQuantity,
-"ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1"))),oaAmount,erpCost,amountDiff:decimalToNumber2(subtractDecimal(parseDecimal2(oaAmount,"OA\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1"),
-parseDecimal2(erpCost,"ERP\u603B\u6210\u672C\u5408\u8BA1"))),remark:differenceType==="ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230"?
-"\u8BF7\u7528 ERP \u6E90\u5355\u5355\u53F7\u56DE OA \u7CFB\u7EDF\u8865\u67E5\u3002":""}}function compareRows(oaRows,erpRowsForOa,erpOnlyRows){const details=[];const erpFormNumbers=buildFormNumberSet(
-erpRowsForOa);const activeOaRows=oaRows!=null?oaRows:new Map;const activeErpRowsForOa=erpRowsForOa!=null?erpRowsForOa:new Map;const activeErpOnlyRows=erpOnlyRows!=
-null?erpOnlyRows:new Map;for(const[key,oa]of activeOaRows.entries()){const erp=activeErpRowsForOa.get(key);const formNumber=normalizeText((oa==null?void 0:oa.formNumber)||
-key.split("||")[0]);let differenceType;if(oa&&!erp&&!erpFormNumbers.has(formNumber)){differenceType="OA\u6709\u7533\u8BF7\uFF0CERP\u65E0\u51FA\u5E93"}else if(!oa||
-!erp){differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u7269\u6599\u660E\u7EC6\u4E0D\u4E00\u81F4"}else if(decimalToNumber2(oa.quantity)!==decimalToNumber2(erp.
-quantity)){differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u6570\u91CF\u4E0D\u540C"}else{differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u6570\u91CF\u4E00\u81F4"}
+0;const oaAmount=oa?decimalToNumber2(oa.amount):0;const erpCost=erp?decimalToNumber2(erp.cost):0;return{differenceType,formNumber,oaKingdeeDocNumber,oaDate:(_a=
+oa==null?void 0:oa.oaDate)!=null?_a:"",erpDocNumbers:(_b=erp==null?void 0:erp.erpDocNumbers)!=null?_b:"",erpSourceFormNumber,erpDate:(_c=erp==null?void 0:erp.erpDate)!=
+null?_c:"",itemCode,itemName,company,dept1,dept2,oaQuantity,erpQuantity,quantityDiff:decimalToNumber2(subtractDecimal(parseDecimal2(oaQuantity,"OA\u6570\u91CF\u5408\u8BA1"),
+parseDecimal2(erpQuantity,"ERP\u5B9E\u53D1\u6570\u91CF\u5408\u8BA1"))),oaAmount,erpCost,amountDiff:decimalToNumber2(subtractDecimal(parseDecimal2(oaAmount,"OA\u5B9E\u9645\
+\u9884\u7B97\u91D1\u989Dmx\u5408\u8BA1"),parseDecimal2(erpCost,"ERP\u603B\u6210\u672C\u5408\u8BA1"))),remark:differenceType==="ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230"?
+"\u8BF7\u7528 ERP \u6E90\u5355\u5355\u53F7\u56DE OA \u7CFB\u7EDF\u8865\u67E5\uFF0C\u6216\u786E\u8BA4 OA \u5BFC\u51FA\u8868\u662F\u5426\u5305\u542B\u8BE5\u6D41\u7A0B\u3002":
+""}}function compareRows(oaRows,erpRowsForOa,erpOnlyRows){const details=[];const erpFormNumbers=buildFormNumberSet(erpRowsForOa);const activeOaRows=oaRows!=null?
+oaRows:new Map;const activeErpRowsForOa=erpRowsForOa!=null?erpRowsForOa:new Map;const activeErpOnlyRows=erpOnlyRows!=null?erpOnlyRows:new Map;for(const[key,oa]of activeOaRows.
+entries()){const erp=activeErpRowsForOa.get(key);const formNumber=normalizeText((oa==null?void 0:oa.formNumber)||key.split("||")[0]);let differenceType;if(oa&&!erp&&
+!erpFormNumbers.has(formNumber)){differenceType="OA\u6709\u7533\u8BF7\uFF0CERP\u65E0\u51FA\u5E93"}else if(!oa||!erp){differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u7269\u6599\u660E\u7EC6\u4E0D\u4E00\u81F4"}else if(decimalToNumber2(
+oa.quantity)!==decimalToNumber2(erp.quantity)){differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u6570\u91CF\u4E0D\u540C"}else{differenceType="OA\u548CERP\u90FD\u6709\uFF0C\u6570\u91CF\u4E00\u81F4"}
 details.push(buildDifference(differenceType,oa,erp))}for(const[key,erp]of activeErpRowsForOa.entries()){if(activeOaRows.has(key)){continue}details.push(buildDifference(
 "OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u7269\u6599\u660E\u7EC6\u4E0D\u4E00\u81F4",void 0,erp))}for(const erp of activeErpOnlyRows.values()){details.push(buildDifference(
-"ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230",void 0,erp))}return details}var UNKNOWN_MEMORY="\u65E0\u786E\u5207\u4FE1\u606F";var PROCESS_MEMORY_USAGE_SOURCE=["process","memoryUsage"].join(".");function unknownMemorySample(){return{available:false,
+"ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230",void 0,erp))}return details}var QUERY_DIRECTIONS={oaKingdeeToErp:"OA\u91D1\u8776\u5355\u53F7\u67E5ERP",erpSourceToOa:"ERP\u6E90\u5355\u67E5OA"};var DEFAULT_QUERY_DIRECTION=QUERY_DIRECTIONS.
+oaKingdeeToErp;function parseQueryDirection(value){const text=normalizeText(value);if(!text){return DEFAULT_QUERY_DIRECTION}if(text===QUERY_DIRECTIONS.oaKingdeeToErp||
+text===QUERY_DIRECTIONS.erpSourceToOa){return text}throw new Error("\u67E5\u8BE2\u65B9\u5411\u4E0D\u6B63\u786E\uFF1A\u8BF7\u586B\u5199 OA\u91D1\u8776\u5355\u53F7\u67E5ERP \u6216 ERP\u6E90\u5355\u67E5OA")}var UNKNOWN_MEMORY="\u65E0\u786E\u5207\u4FE1\u606F";var PROCESS_MEMORY_USAGE_SOURCE=["process","memoryUsage"].join(".");function unknownMemorySample(){return{available:false,
 heapUsedMb:UNKNOWN_MEMORY,rssMb:UNKNOWN_MEMORY}}function isFiniteNumber(value){return typeof value==="number"&&Number.isFinite(value)}function bytesToMb(value){
 return Number((value/1024/1024).toFixed(2))}function getProcessMemorySample(root2){var _a;const processRoot=root2;const usage=(_a=processRoot.process)==null?void 0:
 _a.memoryUsage;if(typeof usage!=="function"){return unknownMemorySample()}let sample;try{sample=usage()}catch(e){return unknownMemorySample()}if(!isFiniteNumber(
@@ -213,16 +233,24 @@ const endedAt=nowMs(root2);const memoryAfter=getMemorySample(root2);const output
 options.inputRows)!=null?_a:0,outputRows:outputRowsResult.outputRows,timeMs:roundMs(endedAt-startedAt),memoryBefore,memoryAfter,heapDeltaMb:memoryDeltaMb(memoryBefore,
 memoryAfter),note:(_c=(_b=outputRowsResult.note)!=null?_b:options.note)!=null?_c:""});return value}catch(error){const endedAt=nowMs(root2);const memoryAfter=getMemorySample(
 root2);stages.push({name,inputRows:(_d=options.inputRows)!=null?_d:0,outputRows:0,timeMs:roundMs(endedAt-startedAt),memoryBefore,memoryAfter,heapDeltaMb:memoryDeltaMb(
-memoryBefore,memoryAfter),note:errorMessage(error)});throw error}}}}function runQueryCorePipeline(oaRows,erpRows,filters,metrics=createMetricsRecorder()){const activeFilters=parseFilters(filters);const oaGroupedRows=metrics.measure(
-"build_oa_rows",{inputRows:oaRows.length,outputRows:rows=>rows.size},()=>buildOaRows(oaRows,activeFilters));const currentOaFormNumbers=metrics.measure("collect_\
-oa_forms",{inputRows:oaGroupedRows.size,outputRows:rows=>rows.size},()=>collectSelectedOaForms(oaGroupedRows));const erpRowsForOa=metrics.measure("build_erp_row\
-s_for_oa",{inputRows:erpRows.length,outputRows:rows=>rows.size},()=>buildErpRowsForOa(erpRows,oaGroupedRows));const erpOnlyRows=metrics.measure("build_erp_only_\
-rows",{inputRows:erpRows.length,outputRows:rows=>rows.size},()=>buildErpOnlyRows(erpRows,currentOaFormNumbers,activeFilters));const detailRows=metrics.measure("\
-compare_rows",{inputRows:oaGroupedRows.size+erpRowsForOa.size+erpOnlyRows.size,outputRows:rows=>rows.length},()=>compareRows(oaGroupedRows,erpRowsForOa,erpOnlyRows));
-const summaryRows=metrics.measure("build_summary_rows",{inputRows:detailRows.length,outputRows:rows=>rows.length},()=>buildSummaryRows(detailRows));const outputMatrices=metrics.
-measure("build_output_matrix",{inputRows:detailRows.length+summaryRows.length,outputRows:detailRows.length+summaryRows.length},()=>({summaryValues:summaryRowsToValues(
-summaryRows),detailValues:detailRowsToValues(detailRows)}));return{oaGroupedRows,currentOaFormNumbers,erpRowsForOa,erpOnlyRows,detailRows,summaryRows,summaryValues:outputMatrices.
-summaryValues,detailValues:outputMatrices.detailValues}}var HeaderDetectionError=class _HeaderDetectionError extends Error{constructor(result){super(result.message);this.name="HeaderDetectionError";this.result=result;
+memoryBefore,memoryAfter),note:errorMessage(error)});throw error}}}}function runQueryCorePipeline(oaRows,erpRows,filters,metrics=createMetricsRecorder(),queryDirectionInput=DEFAULT_QUERY_DIRECTION){const activeFilters=parseFilters(
+filters);const queryDirection=parseQueryDirection(queryDirectionInput);if(queryDirection===QUERY_DIRECTIONS.erpSourceToOa){const erpGroupedRows=metrics.measure(
+"build_erp_rows_by_erp_filters",{inputRows:erpRows.length,outputRows:rows=>rows.size},()=>buildErpRowsByErpFilters(erpRows,activeFilters));const sourceFormNumbers=metrics.
+measure("collect_erp_source_forms",{inputRows:erpGroupedRows.size,outputRows:rows=>rows.size},()=>collectErpSourceForms(erpGroupedRows));const oaGroupedRows2=metrics.
+measure("build_oa_rows_for_erp_source_forms",{inputRows:oaRows.length,outputRows:rows=>rows.size},()=>buildOaRowsForFormNumbers(oaRows,sourceFormNumbers));const currentOaFormNumbers2=metrics.
+measure("collect_oa_forms",{inputRows:oaGroupedRows2.size,outputRows:rows=>rows.size},()=>collectSelectedOaForms(oaGroupedRows2));const splitRows=metrics.measure(
+"split_erp_rows_by_oa_forms",{inputRows:erpGroupedRows.size,outputRows:rows=>rows.erpRowsForOa.size+rows.erpOnlyRows.size},()=>splitErpRowsByOaForms(erpGroupedRows,
+currentOaFormNumbers2));return finishQueryPipeline(queryDirection,oaGroupedRows2,currentOaFormNumbers2,splitRows.erpRowsForOa,splitRows.erpOnlyRows,metrics)}const oaGroupedRows=metrics.
+measure("build_oa_rows",{inputRows:oaRows.length,outputRows:rows=>rows.size},()=>buildOaRows(oaRows,activeFilters));const currentOaFormNumbers=metrics.measure("\
+collect_oa_forms",{inputRows:oaGroupedRows.size,outputRows:rows=>rows.size},()=>collectSelectedOaForms(oaGroupedRows));const erpRowsForOa=metrics.measure("build\
+_erp_rows_for_oa",{inputRows:erpRows.length,outputRows:rows=>rows.size},()=>buildErpRowsForOaKingdee(erpRows,oaGroupedRows));const erpOnlyRows=metrics.measure("\
+build_erp_only_rows",{inputRows:erpRows.length,outputRows:rows=>rows.size},()=>new Map);return finishQueryPipeline(queryDirection,oaGroupedRows,currentOaFormNumbers,
+erpRowsForOa,erpOnlyRows,metrics)}function finishQueryPipeline(queryDirection,oaGroupedRows,currentOaFormNumbers,erpRowsForOa,erpOnlyRows,metrics){const detailRows=metrics.
+measure("compare_rows",{inputRows:oaGroupedRows.size+erpRowsForOa.size+erpOnlyRows.size,outputRows:rows=>rows.length},()=>compareRows(oaGroupedRows,erpRowsForOa,
+erpOnlyRows));const summaryRows=metrics.measure("build_summary_rows",{inputRows:detailRows.length,outputRows:rows=>rows.length},()=>buildSummaryRows(detailRows));
+const outputMatrices=metrics.measure("build_output_matrix",{inputRows:detailRows.length+summaryRows.length,outputRows:detailRows.length+summaryRows.length},()=>({
+summaryValues:summaryRowsToValues(summaryRows),detailValues:detailRowsToValues(detailRows)}));return{queryDirection,oaGroupedRows,currentOaFormNumbers,erpRowsForOa,
+erpOnlyRows,detailRows,summaryRows,summaryValues:outputMatrices.summaryValues,detailValues:outputMatrices.detailValues}}var HeaderDetectionError=class _HeaderDetectionError extends Error{constructor(result){super(result.message);this.name="HeaderDetectionError";this.result=result;
 Object.setPrototypeOf(this,_HeaderDetectionError.prototype)}};function rowNumberFor(index,usedRangeStartRow){if(typeof usedRangeStartRow==="number"&&Number.isFinite(
 usedRangeStartRow)){return usedRangeStartRow+index}return`\u76F8\u5BF9 UsedRange \u7B2C ${index+1} \u884C`}function buildCandidate(row,rowIndex,requiredHeaders,usedRangeStartRow){
 const requiredSet=new Set(requiredHeaders);const seenRequired=new Set;const columnIndex={};const duplicateRequiredHeaders=[];let duplicateRequiredCount=0;let nonBlankCount=0;
@@ -297,26 +325,30 @@ sheet.Range(address),values);return}catch(fullWriteError){const safeChunkRows=no
 safeChunkRows){const chunk=values.slice(rowOffset,rowOffset+safeChunkRows);const chunkWidth=matrixWidth(chunk);if(chunkWidth===0){continue}const chunkAddress=rangeAddress(
 startRow+rowOffset,startCol,chunk.length,chunkWidth);try{assignRangeValue(sheet.Range(chunkAddress),chunk)}catch(chunkWriteError){const chunkNumber=Math.floor(rowOffset/
 safeChunkRows)+1;throw new Error(`\u6574\u5757\u5199\u5165\u5931\u8D25\uFF1A${address}\uFF1B${errorMessage3(fullWriteError)}\u3002\u5206\u5757\u5199\u5165\u5931\u8D25\uFF1A\u7B2C ${chunkNumber}\
- \u5757 ${chunkAddress}\uFF1B${errorMessage3(chunkWriteError)}`)}}}}function clearQueryOutput(sheet){clearRange(sheet,`A8:Q${MAX_OUTPUT_CLEAR_ROW}`)}function clearPrecheckOutput(sheet){
-clearRange(sheet,`A1:H${MAX_PRECHECK_CLEAR_ROW}`)}function clearDiagnosticsOutput(sheet){clearRange(sheet,`A1:G${MAX_DIAGNOSTICS_CLEAR_ROW}`)}function setupQueryPanel(root2){const sheet=ensureSheet(SHEET_NAMES.panel,root2);writeMatrixBulkOrChunks(sheet,1,1,[["\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2"],["\u516C\
-\u53F8\u7B80\u79F0"],["\u4E00\u7EA7\u90E8\u95E8"],["\u4E8C\u7EA7\u90E8\u95E8"],["\u5F00\u59CB\u65E5\u671F"],["\u7ED3\u675F\u65E5\u671F"],["\u8FD0\u884C\u51FD\u6570"]],
-WRITE_CHUNK_ROWS);writeMatrixBulkOrChunks(sheet,7,2,[["runScrapVarianceQuery"]],WRITE_CHUNK_ROWS);return sheet}function errorMessage4(error){return error instanceof Error?error.message:String(error)}function readRangeValue(range){if(range.Value2!==void 0){return range.Value2}
+ \u5757 ${chunkAddress}\uFF1B${errorMessage3(chunkWriteError)}`)}}}}function clearQueryOutput(sheet){clearRange(sheet,`A9:S${MAX_OUTPUT_CLEAR_ROW}`)}function clearPrecheckOutput(sheet){
+clearRange(sheet,`A1:H${MAX_PRECHECK_CLEAR_ROW}`)}function clearDiagnosticsOutput(sheet){clearRange(sheet,`A1:G${MAX_DIAGNOSTICS_CLEAR_ROW}`)}function readRangeText(sheet,address){var _a;const range=sheet.Range(address);return normalizeText((_a=range.Value2)!=null?_a:range.Value)}function setupQueryPanel(root2){
+const sheet=ensureSheet(SHEET_NAMES.panel,root2);writeMatrixBulkOrChunks(sheet,1,1,[["\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2"],["\u516C\u53F8\u7B80\u79F0"],["\u4E00\u7EA7\u90E8\u95E8"],
+["\u4E8C\u7EA7\u90E8\u95E8"],["\u5F00\u59CB\u65E5\u671F"],["\u7ED3\u675F\u65E5\u671F"],["\u67E5\u8BE2\u65B9\u5411"],["\u8FD0\u884C\u51FD\u6570"]],WRITE_CHUNK_ROWS);
+if(readRangeText(sheet,"B7")===""){writeMatrixBulkOrChunks(sheet,7,2,[[DEFAULT_QUERY_DIRECTION],["runScrapVarianceQuery"]],WRITE_CHUNK_ROWS)}else{writeMatrixBulkOrChunks(
+sheet,8,2,[["runScrapVarianceQuery"]],WRITE_CHUNK_ROWS)}return sheet}function errorMessage4(error){return error instanceof Error?error.message:String(error)}function readRangeValue(range){if(range.Value2!==void 0){return range.Value2}
 return range.Value}function normalizePanelDateValue(value){if(value===null||value===void 0||value===0||normalizeText(value)===""){return""}return value}function panelFilterValues(rawValue){
-return normalizeMatrix(rawValue).flat().slice(0,5)}function readPanelFilters(panelRange){const values=panelFilterValues(readRangeValue(panelRange));return parseFilters(
-{company:values[0],dept1:values[1],dept2:values[2],startDate:normalizePanelDateValue(values[3]),endDate:normalizePanelDateValue(values[4])})}function assertQueryOutputLimit(summaryRowCount,detailRowCount){
-const plannedRows=1+summaryRowCount+1+detailRowCount;const lastOutputRow=8+plannedRows-1;if(lastOutputRow>MAX_OUTPUT_CLEAR_ROW){throw new Error(`\u67E5\u8BE2\u7ED3\u679C\u9700\u8981\u5199\u5230\u7B2C ${lastOutputRow}\
+return normalizeMatrix(rawValue).flat().slice(0,6)}function readPanelFilters(panelRange){const values=panelFilterValues(readRangeValue(panelRange));return parseFilters(
+{company:values[0],dept1:values[1],dept2:values[2],startDate:normalizePanelDateValue(values[3]),endDate:normalizePanelDateValue(values[4])})}function readPanelQueryInput(panelRange){
+const values=panelFilterValues(readRangeValue(panelRange));return{filters:parseFilters({company:values[0],dept1:values[1],dept2:values[2],startDate:normalizePanelDateValue(
+values[3]),endDate:normalizePanelDateValue(values[4])}),queryDirection:parseQueryDirection(values[5])}}function assertQueryOutputLimit(summaryRowCount,detailRowCount){
+const plannedRows=1+summaryRowCount+1+detailRowCount;const lastOutputRow=9+plannedRows-1;if(lastOutputRow>MAX_OUTPUT_CLEAR_ROW){throw new Error(`\u67E5\u8BE2\u7ED3\u679C\u9700\u8981\u5199\u5230\u7B2C ${lastOutputRow}\
  \u884C\uFF0C\u8D85\u8FC7\u5F53\u524D\u6E05\u7406\u4E0A\u9650 MAX_OUTPUT_CLEAR_ROW=${MAX_OUTPUT_CLEAR_ROW}\u3002\u8BF7\u8C03\u6574 MAX_OUTPUT_CLEAR_ROW \u540E\u91CD\u65B0\u8FD0\u884C\u3002`)}}
-function safeWriteQueryError(message,root2){try{const panel=setupQueryPanel(root2);clearQueryOutput(panel);writeMatrixBulkOrChunks(panel,8,1,[["\u9519\u8BEF",message]],
+function safeWriteQueryError(message,root2){try{const panel=setupQueryPanel(root2);clearQueryOutput(panel);writeMatrixBulkOrChunks(panel,9,1,[["\u9519\u8BEF",message]],
 WRITE_CHUNK_ROWS)}catch(writeError){throw new Error(`\u67E5\u8BE2\u6267\u884C\u5931\u8D25\uFF1A${message}\uFF1B\u9519\u8BEF\u4FE1\u606F\u5199\u5165\u4E5F\u5931\u8D25\uFF1A${errorMessage4(
-writeError)}`)}}function runScrapVarianceQuery(root2){try{const panel=setupQueryPanel(root2);const filters=readPanelFilters(panel.Range("B2:B6"));const oaSheet=getSheetByName(
+writeError)}`)}}function runScrapVarianceQuery(root2){try{const panel=setupQueryPanel(root2);const queryInput=readPanelQueryInput(panel.Range("B2:B7"));const oaSheet=getSheetByName(
 SHEET_NAMES.oa,root2);const erpSheet=getSheetByName(SHEET_NAMES.erp,root2);const oaTable=readSheetTable(oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,
 MAX_HEADER_SCAN_ROWS);const erpTable=readSheetTable(erpSheet,[...ERP_REQUIRED_HEADERS],MIN_ERP_HEADER_MATCH_COUNT,MAX_HEADER_SCAN_ROWS);const pipeline=runQueryCorePipeline(
-oaTable.rows,erpTable.rows,filters);if(pipeline.oaGroupedRows.size===0&&pipeline.erpOnlyRows.size===0){clearQueryOutput(panel);writeMatrixBulkOrChunks(panel,8,1,
-[["\u67E5\u8BE2\u6761\u4EF6\u6CA1\u6709\u5339\u914D\u5230 OA \u6570\u636E\u3002"]],WRITE_CHUNK_ROWS);return}assertQueryOutputLimit(pipeline.summaryValues.length,
-pipeline.detailValues.length);clearQueryOutput(panel);writeMatrixBulkOrChunks(panel,8,1,[["\u6C47\u603B\u5DEE\u5F02"]],WRITE_CHUNK_ROWS);writeMatrixBulkOrChunks(
-panel,9,1,pipeline.summaryValues,WRITE_CHUNK_ROWS);const detailTitleRow=9+pipeline.summaryValues.length;writeMatrixBulkOrChunks(panel,detailTitleRow,1,[["\u660E\u7EC6\u5DEE\u5F02"]],
-WRITE_CHUNK_ROWS);writeMatrixBulkOrChunks(panel,detailTitleRow+1,1,pipeline.detailValues,WRITE_CHUNK_ROWS)}catch(error){safeWriteQueryError(errorMessage4(error),
-root2)}}function errorMessage5(error){return error instanceof Error?error.message:String(error)}function capabilityRows(capabilities){return capabilities.map(capability2=>[
+oaTable.rows,erpTable.rows,queryInput.filters,void 0,queryInput.queryDirection);if(pipeline.detailRows.length===0){clearQueryOutput(panel);writeMatrixBulkOrChunks(
+panel,9,1,[[pipeline.queryDirection===QUERY_DIRECTIONS.erpSourceToOa?"\u67E5\u8BE2\u6761\u4EF6\u6CA1\u6709\u5339\u914D\u5230 ERP \u6570\u636E\u3002":"\u67E5\u8BE2\u6761\u4EF6\u6CA1\u6709\u5339\u914D\u5230 \
+OA \u6570\u636E\u3002"]],WRITE_CHUNK_ROWS);return}assertQueryOutputLimit(pipeline.summaryValues.length,pipeline.detailValues.length);clearQueryOutput(panel);writeMatrixBulkOrChunks(
+panel,9,1,[["\u6C47\u603B\u5DEE\u5F02"]],WRITE_CHUNK_ROWS);writeMatrixBulkOrChunks(panel,10,1,pipeline.summaryValues,WRITE_CHUNK_ROWS);const detailTitleRow=10+pipeline.
+summaryValues.length;writeMatrixBulkOrChunks(panel,detailTitleRow,1,[["\u660E\u7EC6\u5DEE\u5F02"]],WRITE_CHUNK_ROWS);writeMatrixBulkOrChunks(panel,detailTitleRow+
+1,1,pipeline.detailValues,WRITE_CHUNK_ROWS)}catch(error){safeWriteQueryError(errorMessage4(error),root2)}}function errorMessage5(error){return error instanceof Error?error.message:String(error)}function capabilityRows(capabilities){return capabilities.map(capability2=>[
 "\u8FD0\u884C\u65F6\u80FD\u529B",capability2.name,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,capability2.note])}function metricRows(stages){return stages.
 map(stage=>["\u9636\u6BB5\u8017\u65F6",stage.name,stage.inputRows,stage.outputRows,stage.timeMs,stage.heapDeltaMb,stage.note])}function writeDiagnosticsRows(sheet,rows){
 clearDiagnosticsOutput(sheet);writeMatrixBulkOrChunks(sheet,1,1,rows,WRITE_CHUNK_ROWS)}function writeDiagnosticsError(root2,message){const sheet=ensureSheet(SHEET_NAMES.
@@ -337,13 +369,10 @@ length,outputRows:rows.length},()=>{writeDiagnosticsRows(diagnosticsSheet,rows);
 writeMatrixBulkOrChunks(diagnosticsSheet,writeStageRow,1,metricRows([writeStage]),WRITE_CHUNK_ROWS)}}catch(error){const originalMessage=errorMessage5(error);try{
 writeDiagnosticsError(root2,originalMessage)}catch(writeError){throw new Error(`\u6027\u80FD\u8BCA\u65AD\u5931\u8D25\uFF1A${originalMessage}; \u9519\u8BEF\u4FE1\u606F\u5199\u5165\u4E5F\u5931\u8D25\uFF1A${errorMessage5(
 writeError)}`)}}}var PRECHECK_RESULT_HEADERS=["\u7EA7\u522B","\u6570\u636E\u6E90","\u884C\u53F7","\u5B57\u6BB5\u540D","\u539F\u503C","\u95EE\u9898\u7C7B\u578B","\u539F\u56E0","\u5904\
-\u7406\u5EFA\u8BAE"];var OA_REQUIRED_HEADERS2=["\u8868\u5355\u7F16\u53F7","\u7533\u8BF7\u65E5\u671F","\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8",
-"\u7269\u6599\u4EE3\u7801","\u7269\u6599\u540D\u79F0","\u6570\u91CF","\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"];var ERP_REQUIRED_HEADERS2=["\u5355\u636E\u7F16\u53F7",
-"\u65E5\u671F","\u6E90\u5355\u5355\u53F7","\u533A\u5206\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8","\u4E8C\u7EA7\u90E8\u95E8","\u7269\u6599\u7F16\u7801",
-"\u7269\u6599\u540D\u79F0","\u5B9E\u53D1\u6570\u91CF","\u603B\u6210\u672C"];function getRows(table){var _a;return(_a=table==null?void 0:table.rows)!=null?_a:[]}
-function hasHeader(table,fieldName){var _a;return((_a=table==null?void 0:table.headers)!=null?_a:[]).some(header=>normalizeText(header)===fieldName)}function findMissingHeaders(table,requiredHeaders){
-var _a;const headerSet=new Set(((_a=table==null?void 0:table.headers)!=null?_a:[]).map(header=>normalizeText(header)).filter(Boolean));return requiredHeaders.filter(
-header=>!headerSet.has(header))}function errorMessage6(error){if(error instanceof Error){return error.message}return String(error)}function buildIssue(level,source,rowNumber,fieldName,rawValue,issueType,reason,suggestion){
+\u7406\u5EFA\u8BAE"];function getRows(table){var _a;return(_a=table==null?void 0:table.rows)!=null?_a:[]}function hasHeader(table,fieldName){var _a;return((_a=table==
+null?void 0:table.headers)!=null?_a:[]).some(header=>normalizeText(header)===fieldName)}function findMissingHeaders(table,requiredHeaders){var _a;const headerSet=new Set(
+((_a=table==null?void 0:table.headers)!=null?_a:[]).map(header=>normalizeText(header)).filter(Boolean));return requiredHeaders.filter(header=>!headerSet.has(header))}
+function errorMessage6(error){if(error instanceof Error){return error.message}return String(error)}function buildIssue(level,source,rowNumber,fieldName,rawValue,issueType,reason,suggestion){
 return{level,source,rowNumber,fieldName,rawValue:normalizeText(rawValue),issueType,reason,suggestion}}function buildHeaderDetectionIssue(source,error){const missingHeaders2=error.
 missingHeaders.map(header=>normalizeText(header)).filter(Boolean);const missingText=missingHeaders2.length>0?`\u7F3A\u5931\u5B57\u6BB5\uFF1A${missingHeaders2.join(
 "\u3001")}\u3002`:"";return buildIssue("\u9519\u8BEF",source,error.headerRowNumber,"\u8868\u5934",missingHeaders2.join("\u3001"),error.issueType,missingText?`${error.
@@ -361,22 +390,26 @@ for(const row of rows){const rawValue=row[fieldName];if(isBlankValue(rawValue)){
 \u4F4D\u3001\u7A7A\u683C\u6216\u975E\u6CD5\u9017\u53F7\u3002"))}}return issues}function validateRequiredCell(source,rows,fieldName){var _a,_b;const issues=[];for(const row of rows){
 if(!isBlankValue(row[fieldName])){continue}issues.push(buildIssue("\u9519\u8BEF",source,(_a=row._rowNumber)!=null?_a:"",fieldName,"","\u5173\u952E\u5B57\u6BB5\u4E3A\u7A7A",
 `${source} \u7B2C ${String((_b=row._rowNumber)!=null?_b:"")} \u884C ${fieldName} \u4E3A\u7A7A\uFF0C\u67E5\u8BE2\u65F6\u65E0\u6CD5\u7A33\u5B9A\u5173\u8054\u6216\u6C47\u603B\u3002`,
-"\u8865\u9F50\u8BE5\u5B57\u6BB5\uFF0C\u6216\u786E\u8BA4\u8BE5\u884C\u662F\u5426\u5E94\u4ECE\u539F\u59CB\u6570\u636E\u4E2D\u5220\u9664\u3002"))}return issues}function buildCompositeKey(row,fieldNames){
-const parts=[];for(const fieldName of fieldNames){const value=normalizeText(row[fieldName]);if(!value){return""}parts.push(value)}return parts.join("||")}function validateDuplicateKeys(source,rows,fieldNames){
-var _a,_b;const grouped=new Map;const issues=[];for(const row of rows){const key=buildCompositeKey(row,fieldNames);if(!key){continue}const rowNumbers=(_a=grouped.
-get(key))!=null?_a:[];rowNumbers.push((_b=row._rowNumber)!=null?_b:"");grouped.set(key,rowNumbers)}for(const[key,rowNumbers]of grouped){if(rowNumbers.length<=1){
-continue}issues.push(buildIssue("\u63D0\u9192",source,rowNumbers.join(","),fieldNames.join("+"),key.split("||").join(" + "),"\u4E1A\u52A1\u952E\u91CD\u590D",`${source}\
- \u5B58\u5728\u76F8\u540C\u4E1A\u52A1\u952E\u7684\u591A\u884C\u8BB0\u5F55\uFF0C\u67E5\u8BE2\u5B8F\u4F1A\u5148\u5408\u5E76\u540E\u6BD4\u8F83\u3002`,"\u5982\u679C\u8FD9\u4E9B\u884C\u786E\u5B9E\u662F\u62C6\u5206\u660E\u7EC6\
-\uFF0C\u53EF\u4EE5\u4FDD\u7559\uFF1B\u5426\u5219\u68C0\u67E5\u662F\u5426\u91CD\u590D\u5BFC\u51FA\u3002"))}return issues}function collectOaFormNumbers(rows){const formNumbers=new Set;
-for(const row of rows){const formNumber=normalizeText(row["\u8868\u5355\u7F16\u53F7"]);if(formNumber){formNumbers.add(formNumber)}}return formNumbers}function validateErpSourceFormExists(erpRows,oaFormNumbers){
-var _a;const seenMissing=new Set;const issues=[];for(const row of erpRows){const sourceFormNumber=normalizeText(row["\u6E90\u5355\u5355\u53F7"]);if(!sourceFormNumber||
-oaFormNumbers.has(sourceFormNumber)||seenMissing.has(sourceFormNumber)){continue}seenMissing.add(sourceFormNumber);issues.push(buildIssue("\u63D0\u9192","ERP",(_a=
-row._rowNumber)!=null?_a:"","\u6E90\u5355\u5355\u53F7",sourceFormNumber,"ERP\u6E90\u5355\u672A\u5728OA\u4E2D\u627E\u5230","ERP \u6E90\u5355\u5355\u53F7\u5728 OA \u5168\u91CF\u8868\u5355\u7F16\u53F7\u4E2D\u627E\u4E0D\u5230\u3002",
+"\u8865\u9F50\u8BE5\u5B57\u6BB5\uFF0C\u6216\u786E\u8BA4\u8BE5\u884C\u662F\u5426\u5E94\u4ECE\u539F\u59CB\u6570\u636E\u4E2D\u5220\u9664\u3002"))}return issues}function validateBlankKingdeeDocNumber(rows,fieldName){
+var _a,_b;const issues=[];for(const row of rows){if(!isBlankValue(row[fieldName])){continue}issues.push(buildIssue("\u63D0\u9192","OA",(_a=row._rowNumber)!=null?
+_a:"",fieldName,"","\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7\u4E3A\u7A7A",`OA \u7B2C ${String((_b=row._rowNumber)!=null?_b:"")} \u884C\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7\u4E3A\u7A7A\uFF0COA\u91D1\u8776\u5355\u53F7\u67E5ERP \u65F6\u4F1A\u5F52\u4E3A OA\u6709\
+\u7533\u8BF7\uFF0CERP\u65E0\u51FA\u5E93\u3002`,"OA\u91D1\u8776\u5355\u53F7\u67E5ERP \u65F6\uFF0C\u5982\u679C\u8BE5 OA \u5DF2\u7ECF\u751F\u6210\u91D1\u8776\u51FA\u5E93\u5355\uFF0C\u8BF7\u8865\u9F50\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7\uFF1B\u5982\u679C\u5C1A\u672A\u751F\u6210\uFF0C\u53EF\u4EE5\u4FDD\u7559\u8BE5\u63D0\u9192\u3002"))}
+return issues}function buildCompositeKey(row,fieldNames){const parts=[];for(const fieldName of fieldNames){const value=normalizeText(row[fieldName]);if(!value){
+return""}parts.push(value)}return parts.join("||")}function validateDuplicateKeys(source,rows,fieldNames){var _a,_b;const grouped=new Map;const issues=[];for(const row of rows){
+const key=buildCompositeKey(row,fieldNames);if(!key){continue}const rowNumbers=(_a=grouped.get(key))!=null?_a:[];rowNumbers.push((_b=row._rowNumber)!=null?_b:"");
+grouped.set(key,rowNumbers)}for(const[key,rowNumbers]of grouped){if(rowNumbers.length<=1){continue}issues.push(buildIssue("\u63D0\u9192",source,rowNumbers.join(
+","),fieldNames.join("+"),key.split("||").join(" + "),"\u4E1A\u52A1\u952E\u91CD\u590D",`${source} \u5B58\u5728\u76F8\u540C\u4E1A\u52A1\u952E\u7684\u591A\u884C\u8BB0\u5F55\uFF0C\u67E5\u8BE2\u5B8F\u4F1A\u5148\u5408\u5E76\u540E\u6BD4\u8F83\u3002`,
+"\u5982\u679C\u8FD9\u4E9B\u884C\u786E\u5B9E\u662F\u62C6\u5206\u660E\u7EC6\uFF0C\u53EF\u4EE5\u4FDD\u7559\uFF1B\u5426\u5219\u68C0\u67E5\u662F\u5426\u91CD\u590D\u5BFC\u51FA\u3002"))}
+return issues}function collectOaFormNumbers(rows){const formNumbers=new Set;for(const row of rows){const formNumber=normalizeText(row["\u8868\u5355\u7F16\u53F7"]);
+if(formNumber){formNumbers.add(formNumber)}}return formNumbers}function validateErpSourceFormExists(erpRows,oaFormNumbers){var _a;const seenMissing=new Set;const issues=[];
+for(const row of erpRows){const sourceFormNumber=normalizeText(row["\u6E90\u5355\u5355\u53F7"]);if(!sourceFormNumber||oaFormNumbers.has(sourceFormNumber)||seenMissing.
+has(sourceFormNumber)){continue}seenMissing.add(sourceFormNumber);issues.push(buildIssue("\u63D0\u9192","ERP",(_a=row._rowNumber)!=null?_a:"","\u6E90\u5355\u5355\u53F7",
+sourceFormNumber,"ERP\u6E90\u5355\u672A\u5728OA\u4E2D\u627E\u5230","ERP \u6E90\u5355\u5355\u53F7\u5728 OA \u5168\u91CF\u8868\u5355\u7F16\u53F7\u4E2D\u627E\u4E0D\u5230\u3002",
 "\u4F5C\u4E3A\u63D0\u9192\u8F93\u51FA\uFF0C\u8BF7\u7528 ERP \u6E90\u5355\u5355\u53F7\u56DE OA \u7CFB\u7EDF\u8865\u67E5\u3002"))}return issues}function appendValidationIfHeaderExists(issues,table,fieldName,validate){
 if(!hasHeader(table,fieldName)){return}issues.push(...validate(getRows(table),fieldName))}function buildPrecheckIssues(oaTable,erpTable){const issues=[];const oaRows=getRows(
-oaTable);const erpRows=getRows(erpTable);const missingHeaderIssues=[];const missingOaHeaders=findMissingHeaders(oaTable,OA_REQUIRED_HEADERS2);const missingErpHeaders=findMissingHeaders(
-erpTable,ERP_REQUIRED_HEADERS2);if(missingOaHeaders.length>0){missingHeaderIssues.push(buildMissingRequiredHeaderIssue("OA",oaTable,missingOaHeaders,OA_REQUIRED_HEADERS2.
-length))}if(missingErpHeaders.length>0){missingHeaderIssues.push(buildMissingRequiredHeaderIssue("ERP",erpTable,missingErpHeaders,ERP_REQUIRED_HEADERS2.length))}
+oaTable);const erpRows=getRows(erpTable);const missingHeaderIssues=[];const missingOaHeaders=findMissingHeaders(oaTable,OA_REQUIRED_HEADERS);const missingErpHeaders=findMissingHeaders(
+erpTable,ERP_REQUIRED_HEADERS);if(missingOaHeaders.length>0){missingHeaderIssues.push(buildMissingRequiredHeaderIssue("OA",oaTable,missingOaHeaders,OA_REQUIRED_HEADERS.
+length))}if(missingErpHeaders.length>0){missingHeaderIssues.push(buildMissingRequiredHeaderIssue("ERP",erpTable,missingErpHeaders,ERP_REQUIRED_HEADERS.length))}
 if(missingHeaderIssues.length>0){return missingHeaderIssues}appendValidationIfHeaderExists(issues,oaTable,"\u7533\u8BF7\u65E5\u671F",(rows,fieldName)=>validateDateColumn(
 "OA",rows,fieldName));appendValidationIfHeaderExists(issues,erpTable,"\u65E5\u671F",(rows,fieldName)=>validateDateColumn("ERP",rows,fieldName));appendValidationIfHeaderExists(
 issues,oaTable,"\u6570\u91CF",(rows,fieldName)=>validateNumberColumn("OA",rows,fieldName));appendValidationIfHeaderExists(issues,oaTable,"\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx",
@@ -384,14 +417,15 @@ issues,oaTable,"\u6570\u91CF",(rows,fieldName)=>validateNumberColumn("OA",rows,f
 "ERP",rows,fieldName));appendValidationIfHeaderExists(issues,erpTable,"\u603B\u6210\u672C",(rows,fieldName)=>validateNumberColumn("ERP",rows,fieldName));appendValidationIfHeaderExists(
 issues,oaTable,"\u8868\u5355\u7F16\u53F7",(rows,fieldName)=>validateRequiredCell("OA",rows,fieldName));appendValidationIfHeaderExists(issues,oaTable,"\u7269\u6599\u4EE3\u7801",
 (rows,fieldName)=>validateRequiredCell("OA",rows,fieldName));appendValidationIfHeaderExists(issues,erpTable,"\u6E90\u5355\u5355\u53F7",(rows,fieldName)=>validateRequiredCell(
-"ERP",rows,fieldName));appendValidationIfHeaderExists(issues,erpTable,"\u7269\u6599\u7F16\u7801",(rows,fieldName)=>validateRequiredCell("ERP",rows,fieldName));if(hasHeader(
-oaTable,"\u8868\u5355\u7F16\u53F7")&&hasHeader(oaTable,"\u7269\u6599\u4EE3\u7801")){issues.push(...validateDuplicateKeys("OA",oaRows,["\u8868\u5355\u7F16\u53F7",
-"\u7269\u6599\u4EE3\u7801"]))}if(hasHeader(erpTable,"\u6E90\u5355\u5355\u53F7")&&hasHeader(erpTable,"\u7269\u6599\u7F16\u7801")){issues.push(...validateDuplicateKeys(
-"ERP",erpRows,["\u6E90\u5355\u5355\u53F7","\u7269\u6599\u7F16\u7801"]))}if(hasHeader(oaTable,"\u8868\u5355\u7F16\u53F7")&&hasHeader(erpTable,"\u6E90\u5355\u5355\u53F7")){
-issues.push(...validateErpSourceFormExists(erpRows,collectOaFormNumbers(oaRows)))}return issues}function issueRowsToValues(issues){const values=[PRECHECK_RESULT_HEADERS];
-const rows=issues!=null?issues:[];if(rows.length===0){values.push(["\u63D0\u9192","\u7CFB\u7EDF","","","","\u672A\u53D1\u73B0\u9884\u9A8C\u8BC1\u95EE\u9898","\u672A\u53D1\
-\u73B0\u4F1A\u963B\u65AD\u67E5\u8BE2\u7684\u9884\u9A8C\u8BC1\u95EE\u9898\u3002","\u53EF\u4EE5\u7EE7\u7EED\u8FD0\u884C\u67E5\u8BE2\u3002"]);return values}for(const issue of rows){
-values.push([issue.level,issue.source,issue.rowNumber,issue.fieldName,issue.rawValue,issue.issueType,issue.reason,issue.suggestion])}return values}function assertPrecheckOutputLimit(issueRowCount){const lastIssueRow=4+issueRowCount-1;if(lastIssueRow>MAX_PRECHECK_CLEAR_ROW){throw new Error(`\u9884\u9A8C\u8BC1\u7ED3\u679C\u9700\u8981\u5199\u5230\u7B2C ${lastIssueRow}\
+"ERP",rows,fieldName));appendValidationIfHeaderExists(issues,erpTable,"\u7269\u6599\u7F16\u7801",(rows,fieldName)=>validateRequiredCell("ERP",rows,fieldName));appendValidationIfHeaderExists(
+issues,oaTable,"\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7",(rows,fieldName)=>validateBlankKingdeeDocNumber(rows,fieldName));if(hasHeader(oaTable,"\u8868\u5355\u7F16\u53F7")&&
+hasHeader(oaTable,"\u7269\u6599\u4EE3\u7801")){issues.push(...validateDuplicateKeys("OA",oaRows,["\u8868\u5355\u7F16\u53F7","\u7269\u6599\u4EE3\u7801"]))}if(hasHeader(
+erpTable,"\u6E90\u5355\u5355\u53F7")&&hasHeader(erpTable,"\u7269\u6599\u7F16\u7801")){issues.push(...validateDuplicateKeys("ERP",erpRows,["\u6E90\u5355\u5355\u53F7",
+"\u7269\u6599\u7F16\u7801"]))}if(hasHeader(oaTable,"\u8868\u5355\u7F16\u53F7")&&hasHeader(erpTable,"\u6E90\u5355\u5355\u53F7")){issues.push(...validateErpSourceFormExists(
+erpRows,collectOaFormNumbers(oaRows)))}return issues}function issueRowsToValues(issues){const values=[PRECHECK_RESULT_HEADERS];const rows=issues!=null?issues:[];
+if(rows.length===0){values.push(["\u63D0\u9192","\u7CFB\u7EDF","","","","\u672A\u53D1\u73B0\u9884\u9A8C\u8BC1\u95EE\u9898","\u672A\u53D1\u73B0\u4F1A\u963B\u65AD\u67E5\u8BE2\u7684\u9884\u9A8C\u8BC1\u95EE\u9898\u3002",
+"\u53EF\u4EE5\u7EE7\u7EED\u8FD0\u884C\u67E5\u8BE2\u3002"]);return values}for(const issue of rows){values.push([issue.level,issue.source,issue.rowNumber,issue.fieldName,
+issue.rawValue,issue.issueType,issue.reason,issue.suggestion])}return values}function assertPrecheckOutputLimit(issueRowCount){const lastIssueRow=4+issueRowCount-1;if(lastIssueRow>MAX_PRECHECK_CLEAR_ROW){throw new Error(`\u9884\u9A8C\u8BC1\u7ED3\u679C\u9700\u8981\u5199\u5230\u7B2C ${lastIssueRow}\
  \u884C\uFF0C\u8D85\u8FC7\u5F53\u524D\u6E05\u7406\u4E0A\u9650 MAX_PRECHECK_CLEAR_ROW=${MAX_PRECHECK_CLEAR_ROW}\u3002\u8BF7\u8C03\u6574 MAX_PRECHECK_CLEAR_ROW \u540E\u91CD\u65B0\u8FD0\u884C\u3002`)}}
 function writePrecheckResults(issues,root2){const sheet=ensureSheet(SHEET_NAMES.precheckResult,root2);const status=issues.length===0?"\u672A\u53D1\u73B0\u9884\u9A8C\u8BC1\u95EE\u9898":
 `\u53D1\u73B0 ${issues.length} \u6761\u9884\u9A8C\u8BC1\u95EE\u9898`;const issueValues=issueRowsToValues(issues);assertPrecheckOutputLimit(issueValues.length);clearPrecheckOutput(
