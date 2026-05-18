@@ -1,4 +1,5 @@
-import type { OutputSheetKind } from "../types/scrap";
+import { parseQueryDirection } from "../core/query-direction";
+import type { OutputSheetKind, RibbonQueryState } from "../types/scrap";
 import type { WpsCellValue, WpsSheet } from "../types/wps";
 import { normalizeMatrix } from "../utils/matrix";
 import { clearRange, writeMatrixBulkOrChunks } from "./write-results";
@@ -6,6 +7,9 @@ import { clearRange, writeMatrixBulkOrChunks } from "./write-results";
 const METADATA_START_ROW = 1;
 const METADATA_START_COL = 80;
 const METADATA_ADDRESS = "CB1:CC1";
+const QUERY_STATE_ADDRESS = "CB2:CG2";
+const QUERY_STATE_START_ROW = 2;
+const QUERY_STATE_START_COL = 80;
 const VALID_OUTPUT_KINDS = new Set<OutputSheetKind>(["legacy_detail", "oa_doc_compare", "erp_doc_compare"]);
 const A1_RECTANGLE_ADDRESS_PATTERN = /^([A-Z]+)([1-9]\d*):([A-Z]+)([1-9]\d*)$/i;
 
@@ -77,6 +81,39 @@ export function readOutputMetadata(sheet: WpsSheet): OutputMetadata | null {
 
 export function saveOutputMetadata(sheet: WpsSheet, metadata: OutputMetadata): void {
   writeMatrixBulkOrChunks(sheet, METADATA_START_ROW, METADATA_START_COL, [[metadata.kind, metadata.rangeAddress]], 1);
+}
+
+export function saveOutputQueryState(sheet: WpsSheet, state: RibbonQueryState): void {
+  writeMatrixBulkOrChunks(
+    sheet,
+    QUERY_STATE_START_ROW,
+    QUERY_STATE_START_COL,
+    [[state.company, state.dept1, state.dept2, state.startDate, state.endDate, state.queryDirection]],
+    1
+  );
+}
+
+export function readOutputQueryState(sheet: WpsSheet): RibbonQueryState | null {
+  const range = sheet.Range(QUERY_STATE_ADDRESS);
+  const matrix = normalizeMatrix(range.Value2 ?? range.Value);
+  const row = matrix[0] ?? [];
+
+  if (row.length < 6) {
+    return null;
+  }
+
+  try {
+    return {
+      company: normalizeText(row[0]),
+      dept1: normalizeText(row[1]),
+      dept2: normalizeText(row[2]),
+      startDate: normalizeText(row[3]),
+      endDate: normalizeText(row[4]),
+      queryDirection: parseQueryDirection(row[5])
+    };
+  } catch {
+    return null;
+  }
 }
 
 export function clearPreviousToolOutput(sheet: WpsSheet, expectedKind: OutputSheetKind): void {

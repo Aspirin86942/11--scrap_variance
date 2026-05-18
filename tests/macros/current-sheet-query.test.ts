@@ -432,6 +432,34 @@ describe("current sheet query macro", () => {
     expect(oaCompareSheet.rangeValues.get("CB1:CC1")).toEqual([["oa_doc_compare", "A1:P2"]]);
   });
 
+  it("toggleMaterialRows rolls back inserted rows when metadata update fails after material writing succeeds", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31"
+    };
+    setActiveSheet(root, oaCompareSheet);
+    root.Application!.Selection = { Row: 2 };
+    runCurrentSheetQuery(root);
+    oaCompareSheet.failWriteAddresses.add("CB1:CC1");
+
+    expect(() => toggleMaterialRows(root)).toThrow("分块写入失败：第 1 块 CB1:CC1");
+
+    expect(oaCompareSheet.rowInserts).toEqual([{ afterRow: 2, rowCount: 1 }]);
+    expect(oaCompareSheet.rowDeletes).toEqual([{ startRow: 3, rowCount: 1 }]);
+    expect(oaCompareSheet.clears).toEqual([]);
+    expect(visibleWrites(oaCompareSheet).map((write) => write.address)).toEqual(["A1:P2", "A3:P3"]);
+    expect(oaCompareSheet.rangeValues.get("CB1:CC1")).toEqual([["oa_doc_compare", "A1:P2"]]);
+  });
+
   it("toggleMaterialRows restores deleted material rows when collapse metadata update fails", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
@@ -460,8 +488,74 @@ describe("current sheet query macro", () => {
       { afterRow: 2, rowCount: 1 },
       { afterRow: 2, rowCount: 1 }
     ]);
-    expect(visibleWrites(oaCompareSheet).filter((write) => write.address === "A3:P3")).toHaveLength(2);
+    const materialWrites = visibleWrites(oaCompareSheet).filter((write) => write.address === "A3:P3");
+    expect(materialWrites).toHaveLength(2);
+    expect(materialWrites[1]?.value).toEqual(materialWrites[0]?.value);
     expect(oaCompareSheet.clears).toEqual([]);
     expect(oaCompareSheet.rangeValues.get("CB1:CC1")).toEqual([["oa_doc_compare", "A1:P3"]]);
+  });
+
+  it("toggleMaterialRows uses the active output sheet query state after other pages change filters", () => {
+    const oaSheet = makeOaSheet([
+      validOaRow(),
+      ["OA-002", "ERP-999", "2026/5/1", "装备", "生产", "仓储", "MAT-B", "物料B", 2, 20]
+    ]);
+    const erpSheet = makeErpSheet([
+      validErpRow(),
+      ["ERP-999", "2026/5/2", "OA-002", "装备", "生产", "仓储", "MAT-B", "物料B", 2, 20]
+    ]);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31"
+    };
+    setActiveSheet(root, oaCompareSheet);
+    root.Application!.Selection = { Row: 2 };
+    runCurrentSheetQuery(root);
+
+    root.ScrapVarianceRibbonState = {
+      company: "装备",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31"
+    };
+    setActiveSheet(root, erpCompareSheet);
+    runCurrentSheetQuery(root);
+    setActiveSheet(root, oaCompareSheet);
+    root.Application!.Selection = { Row: 2 };
+
+    toggleMaterialRows(root);
+
+    expect(visibleWrites(oaCompareSheet)).toContainEqual({
+      address: "A3:P3",
+      value: [
+        [
+          "物料",
+          "数控",
+          "生产",
+          "仓储",
+          "2026-05-01",
+          "OA-001",
+          10,
+          100,
+          "ERP-778",
+          9,
+          91,
+          1,
+          9,
+          "MAT-A",
+          "物料A",
+          ""
+        ]
+      ]
+    });
+    expect(flattenWrites(oaCompareSheet)).not.toContain("MAT-B");
   });
 });

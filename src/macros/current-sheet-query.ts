@@ -13,14 +13,21 @@ import {
   buildOaDocCompare,
   docCompareRowsToValues
 } from "../core/doc-compare";
+import { parseFilters } from "../core/build-oa-rows";
 import { detectOutputSheetKind, unsupportedOutputSheetMessage } from "../core/output-sheets";
 import { QUERY_DIRECTIONS } from "../core/query-direction";
 import { runQueryCorePipeline } from "../core/query-pipeline";
 import { getRibbonState, readRibbonFilters } from "../ribbon/state";
-import type { OutputMatrix, OutputSheetKind, QueryFilters, RawRow } from "../types/scrap";
+import type { OutputMatrix, OutputSheetKind, QueryFilters, RawRow, RibbonQueryState } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
 import { deleteRows, getActiveSheet, getSelectedRowNumber, insertRowsBelow } from "../wps-api/active-context";
-import { adjustOutputMetadataRows, clearPreviousToolOutput, saveOutputMetadata } from "../wps-api/output-metadata";
+import {
+  adjustOutputMetadataRows,
+  clearPreviousToolOutput,
+  readOutputQueryState,
+  saveOutputMetadata,
+  saveOutputQueryState
+} from "../wps-api/output-metadata";
 import { readSheetTable } from "../wps-api/read-sheet-data";
 import { getSheetByName } from "../wps-api/workbook";
 import { rangeAddress, writeMatrixBulkOrChunks } from "../wps-api/write-results";
@@ -41,7 +48,12 @@ function matrixWidth(values: OutputMatrix): number {
   return values.reduce((width, row) => Math.max(width, row.length), 0);
 }
 
-function writeOutputWithMetadata(sheet: WpsSheet, kind: OutputSheetKind, values: OutputMatrix): void {
+function writeOutputWithMetadata(
+  sheet: WpsSheet,
+  kind: OutputSheetKind,
+  values: OutputMatrix,
+  queryState?: RibbonQueryState
+): void {
   const width = matrixWidth(values);
   if (values.length === 0 || width === 0) {
     return;
@@ -50,6 +62,9 @@ function writeOutputWithMetadata(sheet: WpsSheet, kind: OutputSheetKind, values:
   const address = rangeAddress(1, 1, values.length, width);
   writeMatrixBulkOrChunks(sheet, 1, 1, values, WRITE_CHUNK_ROWS);
   saveOutputMetadata(sheet, { kind, rangeAddress: address });
+  if (queryState) {
+    saveOutputQueryState(sheet, queryState);
+  }
 }
 
 function readSourceRows(root?: ScrapVarianceGlobal): SourceRows {
@@ -124,10 +139,23 @@ function buildErpDocCompareValues(oaRows: RawRow[], erpRows: RawRow[], filters: 
   };
 }
 
-function safeWriteCurrentSheetError(sheet: WpsSheet, kind: OutputSheetKind, message: string): void {
+function tryGetRibbonState(root?: ScrapVarianceGlobal): RibbonQueryState | undefined {
+  try {
+    return getRibbonState(root);
+  } catch {
+    return undefined;
+  }
+}
+
+function safeWriteCurrentSheetError(
+  sheet: WpsSheet,
+  kind: OutputSheetKind,
+  message: string,
+  root?: ScrapVarianceGlobal
+): void {
   try {
     clearPreviousToolOutput(sheet, kind);
-    writeOutputWithMetadata(sheet, kind, [["错误", message]]);
+    writeOutputWithMetadata(sheet, kind, [["错误", message]], tryGetRibbonState(root));
   } catch (writeError) {
     throw new Error(`查询执行失败：${message}；错误信息写入也失败：${errorMessage(writeError)}`);
   }
@@ -143,6 +171,7 @@ export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
   }
 
   try {
+    const queryState = getRibbonState(root);
     const filters = readRibbonFilters(root);
     const { oaRows, erpRows } = readSourceRows(root);
     const result =
@@ -153,10 +182,19 @@ export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
           : buildErpDocCompareValues(oaRows, erpRows, filters);
 
     clearPreviousToolOutput(activeSheet, kind);
-    writeOutputWithMetadata(activeSheet, kind, result.values ?? [[result.noResultMessage]]);
+    writeOutputWithMetadata(activeSheet, kind, result.values ?? [[result.noResultMessage]], queryState);
   } catch (error) {
-    safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error));
+    safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error), root);
   }
+}
+
+function readOutputFilters(sheet: WpsSheet, root?: ScrapVarianceGlobal): QueryFilters {
+  const savedState = readOutputQueryState(sheet);
+  if (!savedState) {
+    return readRibbonFilters(root);
+  }
+
+  return parseFilters(savedState);
 }
 
 function readCellText(sheet: WpsSheet, row: number, column: string): string {
@@ -236,7 +274,7 @@ export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
     return;
   }
 
-  const filters = readRibbonFilters(root);
+  const filters = readOutputFilters(activeSheet, root);
   const { oaRows, erpRows } = readSourceRows(root);
   const result = kind === "oa_doc_compare"
     ? buildOaDocCompare(oaRows, erpRows, filters)
