@@ -558,4 +558,30 @@ describe("current sheet query macro", () => {
     });
     expect(flattenWrites(oaCompareSheet)).not.toContain("MAT-B");
   });
+
+  it("toggleMaterialRows rejects missing output query state instead of falling back to current ribbon filters", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31"
+    };
+    setActiveSheet(root, oaCompareSheet);
+    root.Application!.Selection = { Row: 2 };
+    oaCompareSheet.rangeValues.set("A2:F2", [["汇总", "数控", "生产", "仓储", "2026-05-01", "OA-001"]]);
+    oaCompareSheet.rangeValues.set("CB1:CC1", [["oa_doc_compare", "A1:P2"]]);
+
+    expect(() => toggleMaterialRows(root)).toThrow("当前输出表缺少查询条件记录，请先在当前页重新执行查询。");
+
+    expect(oaCompareSheet.rowInserts).toEqual([]);
+    expect(oaCompareSheet.rowDeletes).toEqual([]);
+    expect(oaCompareSheet.clears).toEqual([]);
+  });
 });

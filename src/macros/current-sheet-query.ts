@@ -188,10 +188,10 @@ export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
   }
 }
 
-function readOutputFilters(sheet: WpsSheet, root?: ScrapVarianceGlobal): QueryFilters {
+function readOutputFilters(sheet: WpsSheet): QueryFilters {
   const savedState = readOutputQueryState(sheet);
   if (!savedState) {
-    return readRibbonFilters(root);
+    throw new Error("当前输出表缺少查询条件记录，请先在当前页重新执行查询。");
   }
 
   return parseFilters(savedState);
@@ -274,7 +274,7 @@ export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
     return;
   }
 
-  const filters = readOutputFilters(activeSheet, root);
+  const filters = readOutputFilters(activeSheet);
   const { oaRows, erpRows } = readSourceRows(root);
   const result = kind === "oa_doc_compare"
     ? buildOaDocCompare(oaRows, erpRows, filters)
