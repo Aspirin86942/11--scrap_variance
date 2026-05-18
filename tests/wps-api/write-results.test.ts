@@ -102,6 +102,27 @@ describe("WPS adapter bulk reads and writes", () => {
     ]);
   });
 
+  it("pads jagged matrix rows before writing to a rectangular WPS range", () => {
+    const sheet = createFakeSheet("报废差异明细");
+
+    writeMatrixBulkOrChunks(sheet, 1, 1, [
+      ["汇总差异"],
+      ["公司简称", "一级部门", "二级部门"],
+      ["数控", "生产", "仓储"]
+    ]);
+
+    expect(sheet.writes).toEqual([
+      {
+        address: "A1:C3",
+        value: [
+          ["汇总差异", "", ""],
+          ["公司简称", "一级部门", "二级部门"],
+          ["数控", "生产", "仓储"]
+        ]
+      }
+    ]);
+  });
+
   it("fake ranges read values from overlapping matrix writes", () => {
     const sheet = createFakeSheet("查询面板");
 

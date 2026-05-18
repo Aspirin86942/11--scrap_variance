@@ -32,6 +32,15 @@ function matrixWidth(values: OutputMatrix): number {
   return values.reduce((width, row) => Math.max(width, row.length), 0);
 }
 
+function rectangularizeMatrix(values: OutputMatrix, width: number): OutputMatrix {
+  return values.map((row) => {
+    if (row.length >= width) {
+      return row;
+    }
+    return [...row, ...Array<string>(width - row.length).fill("")];
+  });
+}
+
 function assignRangeValue(range: WpsRange, value: OutputMatrix): void {
   range.Value2 = value;
 }
@@ -75,14 +84,15 @@ export function writeMatrixBulkOrChunks(
     return;
   }
 
+  const rectangularValues = rectangularizeMatrix(values, width);
   const address = rangeAddress(startRow, startCol, values.length, width);
   try {
-    assignRangeValue(sheet.Range(address), values);
+    assignRangeValue(sheet.Range(address), rectangularValues);
     return;
   } catch (fullWriteError) {
     const safeChunkRows = normalizeChunkRows(chunkRows);
-    for (let rowOffset = 0; rowOffset < values.length; rowOffset += safeChunkRows) {
-      const chunk = values.slice(rowOffset, rowOffset + safeChunkRows);
+    for (let rowOffset = 0; rowOffset < rectangularValues.length; rowOffset += safeChunkRows) {
+      const chunk = rectangularValues.slice(rowOffset, rowOffset + safeChunkRows);
       const chunkWidth = matrixWidth(chunk);
       if (chunkWidth === 0) {
         continue;
