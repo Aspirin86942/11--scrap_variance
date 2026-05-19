@@ -58,6 +58,10 @@ function scatteredRequiredRow(values: Record<number, string | number>): Array<st
   return Array.from({ length: width }, (_, index) => values[index + 1] ?? "");
 }
 
+function blankScatteredRequiredRow(): Array<string> {
+  return Array.from({ length: 29 }, () => "");
+}
+
 function visibleWrites(sheet: FakeSheet): Array<{ address: string; value: unknown }> {
   return sheet.writes.filter((write) => !write.address.startsWith("CB"));
 }
@@ -336,7 +340,8 @@ describe("current sheet query macro", () => {
         27: "物料A",
         28: 10,
         29: 100
-      })
+      }),
+      ...Array.from({ length: 23 }, blankScatteredRequiredRow)
     ]);
     const erpSheet = makeErpSheet();
     const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
@@ -355,6 +360,9 @@ describe("current sheet query macro", () => {
     expect(output).not.toContain("查询条件没有匹配到 OA 数据。");
     expect(oaSheet.usedRangeValue2ReadCount).toBe(0);
     expect(erpSheet.usedRangeValue2ReadCount).toBe(0);
+    expect(oaSheet.rangeReads).toContain("A1:AC20");
+    expect(oaSheet.rangeReads).not.toContain("A1:AC25");
+    expect(oaSheet.rangeReads).toEqual(expect.arrayContaining(["A1:C25", "M1:O25", "Z1:AC25"]));
   });
 
   it("runCurrentSheetQuery throws for unsupported active sheet without writing or clearing source sheet ranges", () => {
