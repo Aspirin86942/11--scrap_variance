@@ -378,6 +378,33 @@ describe("TypeScript macro orchestration", () => {
     expect(writeStageAppend.address).toBe(`A${initialRowCount + 1}:G${initialRowCount + 1}`);
   });
 
+  it("runPerformanceDiagnostics writes a cell-safe fallback reason for read strategy notes", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
+    const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
+    const root = makeRoot([oaSheet, erpSheet]);
+    const longFailureReason = `WPS read failed\n${"  host bridge returned a verbose diagnostic  ".repeat(12)}`;
+    oaSheet.failReadAddresses.add("A1:J2");
+    oaSheet.readFailureMessages.set("A1:J2", longFailureReason);
+
+    runPerformanceDiagnostics(root);
+
+    const diagnosticsSheet = getFakeSheetByName(root, SHEET_NAMES.performanceDiagnostics);
+    const initialWrite = diagnosticsSheet.writes[0];
+    if (!initialWrite || !Array.isArray(initialWrite.value)) {
+      throw new Error("missing diagnostics write");
+    }
+    const initialRows = initialWrite.value as OutputMatrix;
+    const strategyRow = initialRows.find((row) => row[1] === "oa_read_strategy");
+    const strategyNote = String(strategyRow?.[6] ?? "");
+
+    expect(strategyRow).toBeDefined();
+    expect(strategyNote).toMatch(/^used_range_fallback；原因：/);
+    expect(strategyNote).not.toContain("\n");
+    expect(strategyNote.length).toBeLessThanOrEqual(230);
+    expect(initialRows[0]?.slice(0, 2)).toEqual(["类别", "阶段"]);
+    expect(initialRows).toContainEqual(expect.arrayContaining(["结果规模", "result_rows"]));
+  });
+
   it("runPerformanceDiagnostics uses the selected ERP source query direction", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [
       [...OA_REQUIRED_HEADERS],

@@ -20,8 +20,18 @@ import { readSheetMatrixOptimized, type SheetReadDiagnostics } from "../wps-api/
 import { ensureSheet, getSheetByName } from "../wps-api/workbook";
 import { clearDiagnosticsOutput, writeMatrixBulkOrChunks } from "../wps-api/write-results";
 
+const MAX_DIAGNOSTICS_NOTE_LENGTH = 200;
+
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+function cellSafeNote(value: string): string {
+  const normalized = value.replace(/\s+/g, " ").trim();
+  if (normalized.length <= MAX_DIAGNOSTICS_NOTE_LENGTH) {
+    return normalized;
+  }
+  return `${normalized.slice(0, MAX_DIAGNOSTICS_NOTE_LENGTH - 3)}...`;
 }
 
 function capabilityRows(capabilities: RuntimeCapability[]): OutputMatrix {
@@ -52,7 +62,7 @@ function readDiagnosticsRows(source: "oa" | "erp", diagnostics: SheetReadDiagnos
   const prefix = source === "oa" ? "oa" : "erp";
   const strategyNote =
     diagnostics.strategy === "used_range_fallback" && diagnostics.fallbackReason
-      ? `${diagnostics.strategy}；原因：${diagnostics.fallbackReason}`
+      ? `${diagnostics.strategy}；原因：${cellSafeNote(diagnostics.fallbackReason)}`
       : diagnostics.strategy;
   return [
     [

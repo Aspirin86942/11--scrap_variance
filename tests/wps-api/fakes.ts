@@ -13,6 +13,7 @@ export interface FakeSheet extends WpsSheet {
   rowDeletes: Array<{ startRow: number; rowCount: number }>;
   rangeValues: Map<string, unknown>;
   failReadAddresses: Set<string>;
+  readFailureMessages: Map<string, string>;
   failWriteAddresses: Set<string>;
   failNextBulkWrite: boolean;
   usedRangeValue2ReadCount: number;
@@ -238,6 +239,7 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
     rowDeletes: [],
     rangeValues: new FakeRangeValues(),
     failReadAddresses: new Set<string>(),
+    readFailureMessages: new Map<string, string>(),
     failWriteAddresses: new Set<string>(),
     failNextBulkWrite: false,
     usedRangeValue2ReadCount: 0,
@@ -249,13 +251,13 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
         Address: address,
         get Value(): unknown {
           if (sheet.failReadAddresses.has(address)) {
-            throw new Error(`range read failed: ${address}`);
+            throw new Error(sheet.readFailureMessages.get(address) ?? `range read failed: ${address}`);
           }
           return sheet.rangeValues.get(address);
         },
         get Value2(): unknown {
           if (sheet.failReadAddresses.has(address)) {
-            throw new Error(`range read failed: ${address}`);
+            throw new Error(sheet.readFailureMessages.get(address) ?? `range read failed: ${address}`);
           }
           return sheet.rangeValues.get(address);
         },
