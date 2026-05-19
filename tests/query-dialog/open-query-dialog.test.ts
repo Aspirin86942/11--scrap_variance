@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SHEET_NAMES } from "../../src/constants";
+import { ERP_REQUIRED_HEADERS, OA_REQUIRED_HEADERS, SHEET_NAMES } from "../../src/constants";
 import { QUERY_DIRECTIONS } from "../../src/core/query-direction";
+import { unsupportedOutputSheetMessage } from "../../src/core/output-sheets";
 import {
   QUERY_DIALOG_RESULT_KEY,
   openQueryDialogAndRun,
@@ -39,7 +40,8 @@ function makeRoot(): ScrapVarianceGlobal & {
           values.delete(key);
         }
       },
-      ShowDialog: vi.fn<(url: string, title: string, width: number, height: number, modal: boolean) => unknown>()
+      ShowDialog: vi.fn<(url: string, title: string, width: number, height: number, modal: boolean) => unknown>(),
+      ActiveSheet: createFakeSheet(SHEET_NAMES.detailOutput)
     }
   };
 }
@@ -49,8 +51,35 @@ function readTokenFromShowDialog(root: ReturnType<typeof makeRoot>): string {
   return new URL(String(url)).searchParams.get("token") ?? "";
 }
 
+function attachSourceWorkbook(root: ReturnType<typeof makeRoot>): void {
+  root.Application.ActiveWorkbook = {
+    Worksheets: {
+      Count: 2,
+      Item(index: number) {
+        return [
+          createFakeSheet(SHEET_NAMES.oa, [
+            [...OA_REQUIRED_HEADERS],
+            ["OA-001", "ERP-001", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
+          ]),
+          createFakeSheet(SHEET_NAMES.erp, [
+            [...ERP_REQUIRED_HEADERS],
+            ["ERP-001", "2026/5/1", "OA-001", "装备", "售后", "维修", "MAT-A", "物料A", 1, 10]
+          ])
+        ][index - 1];
+      },
+      Add() {
+        return createFakeSheet("Sheet");
+      }
+    }
+  };
+}
+
 function initialStateStorageKey(token: string): string {
   return `ScrapVarianceQueryDialogInitialState:${token}`;
+}
+
+function readInitialPayload(root: ReturnType<typeof makeRoot>, token: string): unknown {
+  return JSON.parse(String(root.Application.PluginStorage.values.get(initialStateStorageKey(token))));
 }
 
 afterEach(() => {
@@ -107,11 +136,12 @@ describe("query dialog bridge", () => {
       ["数控", "生产运营中心", "仓储部", "2026-01-01", "2026-04-27", QUERY_DIRECTIONS.oaKingdeeToErp]
     ]);
     root.Application.ActiveSheet = sheet;
+    attachSourceWorkbook(root);
 
     openQueryDialogAndRun(root, runQuery, reportError);
 
     const token = readTokenFromShowDialog(root);
-    expect(JSON.parse(String(root.Application.PluginStorage.values.get(initialStateStorageKey(token))))).toEqual({
+    expect(readInitialPayload(root, token)).toEqual({
       token,
       state: {
         company: "数控",
@@ -120,12 +150,39 @@ describe("query dialog bridge", () => {
         startDate: "2026-01-01",
         endDate: "2026-04-27",
         queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+      },
+      suggestions: {
+        company: ["数控", "装备"],
+        dept1: ["生产", "售后"],
+        dept2: ["仓储", "维修"]
       }
     });
     vi.clearAllTimers();
   });
 
-  it("does not write initial state when the current output sheet has no saved query state", () => {
+  it("writes suggestions even when the current output sheet has no saved query state", () => {
+    vi.useFakeTimers();
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+    root.Application.ActiveSheet = createFakeSheet(SHEET_NAMES.oaDocCompare);
+    attachSourceWorkbook(root);
+
+    openQueryDialogAndRun(root, runQuery, reportError);
+
+    const token = readTokenFromShowDialog(root);
+    expect(readInitialPayload(root, token)).toEqual({
+      token,
+      suggestions: {
+        company: ["数控", "装备"],
+        dept1: ["生产", "售后"],
+        dept2: ["仓储", "维修"]
+      }
+    });
+    vi.clearAllTimers();
+  });
+
+  it("opens the query dialog with empty suggestions when source sheets are unavailable", () => {
     vi.useFakeTimers();
     const root = makeRoot();
     const runQuery = vi.fn();
@@ -135,11 +192,18 @@ describe("query dialog bridge", () => {
     openQueryDialogAndRun(root, runQuery, reportError);
 
     const token = readTokenFromShowDialog(root);
-    expect(root.Application.PluginStorage.values.get(initialStateStorageKey(token))).toBeUndefined();
+    expect(readInitialPayload(root, token)).toEqual({
+      token,
+      suggestions: {
+        company: [],
+        dept1: [],
+        dept2: []
+      }
+    });
     vi.clearAllTimers();
   });
 
-  it("does not write initial state when the active sheet is not an output sheet", () => {
+  it("rejects unsupported active sheets before opening the query dialog", () => {
     vi.useFakeTimers();
     const root = makeRoot();
     const runQuery = vi.fn();
@@ -150,12 +214,12 @@ describe("query dialog bridge", () => {
     ]);
     root.Application.ActiveSheet = sheet;
 
-    openQueryDialogAndRun(root, runQuery, reportError);
+    expect(() => openQueryDialogAndRun(root, runQuery, reportError)).toThrow(unsupportedOutputSheetMessage());
 
-    const token = readTokenFromShowDialog(root);
-    const [url] = root.Application.ShowDialog.mock.calls[0] ?? [];
-    expect(new URL(String(url)).searchParams.get("outputKind")).toBeNull();
-    expect(root.Application.PluginStorage.values.get(initialStateStorageKey(token))).toBeUndefined();
+    expect(root.Application.ShowDialog).not.toHaveBeenCalled();
+    expect(root.Application.PluginStorage.values.size).toBe(0);
+    expect(runQuery).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
     vi.clearAllTimers();
   });
 

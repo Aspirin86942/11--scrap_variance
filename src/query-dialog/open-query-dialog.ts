@@ -1,7 +1,12 @@
-import { detectOutputSheetKind } from "../core/output-sheets";
+import { detectOutputSheetKind, unsupportedOutputSheetMessage } from "../core/output-sheets";
 import type { OutputSheetKind, RibbonQueryState } from "../types/scrap";
 import type { ScrapVarianceGlobal } from "../types/wps";
 import { readOutputQueryState } from "../wps-api/output-metadata";
+import {
+  EMPTY_QUERY_DIALOG_SUGGESTIONS,
+  buildQueryDialogSuggestions,
+  type QueryDialogSuggestions
+} from "./suggestions";
 import { normalizeQueryDialogState, type QueryDialogStateInput } from "./state";
 
 export const QUERY_DIALOG_RESULT_KEY = "ScrapVarianceQueryDialogResult";
@@ -18,6 +23,12 @@ interface QueryDialogResult {
   token: string;
   action: DialogAction;
   state?: QueryDialogStateInput;
+}
+
+interface QueryDialogInitialPayload {
+  token: string;
+  state?: RibbonQueryState;
+  suggestions: QueryDialogSuggestions;
 }
 
 function errorMessage(error: unknown): string {
@@ -61,25 +72,22 @@ function writeDialogInitialState(root: ScrapVarianceGlobal, token: string, outpu
     return;
   }
 
-  let state: RibbonQueryState | null = null;
+  const payload: QueryDialogInitialPayload = {
+    token,
+    suggestions: EMPTY_QUERY_DIALOG_SUGGESTIONS
+  };
+
   try {
-    state = readOutputQueryState(activeSheet);
+    const state = readOutputQueryState(activeSheet);
+    if (state) {
+      payload.state = state;
+    }
   } catch (error) {
     root.console?.error?.("读取输出表查询条件失败，查询弹窗将使用空条件。", error);
-    return;
   }
 
-  if (!state) {
-    return;
-  }
-
-  getStorage(root).setItem(
-    buildDialogInitialStateKey(token),
-    JSON.stringify({
-      token,
-      state
-    })
-  );
+  payload.suggestions = buildQueryDialogSuggestions(root);
+  getStorage(root).setItem(buildDialogInitialStateKey(token), JSON.stringify(payload));
 }
 
 function readDialogResult(root: ScrapVarianceGlobal): QueryDialogResult | null {
@@ -159,8 +167,12 @@ export function openQueryDialogAndRun(root: ScrapVarianceGlobal, runQuery: RunQu
     throw new Error("当前 WPS 环境不支持 ShowDialog，无法打开查询弹窗。");
   }
 
-  const token = createDialogToken();
   const outputKind = getActiveOutputKind(root);
+  if (!outputKind) {
+    throw new Error(unsupportedOutputSheetMessage());
+  }
+
+  const token = createDialogToken();
   clearDialogResult(root);
   writeDialogInitialState(root, token, outputKind);
   application.ShowDialog(buildDialogUrl(token, outputKind), "报废差异查询条件", 560, 430, false);
