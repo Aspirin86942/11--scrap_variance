@@ -337,7 +337,12 @@ describe("TypeScript macro orchestration", () => {
     expect(panelSheet.Name).toBe(SHEET_NAMES.detailOutput);
     expect(panelSheet.clears).toEqual([]);
     expect(output).toContain("类别");
-    expect(output).toContain("read_oa_used_range");
+    expect(output).toContain("read_oa_source_table");
+    expect(output).toContain("read_erp_source_table");
+    expect(output).toContain("oa_read_strategy");
+    expect(output).toContain("oa_read_range");
+    expect(output).toContain("erp_read_strategy");
+    expect(output).toContain("narrow_rectangle");
     expect(output).toContain("build_output_matrix");
     expect(output).toContain("write_diagnostics_sheet");
     expect(output).toContain("performance.now");
@@ -405,6 +410,8 @@ describe("TypeScript macro orchestration", () => {
 
     expect(output).toContain("build_erp_rows_by_erp_filters");
     expect(output).not.toContain("build_erp_rows_for_oa");
+    expect(output).toContain("read_oa_source_table");
+    expect(output).toContain("read_erp_source_table");
     expect(readFiltersRow?.[2]).toBe(6);
     expect(readFiltersRow?.[3]).toBe(6);
     expect(initialRows).toContainEqual([

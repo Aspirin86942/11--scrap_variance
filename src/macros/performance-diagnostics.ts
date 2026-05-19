@@ -16,7 +16,7 @@ import { probeRuntimeCapabilities, type RuntimeCapability } from "../perf/runtim
 import { getRibbonState, readRibbonFilters } from "../ribbon/state";
 import type { OutputMatrix } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
-import { readUsedRangeMatrix } from "../wps-api/read-sheet-data";
+import { readSheetMatrixOptimized, type SheetReadDiagnostics } from "../wps-api/read-sheet-data";
 import { ensureSheet, getSheetByName } from "../wps-api/workbook";
 import { clearDiagnosticsOutput, writeMatrixBulkOrChunks } from "../wps-api/write-results";
 
@@ -46,6 +46,43 @@ function metricRows(stages: StageMetric[]): OutputMatrix {
     stage.heapDeltaMb,
     stage.note
   ]);
+}
+
+function readDiagnosticsRows(source: "oa" | "erp", diagnostics: SheetReadDiagnostics): OutputMatrix {
+  const prefix = source === "oa" ? "oa" : "erp";
+  const strategyNote =
+    diagnostics.strategy === "used_range_fallback" && diagnostics.fallbackReason
+      ? `${diagnostics.strategy}；原因：${diagnostics.fallbackReason}`
+      : diagnostics.strategy;
+  return [
+    [
+      "读表策略",
+      `${prefix}_read_strategy`,
+      NOT_APPLICABLE,
+      NOT_APPLICABLE,
+      NOT_APPLICABLE,
+      NOT_APPLICABLE,
+      strategyNote
+    ],
+    [
+      "读表范围",
+      `${prefix}_used_range`,
+      diagnostics.usedRangeRows,
+      diagnostics.usedRangeCols,
+      NOT_APPLICABLE,
+      NOT_APPLICABLE,
+      diagnostics.usedRangeAddress
+    ],
+    [
+      "读表范围",
+      `${prefix}_read_range`,
+      diagnostics.readRows,
+      diagnostics.readCols,
+      NOT_APPLICABLE,
+      NOT_APPLICABLE,
+      diagnostics.readRangeDescription
+    ]
+  ];
 }
 
 function writeDiagnosticsRows(sheet: WpsSheet, rows: OutputMatrix): void {
@@ -81,30 +118,30 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
       filters: readRibbonFilters(root),
       queryDirection: getRibbonState(root).queryDirection
     }));
-    const oaUsedRange = metrics.measure("read_oa_used_range", { outputRows: (value) => value.matrix.length }, () =>
-      readUsedRangeMatrix(oaSheet)
+    const oaSource = metrics.measure("read_oa_source_table", { outputRows: (value) => value.matrix.length }, () =>
+      readSheetMatrixOptimized(oaSheet, [...OA_REQUIRED_HEADERS], MIN_OA_HEADER_MATCH_COUNT, MAX_HEADER_SCAN_ROWS)
     );
     const oaTable = metrics.measure(
       "parse_oa_table",
-      { inputRows: oaUsedRange.matrix.length, outputRows: (value) => value.rows.length },
+      { inputRows: oaSource.matrix.length, outputRows: (value) => value.rows.length },
       () =>
-        parseTableFromMatrix(oaUsedRange.matrix, [...OA_REQUIRED_HEADERS], {
+        parseTableFromMatrix(oaSource.matrix, [...OA_REQUIRED_HEADERS], {
           minMatchCount: MIN_OA_HEADER_MATCH_COUNT,
           maxScanRows: MAX_HEADER_SCAN_ROWS,
-          usedRangeStartRow: oaUsedRange.usedRangeStartRow
+          usedRangeStartRow: oaSource.usedRangeStartRow
         })
     );
-    const erpUsedRange = metrics.measure("read_erp_used_range", { outputRows: (value) => value.matrix.length }, () =>
-      readUsedRangeMatrix(erpSheet)
+    const erpSource = metrics.measure("read_erp_source_table", { outputRows: (value) => value.matrix.length }, () =>
+      readSheetMatrixOptimized(erpSheet, [...ERP_REQUIRED_HEADERS], MIN_ERP_HEADER_MATCH_COUNT, MAX_HEADER_SCAN_ROWS)
     );
     const erpTable = metrics.measure(
       "parse_erp_table",
-      { inputRows: erpUsedRange.matrix.length, outputRows: (value) => value.rows.length },
+      { inputRows: erpSource.matrix.length, outputRows: (value) => value.rows.length },
       () =>
-        parseTableFromMatrix(erpUsedRange.matrix, [...ERP_REQUIRED_HEADERS], {
+        parseTableFromMatrix(erpSource.matrix, [...ERP_REQUIRED_HEADERS], {
           minMatchCount: MIN_ERP_HEADER_MATCH_COUNT,
           maxScanRows: MAX_HEADER_SCAN_ROWS,
-          usedRangeStartRow: erpUsedRange.usedRangeStartRow
+          usedRangeStartRow: erpSource.usedRangeStartRow
         })
     );
 
@@ -118,6 +155,8 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
     const rows: OutputMatrix = [
       [...DIAGNOSTICS_HEADERS],
       ...capabilityRows(capabilities),
+      ...readDiagnosticsRows("oa", oaSource.diagnostics),
+      ...readDiagnosticsRows("erp", erpSource.diagnostics),
       ...metricRows(metrics.stages),
       [
         "结果规模",
