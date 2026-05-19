@@ -57,7 +57,11 @@ function usedRangeAddress(rowCount: number, colCount: number): string {
   if (rowCount <= 0 || colCount <= 0) {
     return "A1:A1";
   }
-  return `A1:${columnName(colCount)}${rowCount}`;
+  return rangeAddressFromBounds(1, 1, rowCount, colCount);
+}
+
+function rangeAddressFromBounds(startRow: number, startCol: number, endRow: number, endCol: number): string {
+  return `${columnName(startCol)}${startRow}:${columnName(endCol)}${endRow}`;
 }
 
 function parseCellAddress(address: string): { row: number; col: number } | null {
@@ -156,6 +160,62 @@ class FakeRangeValues extends Map<string, unknown> {
   }
 }
 
+function usedRangeBounds(range: WpsRange | undefined): ParsedRangeAddress | null {
+  if (!range) {
+    return null;
+  }
+
+  const rowCount = range.Rows?.Count;
+  const colCount = range.Columns?.Count;
+  if (rowCount === 0 || colCount === 0) {
+    return null;
+  }
+  if (
+    typeof range.Row === "number" &&
+    typeof range.Column === "number" &&
+    typeof rowCount === "number" &&
+    typeof colCount === "number" &&
+    rowCount > 0 &&
+    colCount > 0
+  ) {
+    return {
+      startRow: range.Row,
+      startCol: range.Column,
+      endRow: range.Row + rowCount - 1,
+      endCol: range.Column + colCount - 1
+    };
+  }
+
+  return typeof range.Address === "string" ? parseRangeAddress(range.Address) : null;
+}
+
+function updateUsedRangeMetadata(sheet: FakeSheet, writtenRange: ParsedRangeAddress): void {
+  if (!sheet.UsedRange) {
+    return;
+  }
+
+  const previousRange = usedRangeBounds(sheet.UsedRange);
+  const nextRange = previousRange
+    ? {
+        startRow: Math.min(previousRange.startRow, writtenRange.startRow),
+        startCol: Math.min(previousRange.startCol, writtenRange.startCol),
+        endRow: Math.max(previousRange.endRow, writtenRange.endRow),
+        endCol: Math.max(previousRange.endCol, writtenRange.endCol)
+      }
+    : writtenRange;
+
+  sheet.UsedRange.Row = nextRange.startRow;
+  sheet.UsedRange.Column = nextRange.startCol;
+  sheet.UsedRange.Address = rangeAddressFromBounds(
+    nextRange.startRow,
+    nextRange.startCol,
+    nextRange.endRow,
+    nextRange.endCol
+  );
+  sheet.UsedRange.Rows = { Count: nextRange.endRow - nextRange.startRow + 1 };
+  sheet.UsedRange.Columns = { Count: nextRange.endCol - nextRange.startCol + 1 };
+}
+
 export function createFakeSheet(name: string, usedRangeValue: unknown = []): FakeSheet {
   const usedRangeMatrix = normalizeMatrix(usedRangeValue);
   const usedRangeRows = usedRangeMatrix.length;
@@ -215,6 +275,9 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
             throw new Error(`range write failed: ${address}`);
           }
           sheet.rangeValues.set(address, value);
+          if (parsedRange) {
+            updateUsedRangeMetadata(sheet, parsedRange);
+          }
           sheet.writes.push({ address, value });
         }
       };

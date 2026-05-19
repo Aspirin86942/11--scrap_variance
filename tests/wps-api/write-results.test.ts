@@ -102,6 +102,39 @@ describe("WPS adapter bulk reads and writes", () => {
     ]);
   });
 
+  it("keeps fake UsedRange metadata current after rectangular range writes", () => {
+    const sheet = createFakeSheet("查询结果", [
+      ["old-a", "old-b"],
+      [1, 2]
+    ]);
+
+    writeMatrixBulkOrChunks(sheet, 5, 4, [
+      ["new-d", "new-e"],
+      [3, 4]
+    ]);
+
+    expect(sheet.UsedRange?.Row).toBe(1);
+    expect(sheet.UsedRange?.Column).toBe(1);
+    expect(sheet.UsedRange?.Address).toBe("A1:E6");
+    expect(sheet.UsedRange?.Rows?.Count).toBe(6);
+    expect(sheet.UsedRange?.Columns?.Count).toBe(5);
+  });
+
+  it("starts fake UsedRange metadata from the written range when the sheet is empty", () => {
+    const sheet = createFakeSheet("查询结果");
+
+    writeMatrixBulkOrChunks(sheet, 5, 4, [
+      ["new-d", "new-e"],
+      [3, 4]
+    ]);
+
+    expect(sheet.UsedRange?.Row).toBe(5);
+    expect(sheet.UsedRange?.Column).toBe(4);
+    expect(sheet.UsedRange?.Address).toBe("D5:E6");
+    expect(sheet.UsedRange?.Rows?.Count).toBe(2);
+    expect(sheet.UsedRange?.Columns?.Count).toBe(2);
+  });
+
   it("pads jagged matrix rows before writing to a rectangular WPS range", () => {
     const sheet = createFakeSheet("报废差异明细");
 
