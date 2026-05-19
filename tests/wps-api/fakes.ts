@@ -14,6 +14,7 @@ export interface FakeSheet extends WpsSheet {
   rangeValues: Map<string, unknown>;
   rangeReads: string[];
   failReadAddresses: Set<string>;
+  readValueOverrides: Map<string, unknown>;
   readFailureMessages: Map<string, string>;
   failWriteAddresses: Set<string>;
   failNextBulkWrite: boolean;
@@ -241,6 +242,7 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
     rangeValues: new FakeRangeValues(),
     rangeReads: [],
     failReadAddresses: new Set<string>(),
+    readValueOverrides: new Map<string, unknown>(),
     readFailureMessages: new Map<string, string>(),
     failWriteAddresses: new Set<string>(),
     failNextBulkWrite: false,
@@ -256,12 +258,18 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
           if (sheet.failReadAddresses.has(address)) {
             throw new Error(sheet.readFailureMessages.get(address) ?? `range read failed: ${address}`);
           }
+          if (sheet.readValueOverrides.has(address)) {
+            return sheet.readValueOverrides.get(address);
+          }
           return sheet.rangeValues.get(address);
         },
         get Value2(): unknown {
           sheet.rangeReads.push(address);
           if (sheet.failReadAddresses.has(address)) {
             throw new Error(sheet.readFailureMessages.get(address) ?? `range read failed: ${address}`);
+          }
+          if (sheet.readValueOverrides.has(address)) {
+            return sheet.readValueOverrides.get(address);
           }
           return sheet.rangeValues.get(address);
         },

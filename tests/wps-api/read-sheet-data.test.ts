@@ -227,6 +227,54 @@ describe("optimized WPS source reads", () => {
     expect(sheet.usedRangeValue2ReadCount).toBe(1);
   });
 
+  it("falls back to full UsedRange when any grouped range read fails", () => {
+    const requiredHeaders = ["C字段", "A字段", "B字段"];
+    const sheet = createFakeSheet("DATA", [
+      rowWith({
+        1: "A字段",
+        2: "B字段",
+        5: "C字段"
+      }),
+      rowWith({
+        1: "A1",
+        2: "B1",
+        5: "C1"
+      })
+    ]);
+    sheet.failReadAddresses.add("E1:E2");
+
+    const result = readSheetTableWithDiagnostics(sheet, requiredHeaders, 2, 20);
+
+    expect(result.diagnostics.strategy).toBe("used_range_fallback");
+    expect(result.diagnostics.fallbackReason).toContain("range read failed: E1:E2");
+    expect(result.table.rows[0]?.["C字段"]).toBe("C1");
+    expect(sheet.usedRangeValue2ReadCount).toBe(1);
+  });
+
+  it("falls back to full UsedRange when a grouped range returns an inconsistent row count", () => {
+    const requiredHeaders = ["C字段", "A字段", "B字段"];
+    const sheet = createFakeSheet("DATA", [
+      rowWith({
+        1: "A字段",
+        2: "B字段",
+        5: "C字段"
+      }),
+      rowWith({
+        1: "A1",
+        2: "B1",
+        5: "C1"
+      })
+    ]);
+    sheet.readValueOverrides.set("E1:E2", [["C字段"]]);
+
+    const result = readSheetTableWithDiagnostics(sheet, requiredHeaders, 2, 20);
+
+    expect(result.diagnostics.strategy).toBe("used_range_fallback");
+    expect(result.diagnostics.fallbackReason).toContain("列组读取行数不一致");
+    expect(result.table.rows[0]?.["C字段"]).toBe("C1");
+    expect(sheet.usedRangeValue2ReadCount).toBe(1);
+  });
+
   it("falls back to full UsedRange when a grouped range returns too many columns", () => {
     const requiredHeaders = ["C字段", "A字段", "B字段"];
     const sheet = createFakeSheet("DATA", [
