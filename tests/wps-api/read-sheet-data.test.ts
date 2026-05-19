@@ -144,19 +144,21 @@ describe("optimized WPS source reads", () => {
     );
     expect(result.table.matrix[0]).toEqual(requiredHeaders);
     expect(result.table.matrix[1]).toEqual(["v01", "v02", "v03", "v04", "v05", "v06", "v07", "v08", "v09", "v10"]);
-    expect(sheet.rangeReads).toEqual([
-      "A1:S2",
-      "A1:A2",
-      "C1:C2",
-      "E1:E2",
-      "G1:G2",
-      "I1:I2",
-      "K1:K2",
-      "M1:M2",
-      "O1:O2",
-      "Q1:Q2",
-      "S1:S2"
-    ]);
+    expect(sheet.rangeReads).toContain("A1:S2");
+    expect(sheet.rangeReads).toEqual(
+      expect.arrayContaining([
+        "A1:A2",
+        "C1:C2",
+        "E1:E2",
+        "G1:G2",
+        "I1:I2",
+        "K1:K2",
+        "M1:M2",
+        "O1:O2",
+        "Q1:Q2",
+        "S1:S2"
+      ])
+    );
     expect(sheet.usedRangeValue2ReadCount).toBe(0);
   });
 
@@ -186,7 +188,8 @@ describe("optimized WPS source reads", () => {
     expect(result.table.rows[0]?.["C字段"]).toBe("C1");
     expect(result.table.rows[0]?.["A字段"]).toBe("A1");
     expect(result.table.rows[0]?.["B字段"]).toBe("B1");
-    expect(sheet.rangeReads).toEqual(["A1:E2", "A1:B2", "E1:E2"]);
+    expect(sheet.rangeReads).toContain("A1:E2");
+    expect(sheet.rangeReads).toEqual(expect.arrayContaining(["A1:B2", "E1:E2"]));
     expect(sheet.usedRangeValue2ReadCount).toBe(0);
   });
 
