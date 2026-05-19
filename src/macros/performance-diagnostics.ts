@@ -59,12 +59,19 @@ function metricRows(stages: StageMetric[]): OutputMatrix {
   ]);
 }
 
+function readStrategyNote(diagnostics: SheetReadDiagnostics): string {
+  if (diagnostics.strategy === "used_range_fallback" && diagnostics.fallbackReason) {
+    return `${diagnostics.strategy}；原因：${cellSafeNote(diagnostics.fallbackReason)}`;
+  }
+  if (diagnostics.strategy === "grouped_ranges") {
+    return `${diagnostics.strategy}；列组=${diagnostics.groupCount ?? 0}；读取列=${diagnostics.readCols}；总行=${diagnostics.readRows}`;
+  }
+  return diagnostics.strategy;
+}
+
 function readDiagnosticsRows(source: "oa" | "erp", diagnostics: SheetReadDiagnostics): OutputMatrix {
   const prefix = source === "oa" ? "oa" : "erp";
-  const strategyNote =
-    diagnostics.strategy === "used_range_fallback" && diagnostics.fallbackReason
-      ? `${diagnostics.strategy}；原因：${cellSafeNote(diagnostics.fallbackReason)}`
-      : diagnostics.strategy;
+  const strategyNote = readStrategyNote(diagnostics);
   return [
     [
       "读表策略",

@@ -70,6 +70,11 @@ function validErpRow(): Array<string | number> {
   return ["OUT1", "2026/5/2", "F1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10];
 }
 
+function scatteredRequiredRow(columns: Record<number, string | number>): Array<string | number> {
+  const width = Math.max(...Object.keys(columns).map(Number));
+  return Array.from({ length: width }, (_, index) => columns[index + 1] ?? "");
+}
+
 describe("TypeScript macro orchestration", () => {
   it("setupQueryPanel creates current output sheets and returns the detail output sheet", () => {
     const root = makeRoot([]);
@@ -341,8 +346,9 @@ describe("TypeScript macro orchestration", () => {
     expect(output).toContain("read_erp_source_table");
     expect(output).toContain("oa_read_strategy");
     expect(output).toContain("oa_read_range");
+    expect(output).toContain("oa_used_range");
     expect(output).toContain("erp_read_strategy");
-    expect(output).toContain("narrow_rectangle");
+    expect(output.some((value) => value.startsWith("grouped_ranges；列组="))).toBe(true);
     expect(output).toContain("build_output_matrix");
     expect(output).toContain("write_diagnostics_sheet");
     expect(output).toContain("performance.now");
@@ -399,10 +405,58 @@ describe("TypeScript macro orchestration", () => {
 
     expect(strategyRow).toBeDefined();
     expect(strategyNote).toMatch(/^used_range_fallback；原因：/);
+    expect(strategyNote).toContain("used_range_fallback");
     expect(strategyNote).not.toContain("\n");
     expect(strategyNote.length).toBeLessThanOrEqual(230);
     expect(initialRows[0]?.slice(0, 2)).toEqual(["类别", "阶段"]);
     expect(initialRows).toContainEqual(expect.arrayContaining(["结果规模", "result_rows"]));
+  });
+
+  it("runPerformanceDiagnostics writes grouped range count and read column diagnostics", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [
+      scatteredRequiredRow({
+        1: "表单编号",
+        2: "金蝶云单据编号",
+        3: "申请日期",
+        13: "公司简称",
+        14: "一级部门",
+        15: "二级部门",
+        26: "物料代码",
+        27: "物料名称",
+        28: "数量",
+        29: "实际预算金额mx"
+      }),
+      scatteredRequiredRow({
+        1: "F1",
+        2: "OUT1",
+        3: "2026/5/1",
+        13: "数控",
+        14: "生产",
+        15: "仓储",
+        26: "MAT-A",
+        27: "物料A",
+        28: 1,
+        29: 10
+      })
+    ]);
+    const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
+    const root = makeRoot([oaSheet, erpSheet]);
+
+    runPerformanceDiagnostics(root);
+
+    const diagnosticsSheet = getFakeSheetByName(root, SHEET_NAMES.performanceDiagnostics);
+    const initialWrite = diagnosticsSheet.writes[0];
+    if (!initialWrite || !Array.isArray(initialWrite.value)) {
+      throw new Error("missing diagnostics write");
+    }
+    const initialRows = initialWrite.value as OutputMatrix;
+    const strategyRow = initialRows.find((row) => row[1] === "oa_read_strategy");
+    const readRangeRow = initialRows.find((row) => row[1] === "oa_read_range");
+
+    expect(String(strategyRow?.[6] ?? "")).toBe("grouped_ranges；列组=3；读取列=10；总行=2");
+    expect(readRangeRow?.[2]).toBe(2);
+    expect(readRangeRow?.[3]).toBe(10);
+    expect(readRangeRow?.[6]).toBe("A1:C2,M1:O2,Z1:AC2");
   });
 
   it("runPerformanceDiagnostics uses the selected ERP source query direction", () => {
