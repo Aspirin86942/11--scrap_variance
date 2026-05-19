@@ -311,27 +311,13 @@ firstRow)||sortedNumericKeys(firstRow).length>0)){return rowKeys.map(key=>{var _
 numericObjectToArray(rowValue))!=null?_a:[rowValue]})}const row=numericObjectToArray(value);return row?[row]:null}function normalizeMatrix(values){if(isArray(values)){
 if(values.length===0){return[]}if(values.every(isArray)){return values}if(values.some(isArray)){return values.map(row=>isArray(row)?row:[row])}return[values]}if(values&&
 typeof values==="object"){const objectMatrix=numericObjectToMatrix(values);if(objectMatrix){return objectMatrix}}return[[values]]}function hasAnyNonBlankRow(matrix){
-return matrix.some(row=>row.some(cell=>!isBlankValue(cell)))}function errorMessage3(error){return error instanceof Error?error.message:String(error)}function readUsedRangeMatrix(sheet){try{const usedRange=sheet.UsedRange;
-if(!usedRange){throw new Error("UsedRange \u4E0D\u5B58\u5728")}const matrix=normalizeMatrix(usedRange.Value2);if(matrix.length===0||!hasAnyNonBlankRow(matrix)){
-throw new Error("UsedRange \u6CA1\u6709\u53EF\u8BFB\u53D6\u7684\u6570\u636E")}const usedRangeStartRow=Number.isFinite(usedRange.Row)?usedRange.Row:void 0;if(usedRangeStartRow===
-void 0){return{matrix}}return{matrix,usedRangeStartRow}}catch(error){throw new Error(`\u8BFB\u53D6\u5DE5\u4F5C\u8868\u5931\u8D25\uFF1A${sheet.Name}\uFF1B${errorMessage3(
-error)}`)}}function readSheetTable(sheet,requiredHeaders,minMatchCount,maxScanRows){const{matrix,usedRangeStartRow}=readUsedRangeMatrix(sheet);return parseTableFromMatrix(
-matrix,requiredHeaders,{minMatchCount,maxScanRows,usedRangeStartRow})}function isUsableSheets(value){return Boolean(value&&typeof value.Count==="number"&&typeof value.Item==="function")}function getApplication(root2=globalThis){if(!root2.
-Application){throw new Error("\u5F53\u524D\u73AF\u5883\u6CA1\u6709 WPS Application \u5BF9\u8C61\uFF0C\u8BF7\u5728 WPS JS \u5B8F\u73AF\u5883\u4E2D\u8FD0\u884C\u3002")}
-return root2.Application}function getSheets(app){var _a,_b,_c;const activeWorkbook=app.ActiveWorkbook;const sheets=(_c=(_b=(_a=activeWorkbook==null?void 0:activeWorkbook.
-Worksheets)!=null?_a:activeWorkbook==null?void 0:activeWorkbook.Sheets)!=null?_b:app.Worksheets)!=null?_c:app.Sheets;if(!isUsableSheets(sheets)){throw new Error(
-"\u5F53\u524D WPS Application \u6CA1\u6709\u53EF\u7528\u7684\u5DE5\u4F5C\u7C3F\u6216 Worksheets/Sheets \u96C6\u5408\u3002")}return sheets}function findSheetByName(sheetName,root2){
-const app=getApplication(root2);const sheets=getSheets(app);for(let index=1;index<=sheets.Count;index+=1){const sheet=sheets.Item(index);if((sheet==null?void 0:
-sheet.Name)===sheetName){return sheet}}return null}function getSheetByName(sheetName,root2){const sheet=findSheetByName(sheetName,root2);if(!sheet){throw new Error(
-`\u627E\u4E0D\u5230\u5DE5\u4F5C\u8868\uFF1A${sheetName}`)}return sheet}function ensureSheet(sheetName,root2){const existingSheet=findSheetByName(sheetName,root2);
-if(existingSheet){return existingSheet}const sheets=getSheets(getApplication(root2));if(typeof sheets.Add!=="function"){throw new Error("\u5F53\u524D\u5DE5\u4F5C\u7C3F\u4E0D\u652F\u6301\u65B0\u589E\u5DE5\u4F5C\u8868\u3002")}
-const sheet=sheets.Add();sheet.Name=sheetName;return sheet}function assertPositiveInteger(value,name){if(!Number.isInteger(value)||value<=0){throw new Error(`${name} \u5FC5\u987B\u662F\u6B63\u6574\u6570\u3002`)}}function columnName(columnIndex2){
+return matrix.some(row=>row.some(cell=>!isBlankValue(cell)))}function assertPositiveInteger(value,name){if(!Number.isInteger(value)||value<=0){throw new Error(`${name} \u5FC5\u987B\u662F\u6B63\u6574\u6570\u3002`)}}function columnName(columnIndex2){
 assertPositiveInteger(columnIndex2,"\u5217\u53F7");let remaining=columnIndex2;let name="";while(remaining>0){const zeroBasedOffset=(remaining-1)%26;name=String.
 fromCharCode(65+zeroBasedOffset)+name;remaining=Math.floor((remaining-1)/26)}return name}function normalizeChunkRows(chunkRows){if(Number.isFinite(chunkRows)&&Number.
 isInteger(chunkRows)&&chunkRows>0){return chunkRows}return WRITE_CHUNK_ROWS}function matrixWidth(values){return values.reduce((width,row)=>Math.max(width,row.length),
 0)}function rectangularizeMatrix(values,width){return values.map(row=>{if(row.length>=width){return row}return[...row,...Array(width-row.length).fill("")]})}function assignRangeValue(range,value){
 range.Value2=value}function clearRange(sheet,address){const range=sheet.Range(address);if(typeof range.ClearContents!=="function"){throw new Error(`\u6E05\u7A7A\u533A\u57DF\u5931\u8D25\uFF1A${sheet.
-Name}!${address} \u4E0D\u652F\u6301 ClearContents\u3002`)}range.ClearContents()}function errorMessage4(error){return error instanceof Error?error.message:String(
+Name}!${address} \u4E0D\u652F\u6301 ClearContents\u3002`)}range.ClearContents()}function errorMessage3(error){return error instanceof Error?error.message:String(
 error)}function rangeAddress(startRow,startCol,rowCount,colCount){assertPositiveInteger(startRow,"\u8D77\u59CB\u884C\u53F7");assertPositiveInteger(startCol,"\u8D77\u59CB\u5217\
 \u53F7");assertPositiveInteger(rowCount,"\u884C\u6570");assertPositiveInteger(colCount,"\u5217\u6570");const endRow=startRow+rowCount-1;const endCol=startCol+colCount-
 1;return`${columnName(startCol)}${startRow}:${columnName(endCol)}${endRow}`}function writeMatrixBulkOrChunks(sheet,startRow,startCol,values,chunkRows=WRITE_CHUNK_ROWS){
@@ -340,27 +326,80 @@ startRow,startCol,values.length,width);try{assignRangeValue(sheet.Range(address)
 chunkRows);for(let rowOffset=0;rowOffset<rectangularValues.length;rowOffset+=safeChunkRows){const chunk=rectangularValues.slice(rowOffset,rowOffset+safeChunkRows);
 const chunkWidth=matrixWidth(chunk);if(chunkWidth===0){continue}const chunkAddress=rangeAddress(startRow+rowOffset,startCol,chunk.length,chunkWidth);try{assignRangeValue(
 sheet.Range(chunkAddress),chunk)}catch(chunkWriteError){const chunkNumber=Math.floor(rowOffset/safeChunkRows)+1;throw new Error(`\u6574\u5757\u5199\u5165\u5931\u8D25\uFF1A${address}\
-\uFF1B${errorMessage4(fullWriteError)}\u3002\u5206\u5757\u5199\u5165\u5931\u8D25\uFF1A\u7B2C ${chunkNumber} \u5757 ${chunkAddress}\uFF1B${errorMessage4(chunkWriteError)}`)}}}}function clearPrecheckOutput(sheet){clearRange(sheet,`A1:H${MAX_PRECHECK_CLEAR_ROW}`)}function clearDiagnosticsOutput(sheet){clearRange(sheet,`A1:G${MAX_DIAGNOSTICS_CLEAR_ROW}`)}function errorMessage5(error){return error instanceof Error?error.message:String(error)}function capabilityRows(capabilities){return capabilities.map(capability2=>[
-"\u8FD0\u884C\u65F6\u80FD\u529B",capability2.name,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,capability2.note])}function metricRows(stages){return stages.
-map(stage=>["\u9636\u6BB5\u8017\u65F6",stage.name,stage.inputRows,stage.outputRows,stage.timeMs,stage.heapDeltaMb,stage.note])}function writeDiagnosticsRows(sheet,rows){
+\uFF1B${errorMessage3(fullWriteError)}\u3002\u5206\u5757\u5199\u5165\u5931\u8D25\uFF1A\u7B2C ${chunkNumber} \u5757 ${chunkAddress}\uFF1B${errorMessage3(chunkWriteError)}`)}}}}function clearPrecheckOutput(sheet){clearRange(sheet,`A1:H${MAX_PRECHECK_CLEAR_ROW}`)}function clearDiagnosticsOutput(sheet){clearRange(sheet,`A1:G${MAX_DIAGNOSTICS_CLEAR_ROW}`)}function errorMessage4(error){return error instanceof Error?error.message:String(error)}var RECTANGLE_SPAN_MULTIPLIER=2;var MAX_GROUPED_RANGES=4;function rangeCount(collection){
+return typeof(collection==null?void 0:collection.Count)==="number"&&Number.isFinite(collection.Count)?collection.Count:void 0}function readRangeValue(range){const value2=range.
+Value2;if(value2!==void 0){return value2}return range.Value}function matrixWidth2(matrix){return matrix.reduce((width,row)=>Math.max(width,row.length),0)}function describeGroups(groups,startRow,rowCount){
+return groups.map(group=>rangeAddress(startRow,group.startCol,rowCount,group.endCol-group.startCol+1)).join(",")}function readUsedRangeDimensions(usedRange){const startRow=typeof usedRange.
+Row==="number"&&Number.isFinite(usedRange.Row)?usedRange.Row:1;const startCol=typeof usedRange.Column==="number"&&Number.isFinite(usedRange.Column)?usedRange.Column:
+1;const rowCount=rangeCount(usedRange.Rows);const colCount=rangeCount(usedRange.Columns);if(!rowCount||!colCount){return null}return{startRow,startCol,rowCount,
+colCount,address:typeof usedRange.Address==="string"&&usedRange.Address?usedRange.Address:rangeAddress(startRow,startCol,rowCount,colCount)}}function contiguousGroups(columns){
+const sorted=[...columns].sort((left,right)=>left-right);const groups=[];for(const column of sorted){const last=groups[groups.length-1];if(last&&column===last.endCol+
+1){last.endCol=column}else{groups.push({startCol:column,endCol:column})}}return groups}function compactColumnsFromHeader(requiredHeaders,columnIndex2,usedRangeStartCol){
+const columns=requiredHeaders.map(header=>columnIndex2[header]).filter(index=>typeof index==="number");return[...new Set(columns.map(index=>usedRangeStartCol+index))].
+sort((left,right)=>left-right)}function buildReadPlan(usedRange,headerRowOffset,requiredColumns){const startRow=usedRange.startRow+headerRowOffset;const rowCount=usedRange.
+rowCount-headerRowOffset;const minCol=Math.min(...requiredColumns);const maxCol=Math.max(...requiredColumns);const span=maxCol-minCol+1;const compactGroups=contiguousGroups(
+requiredColumns);const useGrouped=span>requiredColumns.length*RECTANGLE_SPAN_MULTIPLIER&&compactGroups.length<=MAX_GROUPED_RANGES;const groups=useGrouped?compactGroups:
+[{startCol:minCol,endCol:maxCol}];const strategy=useGrouped?"grouped_columns":"narrow_rectangle";return{strategy,startRow,rowCount,groups,usedRange,description:describeGroups(
+groups,startRow,rowCount),readCols:useGrouped?requiredColumns.length:span}}function readRectangleMatrix(sheet,group,startRow,rowCount){const address=rangeAddress(
+startRow,group.startCol,rowCount,group.endCol-group.startCol+1);return normalizeMatrix(readRangeValue(sheet.Range(address)))}function readPlannedMatrix(sheet,plan){
+var _a,_b;const matrices=plan.groups.map(group=>readRectangleMatrix(sheet,group,plan.startRow,plan.rowCount));if(matrices.length===1){return(_a=matrices[0])!=null?
+_a:[]}const result=[];for(let rowIndex=0;rowIndex<plan.rowCount;rowIndex+=1){const row=[];for(const matrix of matrices){row.push(...(_b=matrix[rowIndex])!=null?
+_b:[])}result.push(row)}return result}function diagnosticsForPlan(plan,matrix){return{strategy:plan.strategy,usedRangeAddress:plan.usedRange.address,usedRangeRows:plan.
+usedRange.rowCount,usedRangeCols:plan.usedRange.colCount,readRangeDescription:plan.description,readRows:matrix.length,readCols:matrixWidth2(matrix)}}function readUsedRangeMatrix(sheet){
+try{const usedRange=sheet.UsedRange;if(!usedRange){throw new Error("UsedRange \u4E0D\u5B58\u5728")}const matrix=normalizeMatrix(readRangeValue(usedRange));if(matrix.
+length===0||!hasAnyNonBlankRow(matrix)){throw new Error("UsedRange \u6CA1\u6709\u53EF\u8BFB\u53D6\u7684\u6570\u636E")}const usedRangeStartRow=Number.isFinite(usedRange.
+Row)?usedRange.Row:void 0;if(usedRangeStartRow===void 0){return{matrix}}return{matrix,usedRangeStartRow}}catch(error){throw new Error(`\u8BFB\u53D6\u5DE5\u4F5C\u8868\u5931\u8D25\uFF1A${sheet.
+Name}\uFF1B${errorMessage4(error)}`)}}function readSheetMatrixOptimized(sheet,requiredHeaders,minMatchCount,maxScanRows){var _a,_b;const usedRange=sheet.UsedRange;
+if(!usedRange){throw new Error(`\u8BFB\u53D6\u5DE5\u4F5C\u8868\u5931\u8D25\uFF1A${sheet.Name}\uFF1BUsedRange \u4E0D\u5B58\u5728`)}const dimensions=readUsedRangeDimensions(
+usedRange);try{if(!dimensions){throw new Error("UsedRange \u7F3A\u5C11\u884C\u5217\u8303\u56F4\u4FE1\u606F")}const probeRows=Math.min(maxScanRows,dimensions.rowCount);
+const probeAddress=rangeAddress(dimensions.startRow,dimensions.startCol,probeRows,dimensions.colCount);const headerProbeMatrix=normalizeMatrix(readRangeValue(sheet.
+Range(probeAddress)));const headerResult=detectHeaderRow(headerProbeMatrix,requiredHeaders,{minMatchCount,maxScanRows,usedRangeStartRow:dimensions.startRow});if(!headerResult.
+ok){throw new HeaderDetectionError(headerResult)}const requiredColumns=compactColumnsFromHeader(requiredHeaders,headerResult.columnIndex,dimensions.startCol);const plan=buildReadPlan(
+dimensions,headerResult.headerRowIndex,requiredColumns);const matrix=readPlannedMatrix(sheet,plan);if(matrix.length===0||!hasAnyNonBlankRow(matrix)){throw new Error(
+"\u7A84\u8BFB\u8303\u56F4\u6CA1\u6709\u53EF\u8BFB\u53D6\u7684\u6570\u636E")}return{matrix,usedRangeStartRow:plan.startRow,diagnostics:diagnosticsForPlan(plan,matrix)}}catch(narrowError){
+const fallback=readUsedRangeMatrix(sheet);const result={matrix:fallback.matrix,diagnostics:{strategy:"used_range_fallback",usedRangeAddress:(_a=dimensions==null?
+void 0:dimensions.address)!=null?_a:"\u65E0\u786E\u5207\u4FE1\u606F",usedRangeRows:fallback.matrix.length,usedRangeCols:matrixWidth2(fallback.matrix),readRangeDescription:(_b=
+dimensions==null?void 0:dimensions.address)!=null?_b:"UsedRange.Value2",readRows:fallback.matrix.length,readCols:matrixWidth2(fallback.matrix),fallbackReason:errorMessage4(
+narrowError)}};if(fallback.usedRangeStartRow!==void 0){result.usedRangeStartRow=fallback.usedRangeStartRow}return result}}function readSheetTableWithDiagnostics(sheet,requiredHeaders,minMatchCount,maxScanRows){
+const result=readSheetMatrixOptimized(sheet,requiredHeaders,minMatchCount,maxScanRows);return{table:parseTableFromMatrix(result.matrix,requiredHeaders,{minMatchCount,
+maxScanRows,usedRangeStartRow:result.usedRangeStartRow}),diagnostics:result.diagnostics}}function readSheetTable(sheet,requiredHeaders,minMatchCount,maxScanRows){
+return readSheetTableWithDiagnostics(sheet,requiredHeaders,minMatchCount,maxScanRows).table}function isUsableSheets(value){return Boolean(value&&typeof value.Count==="number"&&typeof value.Item==="function")}function getApplication(root2=globalThis){if(!root2.
+Application){throw new Error("\u5F53\u524D\u73AF\u5883\u6CA1\u6709 WPS Application \u5BF9\u8C61\uFF0C\u8BF7\u5728 WPS JS \u5B8F\u73AF\u5883\u4E2D\u8FD0\u884C\u3002")}
+return root2.Application}function getSheets(app){var _a,_b,_c;const activeWorkbook=app.ActiveWorkbook;const sheets=(_c=(_b=(_a=activeWorkbook==null?void 0:activeWorkbook.
+Worksheets)!=null?_a:activeWorkbook==null?void 0:activeWorkbook.Sheets)!=null?_b:app.Worksheets)!=null?_c:app.Sheets;if(!isUsableSheets(sheets)){throw new Error(
+"\u5F53\u524D WPS Application \u6CA1\u6709\u53EF\u7528\u7684\u5DE5\u4F5C\u7C3F\u6216 Worksheets/Sheets \u96C6\u5408\u3002")}return sheets}function findSheetByName(sheetName,root2){
+const app=getApplication(root2);const sheets=getSheets(app);for(let index=1;index<=sheets.Count;index+=1){const sheet=sheets.Item(index);if((sheet==null?void 0:
+sheet.Name)===sheetName){return sheet}}return null}function getSheetByName(sheetName,root2){const sheet=findSheetByName(sheetName,root2);if(!sheet){throw new Error(
+`\u627E\u4E0D\u5230\u5DE5\u4F5C\u8868\uFF1A${sheetName}`)}return sheet}function ensureSheet(sheetName,root2){const existingSheet=findSheetByName(sheetName,root2);
+if(existingSheet){return existingSheet}const sheets=getSheets(getApplication(root2));if(typeof sheets.Add!=="function"){throw new Error("\u5F53\u524D\u5DE5\u4F5C\u7C3F\u4E0D\u652F\u6301\u65B0\u589E\u5DE5\u4F5C\u8868\u3002")}
+const sheet=sheets.Add();sheet.Name=sheetName;return sheet}var MAX_DIAGNOSTICS_NOTE_LENGTH=200;function errorMessage5(error){return error instanceof Error?error.message:String(error)}function cellSafeNote(value){const normalized=value.
+replace(/\s+/g," ").trim();if(normalized.length<=MAX_DIAGNOSTICS_NOTE_LENGTH){return normalized}return`${normalized.slice(0,MAX_DIAGNOSTICS_NOTE_LENGTH-3)}...`}
+function capabilityRows(capabilities){return capabilities.map(capability2=>["\u8FD0\u884C\u65F6\u80FD\u529B",capability2.name,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,
+NOT_APPLICABLE,capability2.note])}function metricRows(stages){return stages.map(stage=>["\u9636\u6BB5\u8017\u65F6",stage.name,stage.inputRows,stage.outputRows,stage.
+timeMs,stage.heapDeltaMb,stage.note])}function readDiagnosticsRows(source,diagnostics){const prefix=source==="oa"?"oa":"erp";const strategyNote=diagnostics.strategy===
+"used_range_fallback"&&diagnostics.fallbackReason?`${diagnostics.strategy}\uFF1B\u539F\u56E0\uFF1A${cellSafeNote(diagnostics.fallbackReason)}`:diagnostics.strategy;
+return[["\u8BFB\u8868\u7B56\u7565",`${prefix}_read_strategy`,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,strategyNote],["\u8BFB\u8868\u8303\u56F4",
+`${prefix}_used_range`,diagnostics.usedRangeRows,diagnostics.usedRangeCols,NOT_APPLICABLE,NOT_APPLICABLE,diagnostics.usedRangeAddress],["\u8BFB\u8868\u8303\u56F4",
+`${prefix}_read_range`,diagnostics.readRows,diagnostics.readCols,NOT_APPLICABLE,NOT_APPLICABLE,diagnostics.readRangeDescription]]}function writeDiagnosticsRows(sheet,rows){
 clearDiagnosticsOutput(sheet);writeMatrixBulkOrChunks(sheet,1,1,rows,WRITE_CHUNK_ROWS)}function writeDiagnosticsError(root2,message){const sheet=ensureSheet(SHEET_NAMES.
 performanceDiagnostics,root2);writeDiagnosticsRows(sheet,[[...DIAGNOSTICS_HEADERS],["\u9519\u8BEF","performance_diagnostics",NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,
 NOT_APPLICABLE,message]])}function runPerformanceDiagnostics(root2){try{const diagnosticsSheet=ensureSheet(SHEET_NAMES.performanceDiagnostics,root2);const metrics=createMetricsRecorder(
 root2!=null?root2:globalThis);const capabilities=probeRuntimeCapabilities(root2!=null?root2:globalThis,globalThis);const oaSheet=getSheetByName(SHEET_NAMES.oa,root2);
 const erpSheet=getSheetByName(SHEET_NAMES.erp,root2);const queryInput=metrics.measure("read_filters",{inputRows:6,outputRows:6},()=>({filters:readRibbonFilters(
-root2),queryDirection:getRibbonState(root2).queryDirection}));const oaUsedRange=metrics.measure("read_oa_used_range",{outputRows:value=>value.matrix.length},()=>readUsedRangeMatrix(
-oaSheet));const oaTable=metrics.measure("parse_oa_table",{inputRows:oaUsedRange.matrix.length,outputRows:value=>value.rows.length},()=>parseTableFromMatrix(oaUsedRange.
-matrix,[...OA_REQUIRED_HEADERS],{minMatchCount:MIN_OA_HEADER_MATCH_COUNT,maxScanRows:MAX_HEADER_SCAN_ROWS,usedRangeStartRow:oaUsedRange.usedRangeStartRow}));const erpUsedRange=metrics.
-measure("read_erp_used_range",{outputRows:value=>value.matrix.length},()=>readUsedRangeMatrix(erpSheet));const erpTable=metrics.measure("parse_erp_table",{inputRows:erpUsedRange.
-matrix.length,outputRows:value=>value.rows.length},()=>parseTableFromMatrix(erpUsedRange.matrix,[...ERP_REQUIRED_HEADERS],{minMatchCount:MIN_ERP_HEADER_MATCH_COUNT,
-maxScanRows:MAX_HEADER_SCAN_ROWS,usedRangeStartRow:erpUsedRange.usedRangeStartRow}));const result=runQueryCorePipeline(oaTable.rows,erpTable.rows,queryInput.filters,
-metrics,queryInput.queryDirection);const rows=[[...DIAGNOSTICS_HEADERS],...capabilityRows(capabilities),...metricRows(metrics.stages),["\u7ED3\u679C\u89C4\u6A21",
-"result_rows",oaTable.rows.length+erpTable.rows.length,result.detailRows.length+result.summaryRows.length,NOT_APPLICABLE,NOT_APPLICABLE,`OA\u805A\u5408=${result.
-oaGroupedRows.size}\uFF1BERP\u5339\u914D\u805A\u5408=${result.erpRowsForOa.size}\uFF1BERP-only\u805A\u5408=${result.erpOnlyRows.size}`]];const writeStageRow=rows.
-length+1;metrics.measure("write_diagnostics_sheet",{inputRows:rows.length,outputRows:rows.length},()=>{writeDiagnosticsRows(diagnosticsSheet,rows);return rows.length});
-const writeStage=metrics.stages[metrics.stages.length-1];if(writeStage){writeMatrixBulkOrChunks(diagnosticsSheet,writeStageRow,1,metricRows([writeStage]),WRITE_CHUNK_ROWS)}}catch(error){
-const originalMessage=errorMessage5(error);try{writeDiagnosticsError(root2,originalMessage)}catch(writeError){throw new Error(`\u6027\u80FD\u8BCA\u65AD\u5931\u8D25\uFF1A${originalMessage}\
-; \u9519\u8BEF\u4FE1\u606F\u5199\u5165\u4E5F\u5931\u8D25\uFF1A${errorMessage5(writeError)}`)}}}function createDocAccumulator(docNumber){return{docNumber,counterpartDocNumbers:"",counterpartDocNumberSet:new Set,company:"",dept1:"",dept2:"",date:"",quantity:zeroDecimal(),
+root2),queryDirection:getRibbonState(root2).queryDirection}));const oaSource=metrics.measure("read_oa_source_table",{outputRows:value=>value.matrix.length},()=>readSheetMatrixOptimized(
+oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,MAX_HEADER_SCAN_ROWS));const oaTable=metrics.measure("parse_oa_table",{inputRows:oaSource.matrix.length,
+outputRows:value=>value.rows.length},()=>parseTableFromMatrix(oaSource.matrix,[...OA_REQUIRED_HEADERS],{minMatchCount:MIN_OA_HEADER_MATCH_COUNT,maxScanRows:MAX_HEADER_SCAN_ROWS,
+usedRangeStartRow:oaSource.usedRangeStartRow}));const erpSource=metrics.measure("read_erp_source_table",{outputRows:value=>value.matrix.length},()=>readSheetMatrixOptimized(
+erpSheet,[...ERP_REQUIRED_HEADERS],MIN_ERP_HEADER_MATCH_COUNT,MAX_HEADER_SCAN_ROWS));const erpTable=metrics.measure("parse_erp_table",{inputRows:erpSource.matrix.
+length,outputRows:value=>value.rows.length},()=>parseTableFromMatrix(erpSource.matrix,[...ERP_REQUIRED_HEADERS],{minMatchCount:MIN_ERP_HEADER_MATCH_COUNT,maxScanRows:MAX_HEADER_SCAN_ROWS,
+usedRangeStartRow:erpSource.usedRangeStartRow}));const result=runQueryCorePipeline(oaTable.rows,erpTable.rows,queryInput.filters,metrics,queryInput.queryDirection);
+const rows=[[...DIAGNOSTICS_HEADERS],...capabilityRows(capabilities),...readDiagnosticsRows("oa",oaSource.diagnostics),...readDiagnosticsRows("erp",erpSource.diagnostics),
+...metricRows(metrics.stages),["\u7ED3\u679C\u89C4\u6A21","result_rows",oaTable.rows.length+erpTable.rows.length,result.detailRows.length+result.summaryRows.length,
+NOT_APPLICABLE,NOT_APPLICABLE,`OA\u805A\u5408=${result.oaGroupedRows.size}\uFF1BERP\u5339\u914D\u805A\u5408=${result.erpRowsForOa.size}\uFF1BERP-only\u805A\u5408=${result.
+erpOnlyRows.size}`]];const writeStageRow=rows.length+1;metrics.measure("write_diagnostics_sheet",{inputRows:rows.length,outputRows:rows.length},()=>{writeDiagnosticsRows(
+diagnosticsSheet,rows);return rows.length});const writeStage=metrics.stages[metrics.stages.length-1];if(writeStage){writeMatrixBulkOrChunks(diagnosticsSheet,writeStageRow,
+1,metricRows([writeStage]),WRITE_CHUNK_ROWS)}}catch(error){const originalMessage=errorMessage5(error);try{writeDiagnosticsError(root2,originalMessage)}catch(writeError){
+throw new Error(`\u6027\u80FD\u8BCA\u65AD\u5931\u8D25\uFF1A${originalMessage}; \u9519\u8BEF\u4FE1\u606F\u5199\u5165\u4E5F\u5931\u8D25\uFF1A${errorMessage5(writeError)}`)}}}function createDocAccumulator(docNumber){return{docNumber,counterpartDocNumbers:"",counterpartDocNumberSet:new Set,company:"",dept1:"",dept2:"",date:"",quantity:zeroDecimal(),
 amount:zeroDecimal(),materials:new Map}}function createMaterialAccumulator(itemCode,itemName){return{itemCode,itemName,quantity:zeroDecimal(),amount:zeroDecimal()}}
 function appendCounterpartDocNumber(doc,docNumber){const normalized=normalizeText(docNumber);if(!normalized){return}doc.counterpartDocNumberSet.add(normalized);
 doc.counterpartDocNumbers=appendUniqueJoinedText(doc.counterpartDocNumbers,normalized,",")}function assignDocTextFields(doc,company,dept1,dept2,dateKey){if(!doc.
@@ -441,8 +480,8 @@ sheet);if(!metadata||metadata.kind!==expectedKind){return}clearRange(sheet,metad
 sheet);if(!metadata||rowDelta===0){return}const parsed=parseA1RectangleAddress(metadata.rangeAddress);if(!parsed){return}const nextEndRow=Math.max(parsed.startRow,
 parsed.endRow+rowDelta);saveOutputMetadata(sheet,{kind:metadata.kind,rangeAddress:`${parsed.startColumn}${parsed.startRow}:${parsed.endColumn}${nextEndRow}`})}function setupOutputSheets(root2){let detailSheet=findSheetByName(SHEET_NAMES.detailOutput,root2);if(!detailSheet){const oldPanel=findSheetByName(SHEET_NAMES.panel,
 root2);if(oldPanel){oldPanel.Name=SHEET_NAMES.detailOutput;detailSheet=oldPanel}else{detailSheet=ensureSheet(SHEET_NAMES.detailOutput,root2)}}ensureSheet(SHEET_NAMES.
-oaDocCompare,root2);ensureSheet(SHEET_NAMES.erpDocCompare,root2);return detailSheet}function errorMessage6(error){return error instanceof Error?error.message:String(error)}function matrixWidth2(values){return values.reduce((width,row)=>Math.max(
-width,row.length),0)}function writeOutputWithMetadata(sheet,kind,values,queryState){const width=matrixWidth2(values);if(values.length===0||width===0){return}const address=rangeAddress(
+oaDocCompare,root2);ensureSheet(SHEET_NAMES.erpDocCompare,root2);return detailSheet}function errorMessage6(error){return error instanceof Error?error.message:String(error)}function matrixWidth3(values){return values.reduce((width,row)=>Math.max(
+width,row.length),0)}function writeOutputWithMetadata(sheet,kind,values,queryState){const width=matrixWidth3(values);if(values.length===0||width===0){return}const address=rangeAddress(
 1,1,values.length,width);writeMatrixBulkOrChunks(sheet,1,1,values,WRITE_CHUNK_ROWS);saveOutputMetadata(sheet,{kind,rangeAddress:address});if(queryState){saveOutputQueryState(
 sheet,queryState)}}function readSourceRows(root2){const oaSheet=getSheetByName(SHEET_NAMES.oa,root2);const erpSheet=getSheetByName(SHEET_NAMES.erp,root2);const oaTable=readSheetTable(
 oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,MAX_HEADER_SCAN_ROWS);const erpTable=readSheetTable(erpSheet,[...ERP_REQUIRED_HEADERS],MIN_ERP_HEADER_MATCH_COUNT,
