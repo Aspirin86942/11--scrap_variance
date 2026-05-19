@@ -33,9 +33,11 @@ function uniqueSorted(values: string[]): string[] {
 }
 
 export function buildQueryDialogSuggestions(root?: ScrapVarianceGlobal): QueryDialogSuggestions {
+  const runtimeRoot = root ?? (globalThis as ScrapVarianceGlobal);
+
   try {
-    const oaSheet = getSheetByName(SHEET_NAMES.oa, root);
-    const erpSheet = getSheetByName(SHEET_NAMES.erp, root);
+    const oaSheet = getSheetByName(SHEET_NAMES.oa, runtimeRoot);
+    const erpSheet = getSheetByName(SHEET_NAMES.erp, runtimeRoot);
     const oaTable = readSheetTable(oaSheet, [...OA_REQUIRED_HEADERS], MIN_OA_HEADER_MATCH_COUNT, MAX_HEADER_SCAN_ROWS);
     const erpTable = readSheetTable(
       erpSheet,
@@ -59,7 +61,7 @@ export function buildQueryDialogSuggestions(root?: ScrapVarianceGlobal): QueryDi
       ])
     };
   } catch (error) {
-    root?.console?.error?.("读取查询候选失败，查询弹窗将不显示补全下拉。", error);
+    runtimeRoot.console?.error?.("读取查询候选失败，查询弹窗将不显示补全下拉。", error);
     return EMPTY_QUERY_DIALOG_SUGGESTIONS;
   }
 }

@@ -48,4 +48,34 @@ describe("query dialog suggestions", () => {
       expect.any(Error)
     );
   });
+
+  it("returns empty suggestions and logs when source sheets exist but UsedRange is unreadable", () => {
+    const error = vi.fn();
+    const root: ScrapVarianceGlobal = {
+      Application: createFakeApplication([createFakeSheet(SHEET_NAMES.oa), createFakeSheet(SHEET_NAMES.erp)]),
+      console: { error, log: vi.fn() }
+    };
+
+    expect(buildQueryDialogSuggestions(root)).toEqual(EMPTY_QUERY_DIALOG_SUGGESTIONS);
+    expect(error).toHaveBeenCalledWith(
+      "读取查询候选失败，查询弹窗将不显示补全下拉。",
+      expect.any(Error)
+    );
+  });
+
+  it("logs through global console when default-root suggestion reads fail", () => {
+    vi.stubGlobal("Application", createFakeApplication([]));
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    try {
+      expect(buildQueryDialogSuggestions()).toEqual(EMPTY_QUERY_DIALOG_SUGGESTIONS);
+      expect(error).toHaveBeenCalledWith(
+        "读取查询候选失败，查询弹窗将不显示补全下拉。",
+        expect.any(Error)
+      );
+    } finally {
+      error.mockRestore();
+      vi.unstubAllGlobals();
+    }
+  });
 });
