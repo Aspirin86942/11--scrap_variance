@@ -6,7 +6,7 @@ import {
   OA_REQUIRED_HEADERS
 } from "../../src/constants";
 import type { ScrapVarianceGlobal, WpsApplication, WpsSheet, WpsSheets } from "../../src/types/wps";
-import { readSheetTable } from "../../src/wps-api/read-sheet-data";
+import { readUsedRangeMatrix } from "../../src/wps-api/read-sheet-data";
 import { ensureSheet, getApplication, getSheets } from "../../src/wps-api/workbook";
 import {
   clearPrecheckOutput,
@@ -48,7 +48,7 @@ describe("WPS adapter bulk reads and writes", () => {
     expect(sheet.writes).toEqual([]);
   });
 
-  it("reads UsedRange.Value2 once and parses table by automatic header detection", () => {
+  it("reads UsedRange.Value2 once when explicit full matrix fallback is requested", () => {
     const usedRange = [
       ["导出时间", "2026-05-17"],
       [...OA_REQUIRED_HEADERS],
@@ -56,11 +56,10 @@ describe("WPS adapter bulk reads and writes", () => {
     ];
     const sheet = createFakeSheet("OA", usedRange);
 
-    const parsed = readSheetTable(sheet, [...OA_REQUIRED_HEADERS], 5, 20);
+    const result = readUsedRangeMatrix(sheet);
 
-    expect(parsed.rows).toHaveLength(1);
-    expect(parsed.rows[0]?.["表单编号"]).toBe("F1");
-    expect(parsed.headerRowNumber).toBe(2);
+    expect(result.matrix).toEqual(usedRange);
+    expect(result.usedRangeStartRow).toBe(1);
     expect(sheet.usedRangeValue2ReadCount).toBe(1);
   });
 

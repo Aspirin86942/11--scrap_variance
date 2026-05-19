@@ -1,0 +1,125 @@
+import { describe, expect, it } from "vitest";
+import { OA_REQUIRED_HEADERS } from "../../src/constants";
+import { HeaderDetectionError } from "../../src/core/header-detection";
+import { readSheetTableWithDiagnostics, readUsedRangeMatrix } from "../../src/wps-api/read-sheet-data";
+import { createFakeSheet } from "./fakes";
+
+function rowWith(columns: Record<number, string | number>): Array<string | number> {
+  const width = Math.max(...Object.keys(columns).map(Number));
+  return Array.from({ length: width }, (_, index) => columns[index + 1] ?? "");
+}
+
+function scatteredOaHeaderRow(): Array<string | number> {
+  return rowWith({
+    1: "表单编号",
+    2: "金蝶云单据编号",
+    3: "申请日期",
+    13: "公司简称",
+    14: "一级部门",
+    15: "二级部门",
+    26: "物料代码",
+    27: "物料名称",
+    28: "数量",
+    29: "实际预算金额mx"
+  });
+}
+
+function scatteredOaDataRow(): Array<string | number> {
+  return rowWith({
+    1: "F1",
+    2: "OUT1",
+    3: "2026/5/1",
+    13: "数控",
+    14: "生产",
+    15: "仓储",
+    26: "MAT-A",
+    27: "物料A",
+    28: 1,
+    29: 10
+  });
+}
+
+describe("optimized WPS source reads", () => {
+  it("reads a compact rectangle without touching full UsedRange.Value2", () => {
+    const sheet = createFakeSheet("OA", [
+      [...OA_REQUIRED_HEADERS],
+      ["F1", "OUT1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
+    ]);
+
+    const result = readSheetTableWithDiagnostics(sheet, [...OA_REQUIRED_HEADERS], 5, 20);
+
+    expect(result.table.rows).toHaveLength(1);
+    expect(result.table.rows[0]?.["表单编号"]).toBe("F1");
+    expect(result.diagnostics.strategy).toBe("narrow_rectangle");
+    expect(result.diagnostics.usedRangeAddress).toBe("A1:J2");
+    expect(result.diagnostics.readRangeDescription).toBe("A1:J2");
+    expect(result.diagnostics.readRows).toBe(2);
+    expect(result.diagnostics.readCols).toBe(10);
+    expect(sheet.usedRangeValue2ReadCount).toBe(0);
+  });
+
+  it("preserves worksheet row numbers when the header is below leading rows", () => {
+    const sheet = createFakeSheet("OA", [
+      ["导出条件"],
+      ["制表人"],
+      [...OA_REQUIRED_HEADERS],
+      ["F1", "OUT1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
+    ]);
+
+    const result = readSheetTableWithDiagnostics(sheet, [...OA_REQUIRED_HEADERS], 5, 20);
+
+    expect(result.table.headerRowNumber).toBe(3);
+    expect(result.table.rows[0]?._rowNumber).toBe(4);
+    expect(result.diagnostics.readRangeDescription).toBe("A3:J4");
+    expect(result.diagnostics.readRows).toBe(2);
+    expect(sheet.usedRangeValue2ReadCount).toBe(0);
+  });
+
+  it("uses grouped column reads when required headers are scattered", () => {
+    const sheet = createFakeSheet("OA", [scatteredOaHeaderRow(), scatteredOaDataRow()]);
+
+    const result = readSheetTableWithDiagnostics(sheet, [...OA_REQUIRED_HEADERS], 5, 20);
+
+    expect(result.diagnostics.strategy).toBe("grouped_columns");
+    expect(result.diagnostics.usedRangeAddress).toBe("A1:AC2");
+    expect(result.diagnostics.readRangeDescription).toBe("A1:C2,M1:O2,Z1:AC2");
+    expect(result.diagnostics.readCols).toBe(10);
+    expect(result.table.rows[0]?.["公司简称"]).toBe("数控");
+    expect(result.table.rows[0]?.["实际预算金额mx"]).toBe(10);
+    expect(sheet.usedRangeValue2ReadCount).toBe(0);
+  });
+
+  it("falls back to full UsedRange when the narrow read fails", () => {
+    const sheet = createFakeSheet("OA", [
+      [...OA_REQUIRED_HEADERS],
+      ["F1", "OUT1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
+    ]);
+    sheet.failReadAddresses.add("A1:J2");
+
+    const result = readSheetTableWithDiagnostics(sheet, [...OA_REQUIRED_HEADERS], 5, 20);
+
+    expect(result.diagnostics.strategy).toBe("used_range_fallback");
+    expect(result.diagnostics.fallbackReason).toContain("range read failed: A1:J2");
+    expect(result.table.rows[0]?.["表单编号"]).toBe("F1");
+    expect(sheet.usedRangeValue2ReadCount).toBe(1);
+  });
+
+  it("keeps full UsedRange reads available for explicit fallback callers", () => {
+    const sheet = createFakeSheet("OA", [
+      [...OA_REQUIRED_HEADERS],
+      ["F1", "OUT1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
+    ]);
+
+    const result = readUsedRangeMatrix(sheet);
+
+    expect(result.matrix).toHaveLength(2);
+    expect(result.usedRangeStartRow).toBe(1);
+    expect(sheet.usedRangeValue2ReadCount).toBe(1);
+  });
+
+  it("still throws HeaderDetectionError when neither narrow nor fallback can identify headers", () => {
+    const sheet = createFakeSheet("OA", [["不是表头"]]);
+
+    expect(() => readSheetTableWithDiagnostics(sheet, [...OA_REQUIRED_HEADERS], 5, 20)).toThrow(HeaderDetectionError);
+  });
+});
