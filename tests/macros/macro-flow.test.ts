@@ -480,6 +480,32 @@ describe("TypeScript macro orchestration", () => {
     ]);
   });
 
+  it("runPerformanceDiagnostics writes a cell-safe error note when diagnostics fails", () => {
+    const diagnosticsSheet = createFakeSheet(SHEET_NAMES.performanceDiagnostics);
+    const toxicSheet = createFakeSheet("会触发名称读取错误");
+    const unsafeMessage = `=HYPERLINK("http://example.invalid","x")\n${"verbose host bridge details ".repeat(20)}`;
+    Object.defineProperty(toxicSheet, "Name", {
+      get() {
+        throw new Error(unsafeMessage);
+      }
+    });
+    const root = makeRoot([diagnosticsSheet, toxicSheet]);
+
+    runPerformanceDiagnostics(root);
+
+    const errorWrite = diagnosticsSheet.writes[0];
+    if (!errorWrite || !Array.isArray(errorWrite.value)) {
+      throw new Error("missing diagnostics error write");
+    }
+    const errorRows = errorWrite.value as OutputMatrix;
+    const errorNote = String(errorRows[1]?.[6] ?? "");
+
+    expect(errorRows[1]?.[0]).toBe("错误");
+    expect(errorNote).toMatch(/^'=HYPERLINK/);
+    expect(errorNote).not.toContain("\n");
+    expect(errorNote.length).toBeLessThanOrEqual(200);
+  });
+
   it("runPerformanceDiagnostics preserves the original error when writing the error row fails", () => {
     const diagnosticsSheet = createFakeSheet(SHEET_NAMES.performanceDiagnostics);
     diagnosticsSheet.failWriteAddresses.add("A1:G2");

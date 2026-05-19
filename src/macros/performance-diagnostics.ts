@@ -28,10 +28,11 @@ function errorMessage(error: unknown): string {
 
 function cellSafeNote(value: string): string {
   const normalized = value.replace(/\s+/g, " ").trim();
-  if (normalized.length <= MAX_DIAGNOSTICS_NOTE_LENGTH) {
-    return normalized;
+  const escaped = /^[=+\-@]/.test(normalized) ? `'${normalized}` : normalized;
+  if (escaped.length <= MAX_DIAGNOSTICS_NOTE_LENGTH) {
+    return escaped;
   }
-  return `${normalized.slice(0, MAX_DIAGNOSTICS_NOTE_LENGTH - 3)}...`;
+  return `${escaped.slice(0, MAX_DIAGNOSTICS_NOTE_LENGTH - 3)}...`;
 }
 
 function capabilityRows(capabilities: RuntimeCapability[]): OutputMatrix {
@@ -111,7 +112,7 @@ function writeDiagnosticsError(root: ScrapVarianceGlobal | undefined, message: s
       NOT_APPLICABLE,
       NOT_APPLICABLE,
       NOT_APPLICABLE,
-      message
+      cellSafeNote(message)
     ]
   ]);
 }

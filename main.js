@@ -373,19 +373,19 @@ sheet.Name)===sheetName){return sheet}}return null}function getSheetByName(sheet
 `\u627E\u4E0D\u5230\u5DE5\u4F5C\u8868\uFF1A${sheetName}`)}return sheet}function ensureSheet(sheetName,root2){const existingSheet=findSheetByName(sheetName,root2);
 if(existingSheet){return existingSheet}const sheets=getSheets(getApplication(root2));if(typeof sheets.Add!=="function"){throw new Error("\u5F53\u524D\u5DE5\u4F5C\u7C3F\u4E0D\u652F\u6301\u65B0\u589E\u5DE5\u4F5C\u8868\u3002")}
 const sheet=sheets.Add();sheet.Name=sheetName;return sheet}var MAX_DIAGNOSTICS_NOTE_LENGTH=200;function errorMessage5(error){return error instanceof Error?error.message:String(error)}function cellSafeNote(value){const normalized=value.
-replace(/\s+/g," ").trim();if(normalized.length<=MAX_DIAGNOSTICS_NOTE_LENGTH){return normalized}return`${normalized.slice(0,MAX_DIAGNOSTICS_NOTE_LENGTH-3)}...`}
-function capabilityRows(capabilities){return capabilities.map(capability2=>["\u8FD0\u884C\u65F6\u80FD\u529B",capability2.name,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,
-NOT_APPLICABLE,capability2.note])}function metricRows(stages){return stages.map(stage=>["\u9636\u6BB5\u8017\u65F6",stage.name,stage.inputRows,stage.outputRows,stage.
-timeMs,stage.heapDeltaMb,stage.note])}function readDiagnosticsRows(source,diagnostics){const prefix=source==="oa"?"oa":"erp";const strategyNote=diagnostics.strategy===
-"used_range_fallback"&&diagnostics.fallbackReason?`${diagnostics.strategy}\uFF1B\u539F\u56E0\uFF1A${cellSafeNote(diagnostics.fallbackReason)}`:diagnostics.strategy;
-return[["\u8BFB\u8868\u7B56\u7565",`${prefix}_read_strategy`,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,strategyNote],["\u8BFB\u8868\u8303\u56F4",
-`${prefix}_used_range`,diagnostics.usedRangeRows,diagnostics.usedRangeCols,NOT_APPLICABLE,NOT_APPLICABLE,diagnostics.usedRangeAddress],["\u8BFB\u8868\u8303\u56F4",
-`${prefix}_read_range`,diagnostics.readRows,diagnostics.readCols,NOT_APPLICABLE,NOT_APPLICABLE,diagnostics.readRangeDescription]]}function writeDiagnosticsRows(sheet,rows){
+replace(/\s+/g," ").trim();const escaped=/^[=+\-@]/.test(normalized)?`'${normalized}`:normalized;if(escaped.length<=MAX_DIAGNOSTICS_NOTE_LENGTH){return escaped}
+return`${escaped.slice(0,MAX_DIAGNOSTICS_NOTE_LENGTH-3)}...`}function capabilityRows(capabilities){return capabilities.map(capability2=>["\u8FD0\u884C\u65F6\u80FD\u529B",
+capability2.name,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,capability2.note])}function metricRows(stages){return stages.map(stage=>["\u9636\u6BB5\u8017\u65F6",
+stage.name,stage.inputRows,stage.outputRows,stage.timeMs,stage.heapDeltaMb,stage.note])}function readDiagnosticsRows(source,diagnostics){const prefix=source==="\
+oa"?"oa":"erp";const strategyNote=diagnostics.strategy==="used_range_fallback"&&diagnostics.fallbackReason?`${diagnostics.strategy}\uFF1B\u539F\u56E0\uFF1A${cellSafeNote(
+diagnostics.fallbackReason)}`:diagnostics.strategy;return[["\u8BFB\u8868\u7B56\u7565",`${prefix}_read_strategy`,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,
+strategyNote],["\u8BFB\u8868\u8303\u56F4",`${prefix}_used_range`,diagnostics.usedRangeRows,diagnostics.usedRangeCols,NOT_APPLICABLE,NOT_APPLICABLE,diagnostics.usedRangeAddress],
+["\u8BFB\u8868\u8303\u56F4",`${prefix}_read_range`,diagnostics.readRows,diagnostics.readCols,NOT_APPLICABLE,NOT_APPLICABLE,diagnostics.readRangeDescription]]}function writeDiagnosticsRows(sheet,rows){
 clearDiagnosticsOutput(sheet);writeMatrixBulkOrChunks(sheet,1,1,rows,WRITE_CHUNK_ROWS)}function writeDiagnosticsError(root2,message){const sheet=ensureSheet(SHEET_NAMES.
 performanceDiagnostics,root2);writeDiagnosticsRows(sheet,[[...DIAGNOSTICS_HEADERS],["\u9519\u8BEF","performance_diagnostics",NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,
-NOT_APPLICABLE,message]])}function runPerformanceDiagnostics(root2){try{const diagnosticsSheet=ensureSheet(SHEET_NAMES.performanceDiagnostics,root2);const metrics=createMetricsRecorder(
-root2!=null?root2:globalThis);const capabilities=probeRuntimeCapabilities(root2!=null?root2:globalThis,globalThis);const oaSheet=getSheetByName(SHEET_NAMES.oa,root2);
-const erpSheet=getSheetByName(SHEET_NAMES.erp,root2);const queryInput=metrics.measure("read_filters",{inputRows:6,outputRows:6},()=>({filters:readRibbonFilters(
+NOT_APPLICABLE,cellSafeNote(message)]])}function runPerformanceDiagnostics(root2){try{const diagnosticsSheet=ensureSheet(SHEET_NAMES.performanceDiagnostics,root2);
+const metrics=createMetricsRecorder(root2!=null?root2:globalThis);const capabilities=probeRuntimeCapabilities(root2!=null?root2:globalThis,globalThis);const oaSheet=getSheetByName(
+SHEET_NAMES.oa,root2);const erpSheet=getSheetByName(SHEET_NAMES.erp,root2);const queryInput=metrics.measure("read_filters",{inputRows:6,outputRows:6},()=>({filters:readRibbonFilters(
 root2),queryDirection:getRibbonState(root2).queryDirection}));const oaSource=metrics.measure("read_oa_source_table",{outputRows:value=>value.matrix.length},()=>readSheetMatrixOptimized(
 oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,MAX_HEADER_SCAN_ROWS));const oaTable=metrics.measure("parse_oa_table",{inputRows:oaSource.matrix.length,
 outputRows:value=>value.rows.length},()=>parseTableFromMatrix(oaSource.matrix,[...OA_REQUIRED_HEADERS],{minMatchCount:MIN_OA_HEADER_MATCH_COUNT,maxScanRows:MAX_HEADER_SCAN_ROWS,

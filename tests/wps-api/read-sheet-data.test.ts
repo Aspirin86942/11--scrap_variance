@@ -75,6 +75,35 @@ describe("optimized WPS source reads", () => {
     expect(sheet.usedRangeValue2ReadCount).toBe(0);
   });
 
+  it("keeps absolute worksheet coordinates when UsedRange does not start at A1", () => {
+    const usedRangeMatrix = [
+      rowWith({ 1: "导出条件" }),
+      [...OA_REQUIRED_HEADERS],
+      ["F1", "OUT1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
+    ];
+    const sheet = createFakeSheet("OA", []);
+    const usedRange = sheet.UsedRange;
+    if (!usedRange) {
+      throw new Error("missing fake UsedRange");
+    }
+    usedRange.Row = 5;
+    usedRange.Column = 3;
+    usedRange.Address = "C5:L7";
+    usedRange.Rows = { Count: 3 };
+    usedRange.Columns = { Count: 10 };
+    sheet.rangeValues.set("C5:L7", usedRangeMatrix);
+
+    const result = readSheetTableWithDiagnostics(sheet, [...OA_REQUIRED_HEADERS], 5, 20);
+
+    expect(result.table.headerRowNumber).toBe(6);
+    expect(result.table.rows[0]?._rowNumber).toBe(7);
+    expect(result.table.rows[0]?.["表单编号"]).toBe("F1");
+    expect(result.diagnostics.usedRangeAddress).toBe("C5:L7");
+    expect(result.diagnostics.readRangeDescription).toBe("C6:L7");
+    expect(sheet.rangeReads).toEqual(["C5:L7", "C6:L7"]);
+    expect(sheet.usedRangeValue2ReadCount).toBe(0);
+  });
+
   it("uses grouped column reads when required headers are scattered", () => {
     const sheet = createFakeSheet("OA", [scatteredOaHeaderRow(), scatteredOaDataRow()]);
 
