@@ -104,6 +104,92 @@ describe("optimized WPS source reads", () => {
     expect(sheet.usedRangeValue2ReadCount).toBe(0);
   });
 
+  it("uses grouped_ranges as the primary strategy when ten required fields are isolated", () => {
+    const requiredHeaders = ["F01", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10"];
+    const sheet = createFakeSheet("DATA", [
+      rowWith({
+        1: "F01",
+        3: "F02",
+        5: "F03",
+        7: "F04",
+        9: "F05",
+        11: "F06",
+        13: "F07",
+        15: "F08",
+        17: "F09",
+        19: "F10"
+      }),
+      rowWith({
+        1: "v01",
+        3: "v02",
+        5: "v03",
+        7: "v04",
+        9: "v05",
+        11: "v06",
+        13: "v07",
+        15: "v08",
+        17: "v09",
+        19: "v10"
+      })
+    ]);
+
+    const result = readSheetTableWithDiagnostics(sheet, requiredHeaders, 5, 20);
+
+    expect(result.diagnostics.strategy).toBe("grouped_ranges");
+    expect(result.diagnostics.groupCount).toBe(10);
+    expect(result.diagnostics.readRows).toBe(2);
+    expect(result.diagnostics.readCols).toBe(10);
+    expect(result.diagnostics.readRangeDescription).toBe(
+      "A1:A2,C1:C2,E1:E2,G1:G2,I1:I2,K1:K2,M1:M2,O1:O2,Q1:Q2,S1:S2"
+    );
+    expect(result.table.matrix[0]).toEqual(requiredHeaders);
+    expect(result.table.matrix[1]).toEqual(["v01", "v02", "v03", "v04", "v05", "v06", "v07", "v08", "v09", "v10"]);
+    expect(sheet.rangeReads).toEqual([
+      "A1:S2",
+      "A1:A2",
+      "C1:C2",
+      "E1:E2",
+      "G1:G2",
+      "I1:I2",
+      "K1:K2",
+      "M1:M2",
+      "O1:O2",
+      "Q1:Q2",
+      "S1:S2"
+    ]);
+    expect(sheet.usedRangeValue2ReadCount).toBe(0);
+  });
+
+  it("stitches grouped range values in required header order instead of worksheet column order", () => {
+    const requiredHeaders = ["C字段", "A字段", "B字段"];
+    const sheet = createFakeSheet("DATA", [
+      rowWith({
+        1: "A字段",
+        2: "B字段",
+        5: "C字段"
+      }),
+      rowWith({
+        1: "A1",
+        2: "B1",
+        5: "C1"
+      })
+    ]);
+
+    const result = readSheetTableWithDiagnostics(sheet, requiredHeaders, 2, 20);
+
+    expect(result.diagnostics.strategy).toBe("grouped_ranges");
+    expect(result.diagnostics.groupCount).toBe(2);
+    expect(result.diagnostics.readRangeDescription).toBe("A1:B2,E1:E2");
+    expect(result.table.headers).toEqual(requiredHeaders);
+    expect(result.table.matrix[0]).toEqual(requiredHeaders);
+    expect(result.table.matrix[1]).toEqual(["C1", "A1", "B1"]);
+    expect(result.table.rows[0]?.["C字段"]).toBe("C1");
+    expect(result.table.rows[0]?.["A字段"]).toBe("A1");
+    expect(result.table.rows[0]?.["B字段"]).toBe("B1");
+    expect(sheet.rangeReads).toEqual(["A1:E2", "A1:B2", "E1:E2"]);
+    expect(sheet.usedRangeValue2ReadCount).toBe(0);
+  });
+
   it("uses grouped column reads when required headers are scattered", () => {
     const sheet = createFakeSheet("OA", [scatteredOaHeaderRow(), scatteredOaDataRow()]);
 
