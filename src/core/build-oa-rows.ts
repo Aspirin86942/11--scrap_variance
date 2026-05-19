@@ -6,6 +6,7 @@ import { appendUniqueJoinedText, normalizeText } from "../utils/text";
 export function parseFilters(
   input: Partial<QueryFilters> | Record<string, unknown> | null | undefined = {}
 ): QueryFilters {
+  // 弹窗、功能区和测试可能传入不同形状的对象，先统一成完整 QueryFilters 再进入核心查询。
   const source = input ?? {};
   const filters = {
     company: normalizeText(source.company),
@@ -15,6 +16,7 @@ export function parseFilters(
     endDate: normalizeDateKey(source.endDate)
   };
   if (filters.startDate && filters.endDate && filters.startDate > filters.endDate) {
+    // 日期过滤边界如果反了，继续查询只会得到误导性空结果，所以这里直接报错。
     throw new Error(`开始日期不能晚于结束日期：${filters.startDate} > ${filters.endDate}`);
   }
   return filters;
@@ -54,6 +56,7 @@ export function matchesOrgFilters(
 }
 
 export function makeDetailKey(formNumber: unknown, itemCode: unknown): string {
+  // 明细比较的稳定粒度是“单据号 + 物料”，同一物料多行会先聚合再和 ERP 对比。
   return `${normalizeText(formNumber)}||${normalizeText(itemCode)}`;
 }
 
@@ -65,6 +68,7 @@ export function buildOaRows(
   const activeRows = oaRows ?? [];
   const activeFilters = filters ?? parseFilters();
 
+  // OA 金蝶单号方向先按用户条件筛 OA，再用 OA 上记录的金蝶云单据编号去 ERP 侧找出库。
   for (const row of activeRows) {
     const dateKey = normalizeDateKey(row["申请日期"]);
     if (!isDateInRange(dateKey, activeFilters)) {
@@ -99,6 +103,7 @@ export function buildOaRows(
       };
       result.set(key, target);
     }
+    // 同一聚合键下后续行如果补到了金蝶编号，就保留第一个非空编号用于 ERP 出库匹配。
     if (!target.kingdeeDocNumber && kingdeeDocNumber) {
       target.kingdeeDocNumber = kingdeeDocNumber;
     }
@@ -118,6 +123,7 @@ export function buildOaRowsForFormNumbers(
   const result = new Map<string, OaAggRow>();
   const activeFormNumbers = formNumbers ?? new Set<string>();
 
+  // ERP 源单查 OA 时，先从 ERP 侧收集源单号，再回 OA 全量表里取这些表单对应的物料行。
   for (const row of oaRows ?? []) {
     const formNumber = normalizeText(row["表单编号"]);
     const itemCode = normalizeText(row["物料代码"]);

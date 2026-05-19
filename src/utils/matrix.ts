@@ -22,6 +22,7 @@ function numericObjectToArray(value: Record<string, unknown>): WpsCellValue[] | 
     return null;
   }
 
+  // 有些 WPS/COM 返回的是 1-based 数字属性对象；offset 用来把它还原成普通 JS 数组下标。
   const offset = keys[0] === 0 ? 0 : 1;
   const result: WpsCellValue[] = [];
   for (const key of keys) {
@@ -37,6 +38,7 @@ function numericObjectToMatrix(value: Record<string, unknown>): WpsMatrix | null
   }
 
   const firstRow = value[String(rowKeys[0])];
+  // 先判断第一行是不是数组/数字对象；如果是，就按二维矩阵处理，否则按单行处理。
   if (
     firstRow &&
     typeof firstRow === "object" &&
@@ -56,6 +58,7 @@ function numericObjectToMatrix(value: Record<string, unknown>): WpsMatrix | null
 }
 
 export function normalizeMatrix(values: unknown): WpsMatrix {
+  // WPS Range 可能返回标量、一维数组、二维数组或数字对象；这里统一成矩阵，避免调用方到处判断形状。
   if (isArray(values)) {
     if (values.length === 0) {
       return [];

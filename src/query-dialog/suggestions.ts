@@ -37,6 +37,7 @@ function pickColumnText(rows: RawRow[], header: string): string[] {
 }
 
 function uniqueSorted(values: string[]): string[] {
+  // 补全项来自 OA/ERP 两张源表，去重并按中文排序后弹窗更容易扫描。
   return [...new Set(values)].sort((left, right) => left.localeCompare(right, "zh-CN"));
 }
 
@@ -44,6 +45,7 @@ export function buildQueryDialogSuggestions(root?: ScrapVarianceGlobal): QueryDi
   const runtimeRoot = root ?? (globalThis as ScrapVarianceGlobal);
 
   try {
+    // 候选项复用正式读表路径，这样表头识别规则和查询保持一致。
     const oaSheet = getSheetByName(SHEET_NAMES.oa, runtimeRoot);
     const erpSheet = getSheetByName(SHEET_NAMES.erp, runtimeRoot);
     const oaTable = readSheetTable(oaSheet, [...OA_REQUIRED_HEADERS], MIN_OA_HEADER_MATCH_COUNT, MAX_HEADER_SCAN_ROWS);
@@ -69,6 +71,7 @@ export function buildQueryDialogSuggestions(root?: ScrapVarianceGlobal): QueryDi
       ])
     };
   } catch (error) {
+    // 补全失败不影响手工输入查询条件，只在控制台记录原因。
     runtimeRoot.console?.error?.("读取查询候选失败，查询弹窗将不显示补全下拉。", error);
     return createEmptyQueryDialogSuggestions();
   }

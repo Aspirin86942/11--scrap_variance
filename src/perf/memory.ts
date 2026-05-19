@@ -22,6 +22,7 @@ export interface UnknownMemorySample {
 export type MemorySample = AvailableMemorySample | UnknownMemorySample;
 
 function unknownMemorySample(): UnknownMemorySample {
+  // WPS 运行时经常不给可靠内存 API，拿不到时明确写“无确切信息”，不编造近似值。
   return {
     available: false,
     heapUsedMb: UNKNOWN_MEMORY,
@@ -63,6 +64,7 @@ function getProcessMemorySample(root: unknown): MemorySample {
 
   let sample: { heapUsed?: unknown; rss?: unknown };
   try {
+    // Node benchmark 优先用 process.memoryUsage，同时在 bundle 里避免直接出现 process. 字面量。
     sample = usage();
   } catch {
     return unknownMemorySample();
@@ -89,6 +91,7 @@ function getPerformanceMemorySample(root: unknown): MemorySample {
   }
 
   return {
+    // performance.memory 只提供 JS heap，不等于 RSS，所以 rssMb 仍然保持“无确切信息”。
     available: true,
     source: "performance.memory",
     heapUsedMb: bytesToMb(usedJSHeapSize),
@@ -102,6 +105,7 @@ export function getMemorySample(root: unknown = globalThis): MemorySample {
     return processSample;
   }
 
+  // 浏览器/WPS 环境没有 process 时，再尝试 performance.memory。
   return getPerformanceMemorySample(root);
 }
 
@@ -110,6 +114,7 @@ export function memoryDeltaMb(before: MemorySample, after: MemorySample): Memory
     return UNKNOWN_MEMORY;
   }
   if (before.source !== after.source) {
+    // 不同来源的内存值口径不同，不能相减伪造成精确 delta。
     return UNKNOWN_MEMORY;
   }
   return Number((after.heapUsedMb - before.heapUsedMb).toFixed(2));

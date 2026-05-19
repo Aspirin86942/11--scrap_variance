@@ -13,6 +13,7 @@ export function parseQueryDirection(value: unknown): QueryDirection {
   const text = normalizeText(value);
 
   if (!text) {
+    // 旧工作簿或空状态默认走 OA 金蝶单号方向，保持现有用户入口的兼容行为。
     return DEFAULT_QUERY_DIRECTION;
   }
 

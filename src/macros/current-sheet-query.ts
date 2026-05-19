@@ -60,6 +60,7 @@ function writeOutputWithMetadata(
   }
 
   const address = rangeAddress(1, 1, values.length, width);
+  // 写完输出后立刻保存 metadata，后续清理和展开物料都依赖这块范围信息。
   writeMatrixBulkOrChunks(sheet, 1, 1, values, WRITE_CHUNK_ROWS);
   saveOutputMetadata(sheet, { kind, rangeAddress: address });
   if (queryState) {
@@ -68,6 +69,7 @@ function writeOutputWithMetadata(
 }
 
 function readSourceRows(root?: ScrapVarianceGlobal): SourceRows {
+  // 正式查询始终从两张源表读取最新数据，不复用旧输出页里的结果。
   const oaSheet = getSheetByName(SHEET_NAMES.oa, root);
   const erpSheet = getSheetByName(SHEET_NAMES.erp, root);
   const oaTable = readSheetTable(oaSheet, [...OA_REQUIRED_HEADERS], MIN_OA_HEADER_MATCH_COUNT, MAX_HEADER_SCAN_ROWS);
@@ -98,6 +100,7 @@ function buildLegacyDetailValues(
     return {
       values: null,
       noResultMessage:
+        // 无结果提示要跟查询方向一致，用户才能知道是 OA 侧还是 ERP 侧条件没有命中。
         pipeline.queryDirection === QUERY_DIRECTIONS.erpSourceToOa
           ? "查询条件没有匹配到 ERP 数据。"
           : "查询条件没有匹配到 OA 数据。"
@@ -151,6 +154,7 @@ function safeWriteCurrentSheetError(
   queryState?: RibbonQueryState
 ): void {
   try {
+    // 查询失败也写回当前输出表，避免用户只看到旧结果而不知道本次执行失败。
     clearPreviousToolOutput(sheet, kind);
     writeOutputWithMetadata(sheet, kind, [["错误", message]], queryState);
   } catch (writeError) {
@@ -168,6 +172,7 @@ export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
   }
 
   try {
+    // 旧入口没有显式传状态时，仍从功能区全局状态读取，保持兼容。
     runCurrentSheetQueryWithState(root, getRibbonState(root));
   } catch (error) {
     safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error));
@@ -186,6 +191,7 @@ export function runCurrentSheetQueryWithState(root: ScrapVarianceGlobal | undefi
   try {
     const filters = parseFilters(queryState);
     const { oaRows, erpRows } = readSourceRows(root);
+    // 三张输出页共享查询条件格式，但刷新时只处理当前页，避免一次查询覆盖其他输出页。
     const result =
       kind === "legacy_detail"
         ? buildLegacyDetailValues(oaRows, erpRows, filters, queryState.queryDirection)
@@ -194,6 +200,7 @@ export function runCurrentSheetQueryWithState(root: ScrapVarianceGlobal | undefi
           : buildErpDocCompareValues(oaRows, erpRows, filters);
 
     clearPreviousToolOutput(activeSheet, kind);
+    // 成功或无结果都保存本次条件，下一次打开弹窗才能恢复当前输出页自己的状态。
     writeOutputWithMetadata(activeSheet, kind, result.values ?? [[result.noResultMessage]], queryState);
   } catch (error) {
     safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error), queryState);
@@ -217,6 +224,7 @@ function readCellText(sheet: WpsSheet, row: number, column: string): string {
 
 function countMaterialRowsBelow(sheet: WpsSheet, summaryRowNumber: number): number {
   let count = 0;
+  // 物料行紧跟在汇总行下面，遇到第一行非“物料”就停止，避免扫描整张表。
   for (let row = summaryRowNumber + 1; row < summaryRowNumber + 100000; row += 1) {
     if (readCellText(sheet, row, "A") !== "物料") {
       break;
@@ -236,6 +244,7 @@ function readOutputRangeValues(sheet: WpsSheet, startRow: number, rowCount: numb
 
 function rollbackInsertedRows(sheet: WpsSheet, startRow: number, rowCount: number, error: unknown): never {
   try {
+    // 展开时如果写入或 metadata 更新失败，必须删掉刚插入的行，保持工作表可再次操作。
     deleteRows(sheet, startRow, rowCount);
   } catch (rollbackError) {
     throw new Error(`展开物料失败：${errorMessage(error)}；回滚插入行失败：${errorMessage(rollbackError)}`);
@@ -250,6 +259,7 @@ function rollbackDeletedRows(
   error: unknown
 ): never {
   try {
+    // 收起时如果 metadata 更新失败，必须把已删除的物料行写回去，避免用户丢失当前展开内容。
     insertRowsBelow(sheet, summaryRow, deletedValues.length);
     writeMatrixBulkOrChunks(sheet, summaryRow + 1, 1, deletedValues, WRITE_CHUNK_ROWS);
   } catch (rollbackError) {
@@ -269,12 +279,14 @@ export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
   }
 
   const selectedRow = getSelectedRowNumber(root);
+  // 展开/收起只对汇总行有意义，物料行本身不能再展开。
   if (readCellText(activeSheet, selectedRow, "A") !== "汇总") {
     throw new Error("请选中行类型为 汇总 的单据行。");
   }
 
   const existingMaterialRows = countMaterialRowsBelow(activeSheet, selectedRow);
   if (existingMaterialRows > 0) {
+    // 已有物料行说明当前动作是收起；先保存被删内容，metadata 更新失败时可以回滚。
     const headerRow = docCompareRowsToValues(kind, [])[0] ?? [];
     const deletedValues = readOutputRangeValues(activeSheet, selectedRow + 1, existingMaterialRows, headerRow.length);
     deleteRows(activeSheet, selectedRow + 1, existingMaterialRows);
@@ -288,6 +300,7 @@ export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
 
   const filters = readOutputFilters(activeSheet);
   const { oaRows, erpRows } = readSourceRows(root);
+  // 展开物料重新按当前输出表保存的条件构建结果，确保和汇总行同一查询上下文。
   const result = kind === "oa_doc_compare"
     ? buildOaDocCompare(oaRows, erpRows, filters)
     : buildErpDocCompare(oaRows, erpRows, filters);
@@ -305,6 +318,7 @@ export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
   const materialValues = docCompareRowsToValues(kind, materialRows).slice(1);
   insertRowsBelow(activeSheet, selectedRow, materialRows.length);
   try {
+    // 插入行后批量写物料矩阵，再扩大 metadata 范围；任一步失败都回滚插入行。
     writeMatrixBulkOrChunks(activeSheet, selectedRow + 1, 1, materialValues, WRITE_CHUNK_ROWS);
     adjustOutputMetadataRows(activeSheet, materialRows.length);
   } catch (error) {

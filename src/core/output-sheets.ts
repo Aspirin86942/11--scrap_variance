@@ -8,6 +8,7 @@ export const OUTPUT_SHEET_KINDS = {
 } as const satisfies Record<string, OutputSheetKind>;
 
 export function detectOutputSheetKind(sheetName: string): OutputSheetKind | null {
+  // 查询弹窗和展开物料都只允许在工具生成的三张输出页上运行，避免误清用户源数据表。
   switch (sheetName) {
     case SHEET_NAMES.detailOutput:
       return OUTPUT_SHEET_KINDS.legacyDetail;

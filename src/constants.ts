@@ -9,6 +9,7 @@ export const SHEET_NAMES = {
   performanceDiagnostics: "性能诊断结果"
 } as const;
 
+// 这些字段名是 OA 源表读取契约，下游表头识别、预验证和正式查询都依赖同一份顺序。
 export const OA_REQUIRED_HEADERS = [
   "表单编号",
   "金蝶云单据编号",
@@ -22,6 +23,7 @@ export const OA_REQUIRED_HEADERS = [
   "实际预算金额mx"
 ] as const;
 
+// 这些字段名是 ERP 源表读取契约，分组窄读和 UsedRange 回退都会按它们解析源表。
 export const ERP_REQUIRED_HEADERS = [
   "单据编号",
   "日期",
@@ -35,6 +37,7 @@ export const ERP_REQUIRED_HEADERS = [
   "总成本"
 ] as const;
 
+// summary 只输出部门维度的聚合结果，不包含具体单据和物料明细。
 export const SUMMARY_HEADERS = [
   "公司简称",
   "一级部门",
@@ -48,6 +51,7 @@ export const SUMMARY_HEADERS = [
   "差异类型摘要"
 ] as const;
 
+// detail 是报废差异明细的完整字段契约，顺序必须和 DetailRow 转矩阵逻辑保持一致。
 export const DETAIL_HEADERS = [
   "差异类型",
   "OA表单编号",
@@ -70,6 +74,7 @@ export const DETAIL_HEADERS = [
   "备注"
 ] as const;
 
+// OA/ERP 两个单据视角的表头相似但主单据不同，不能为了复用而混掉左右语义。
 export const OA_DOC_COMPARE_HEADERS = [
   "行类型",
   "公司简称",
@@ -108,6 +113,7 @@ export const ERP_DOC_COMPARE_HEADERS = [
   "备注"
 ] as const;
 
+// 预验证输出给业务用户直接修数据，所以字段要包含定位、原因和处理建议。
 export const PRECHECK_HEADERS = [
   "级别",
   "数据源",
@@ -119,10 +125,12 @@ export const PRECHECK_HEADERS = [
   "处理建议"
 ] as const;
 
+// 诊断表里有些行不是 stage metric，用“不适用”区别于运行时拿不到的“无确切信息”。
 export const DIAGNOSTICS_HEADERS = ["类别", "阶段", "输入行数", "输出行数", "耗时ms", "内存MB", "说明"] as const;
 
 export const NOT_APPLICABLE = "不适用" as const;
 
+// 差异类型有业务优先级，汇总摘要按这个顺序展示，避免同一组数据每次输出顺序漂移。
 export const DIFFERENCE_TYPE_PRIORITY = [
   "OA有申请，ERP无出库",
   "ERP出库对应OA未在当前OA数据中找到",
@@ -131,6 +139,7 @@ export const DIFFERENCE_TYPE_PRIORITY = [
   "OA和ERP都有，数量一致"
 ] as const;
 
+// 大范围清理使用固定上限，避免依赖 UsedRange 被历史格式污染后清不干净。
 export const MAX_HEADER_SCAN_ROWS = 20;
 export const MIN_OA_HEADER_MATCH_COUNT = 5;
 export const MIN_ERP_HEADER_MATCH_COUNT = 5;

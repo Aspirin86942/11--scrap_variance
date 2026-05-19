@@ -22,6 +22,7 @@ export function reportRuntimeError(error: unknown): void {
 }
 
 export function createDefaultButtonActions(root: ScrapVarianceGlobal): ButtonActionRegistry {
+  // 这里集中声明功能区按钮能触发的业务动作，后续 ribbon 只负责按按钮 id 找到并执行 action。
   return createButtonActions({
     runPrecheck: () => runScrapVariancePrecheck(root),
     setupOutputSheets: () => setupOutputSheets(root),
@@ -33,6 +34,7 @@ export function createDefaultButtonActions(root: ScrapVarianceGlobal): ButtonAct
 }
 
 export function createWpsRibbon(root: ScrapVarianceGlobal, buttonActions: ButtonActionRegistry) {
+  // ribbon 回调需要 WPS 全局对象、按钮 registry 和统一报错入口，避免每个按钮重复写适配代码。
   return createRibbonHandlers({
     root,
     buttonActions,

@@ -14,6 +14,7 @@ const QUERY_STATE_START_COL = 80;
 const VALID_OUTPUT_KINDS = new Set<OutputSheetKind>(["legacy_detail", "oa_doc_compare", "erp_doc_compare"]);
 const A1_RECTANGLE_ADDRESS_PATTERN = /^([A-Z]+)([1-9]\d*):([A-Z]+)([1-9]\d*)$/i;
 
+// metadata 写在远离用户可见输出的隐藏列区域，用来记录本工具上次生成了哪块范围。
 export interface OutputMetadata {
   kind: OutputSheetKind;
   rangeAddress: string;
@@ -35,6 +36,7 @@ function columnIndex(columnName: string): number {
 }
 
 function isSafeA1RectangleAddress(value: string): boolean {
+  // 只接受简单矩形 A1 地址，避免把异常字符串传给 Range 后误清用户数据。
   const match = value.match(A1_RECTANGLE_ADDRESS_PATTERN);
   if (!match) {
     return false;
@@ -74,6 +76,7 @@ export function readOutputMetadata(sheet: WpsSheet): OutputMetadata | null {
   const rangeAddress = normalizeText(matrix[0]?.[1]);
 
   if (!isOutputSheetKind(kind) || !isSafeA1RectangleAddress(rangeAddress)) {
+    // metadata 不可信时宁可不清理，也不能拿错误地址清空工作表。
     return null;
   }
 
@@ -85,6 +88,7 @@ export function saveOutputMetadata(sheet: WpsSheet, metadata: OutputMetadata): v
 }
 
 export function saveOutputQueryState(sheet: WpsSheet, state: RibbonQueryState): void {
+  // 每张输出表保存自己的上次查询条件，弹窗再次打开时只恢复当前页的条件。
   writeMatrixBulkOrChunks(
     sheet,
     QUERY_STATE_START_ROW,
@@ -104,6 +108,7 @@ export function readOutputQueryState(sheet: WpsSheet): RibbonQueryState | null {
   }
 
   try {
+    // 读取时重新走日期和查询方向解析，防止隐藏状态被用户手改后污染下一次查询。
     return {
       company: normalizeText(row[0]),
       dept1: normalizeText(row[1]),
@@ -123,6 +128,7 @@ export function clearPreviousToolOutput(sheet: WpsSheet, expectedKind: OutputShe
     return;
   }
 
+  // 只清理上次由本工具记录的输出范围，避免误删用户在同一工作表上的其他内容。
   clearRange(sheet, metadata.rangeAddress);
 }
 
@@ -138,6 +144,7 @@ export function adjustOutputMetadataRows(sheet: WpsSheet, rowDelta: number): voi
   }
 
   const nextEndRow = Math.max(parsed.startRow, parsed.endRow + rowDelta);
+  // 展开或收起物料会改变工具输出范围，metadata 要同步调整，下一次清理才准确。
   saveOutputMetadata(sheet, {
     kind: metadata.kind,
     rangeAddress: `${parsed.startColumn}${parsed.startRow}:${parsed.endColumn}${nextEndRow}`

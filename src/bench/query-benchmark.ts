@@ -41,6 +41,7 @@ export interface BenchReport {
 
 function getGitCommit(): string {
   try {
+    // benchmark 报告记录当前提交，方便之后对比不同优化版本的结果。
     return execSync("git rev-parse --short HEAD", { encoding: "utf-8" }).trim();
   } catch {
     return "unknown";
@@ -59,6 +60,7 @@ export function parseBenchArgs(args: string[]): BenchCliOptions {
   let scales = [10000, 50000];
   let writeJson = true;
 
+  // CLI 只暴露固定规模和自定义正整数规模，避免 benchmark 参数影响业务逻辑。
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
     if (arg === "--no-json") {
@@ -104,6 +106,7 @@ export function maxStageHeapDelta(stages: StageMetric[]): MemoryValue {
 export function buildBenchReport(scales: number[], options: Pick<BenchCliOptions, "writeJson">): BenchReport {
   const datasets: DatasetBenchResult[] = [];
 
+  // 每个 scale 都重新生成数据和 metrics recorder，保证不同规模之间的阶段数据互不污染。
   for (const scale of scales) {
     const metrics = createMetricsRecorder();
     const data = metrics.measure(
@@ -141,6 +144,7 @@ export function buildBenchReport(scales: number[], options: Pick<BenchCliOptions
   };
 
   if (options.writeJson) {
+    // JSON 报告给后续自动对比使用；控制台表格只用于人眼快速查看。
     writeBenchJson(report, "bench-results/latest.json");
   }
 
@@ -171,6 +175,7 @@ export function writeBenchJson(report: BenchReport, outputPath: string): void {
 export function runBenchCli(args: string[]): void {
   const options = parseBenchArgs(args);
   const report = buildBenchReport(options.scales, options);
+  // benchmark 是 Node 脚本，允许使用 process/stdout；这段不会进入 WPS 运行时入口。
   process.stdout.write(`${renderBenchTable(report)}\n`);
 }
 

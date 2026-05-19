@@ -44,6 +44,7 @@ export function runQueryCorePipeline(
   const queryDirection = parseQueryDirection(queryDirectionInput);
 
   if (queryDirection === QUERY_DIRECTIONS.erpSourceToOa) {
+    // ERP 源单查 OA 时，先筛 ERP 并收集源单号，再回 OA 表取对应表单，方向不能和 OA 金蝶单号模式混用。
     const erpGroupedRows = metrics.measure(
       "build_erp_rows_by_erp_filters",
       { inputRows: erpRows.length, outputRows: (rows: Map<string, ErpAggRow>) => rows.size },
@@ -88,6 +89,7 @@ export function runQueryCorePipeline(
     );
   }
 
+  // 默认方向是 OA 金蝶单号查 ERP：先筛 OA，再用 OA 聚合行上的金蝶云单据编号匹配 ERP 出库单。
   const oaGroupedRows = metrics.measure(
     "build_oa_rows",
     { inputRows: oaRows.length, outputRows: (rows: Map<string, OaAggRow>) => rows.size },
@@ -109,6 +111,7 @@ export function runQueryCorePipeline(
   const erpOnlyRows = metrics.measure(
     "build_erp_only_rows",
     { inputRows: erpRows.length, outputRows: (rows: Map<string, ErpAggRow>) => rows.size },
+    // OA 金蝶单号方向只关心当前 OA 集合对应的 ERP 出库，不额外输出 ERP-only 行。
     () => new Map<string, ErpAggRow>()
   );
 
@@ -130,6 +133,7 @@ function finishQueryPipeline(
   erpOnlyRows: Map<string, ErpAggRow>,
   metrics: MetricsRecorder
 ): QueryCorePipelineResult {
+  // 两个查询方向最终都收敛到同一个 finish 流程，确保差异比较、summary/detail 输出规则一致。
   const detailRows = metrics.measure(
     "compare_rows",
     {
@@ -152,6 +156,7 @@ function finishQueryPipeline(
       outputRows: detailRows.length + summaryRows.length
     },
     () => ({
+      // summary 和 detail 是两张不同输出矩阵；字段顺序由常量表头和转换函数共同锁定。
       summaryValues: summaryRowsToValues(summaryRows),
       detailValues: detailRowsToValues(detailRows)
     })

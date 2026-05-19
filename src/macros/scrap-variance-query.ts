@@ -14,6 +14,7 @@ function errorMessage(error: unknown): string {
 }
 
 function readRangeValue(range: WpsRange): unknown {
+  // 旧查询面板直接读 Range，仍优先 Value2，保持和源表读取路径一致。
   if (range.Value2 !== undefined) {
     return range.Value2;
   }
@@ -21,6 +22,7 @@ function readRangeValue(range: WpsRange): unknown {
 }
 
 function normalizePanelDateValue(value: WpsCellValue): WpsCellValue | string {
+  // 旧面板日期空白有时会读成 0，进入 parseFilters 前先统一为空字符串。
   if (value === null || value === undefined || value === 0 || normalizeText(value) === "") {
     return "";
   }
@@ -28,6 +30,7 @@ function normalizePanelDateValue(value: WpsCellValue): WpsCellValue | string {
 }
 
 function panelFilterValues(rawValue: unknown): WpsCellValue[] {
+  // B2:B7 可能被 WPS 返回成二维矩阵，打平后只取旧面板约定的 6 个输入。
   return normalizeMatrix(rawValue)
     .flat()
     .slice(0, 6);
@@ -77,6 +80,7 @@ function syncActivePanelInputToRibbonState(root?: ScrapVarianceGlobal): void {
     return;
   }
 
+  // 兼容旧工作簿：如果用户仍在旧查询面板触发查询，就先把面板输入同步到新状态模型。
   const queryInput = readPanelQueryInput(activeSheet.Range("B2:B7"));
   const currentState = root?.ScrapVarianceRibbonState ?? {};
   const nextState = {

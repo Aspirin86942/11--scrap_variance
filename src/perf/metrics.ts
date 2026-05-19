@@ -37,6 +37,7 @@ function resolveOutputRows<T>(value: T, outputRows: number | ((value: T) => numb
     try {
       return { outputRows: outputRows(value) };
     } catch (error) {
+      // 行数统计失败不能吞掉阶段本身的结果，但要在 note 里留下诊断信息。
       return {
         outputRows: 0,
         note: `outputRows 统计失败：${errorMessage(error)}`
@@ -59,6 +60,7 @@ export function createMetricsRecorder(root: unknown = globalThis): MetricsRecord
   return {
     stages,
     measure<T>(name: string, options: MeasureOptions<T>, action: () => T): T {
+      // 每个阶段都记录执行前后时间和内存采样；内存不可用时由 memory 模块返回“无确切信息”。
       const memoryBefore = getMemorySample(root);
       const startedAt = nowMs(root);
       try {
@@ -78,6 +80,7 @@ export function createMetricsRecorder(root: unknown = globalThis): MetricsRecord
         });
         return value;
       } catch (error) {
+        // 阶段失败也记录耗时和错误说明，诊断表才能显示失败发生在哪一步。
         const endedAt = nowMs(root);
         const memoryAfter = getMemorySample(root);
         stages.push({

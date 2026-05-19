@@ -11,6 +11,7 @@ function assertPositiveInteger(value: number, name: string): void {
 function columnName(columnIndex: number): string {
   assertPositiveInteger(columnIndex, "列号");
 
+  // WPS Range 地址使用 Excel 列名，这里把 1-based 列号转换成 A、Z、AA 这类名称。
   let remaining = columnIndex;
   let name = "";
   while (remaining > 0) {
@@ -33,6 +34,7 @@ function matrixWidth(values: OutputMatrix): number {
 }
 
 function rectangularizeMatrix(values: OutputMatrix, width: number): OutputMatrix {
+  // WPS 整块写入要求矩阵是矩形，短行需要补空字符串，否则 Range.Value2 可能写入失败。
   return values.map((row) => {
     if (row.length >= width) {
       return row;
@@ -48,6 +50,7 @@ function assignRangeValue(range: WpsRange, value: OutputMatrix): void {
 export function clearRange(sheet: WpsSheet, address: string): void {
   const range = sheet.Range(address);
   if (typeof range.ClearContents !== "function") {
+    // 清理失败必须显式报错，否则旧输出和新输出混在一起会误导用户。
     throw new Error(`清空区域失败：${sheet.Name}!${address} 不支持 ClearContents。`);
   }
   range.ClearContents();
@@ -87,9 +90,11 @@ export function writeMatrixBulkOrChunks(
   const rectangularValues = rectangularizeMatrix(values, width);
   const address = rangeAddress(startRow, startCol, values.length, width);
   try {
+    // 写表必须优先整块 Range 写入，避免逐格写入在 WPS 大表里变成主要性能瓶颈。
     assignRangeValue(sheet.Range(address), rectangularValues);
     return;
   } catch (fullWriteError) {
+    // 整块写失败时按行分块重试，保留批量写的性能，同时提高 WPS 宿主兼容性。
     const safeChunkRows = normalizeChunkRows(chunkRows);
     for (let rowOffset = 0; rowOffset < rectangularValues.length; rowOffset += safeChunkRows) {
       const chunk = rectangularValues.slice(rowOffset, rowOffset + safeChunkRows);

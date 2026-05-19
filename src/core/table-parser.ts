@@ -17,10 +17,12 @@ export function parseTableFromMatrix(
 ): ParsedTable {
   const headerResult = detectHeaderRow(matrix, requiredHeaders, options);
   if (!headerResult.ok) {
+    // 表头无法可靠识别时不继续解析行数据，避免把普通说明行当成业务字段。
     throw new HeaderDetectionError(headerResult);
   }
 
   const rows: RawRow[] = [];
+  // 从真实表头下一行开始转 RawRow，同时保留工作表行号给预验证和错误提示使用。
   for (let rowIndex = headerResult.headerRowIndex + 1; rowIndex < matrix.length; rowIndex += 1) {
     const rawRow = matrix[rowIndex] ?? [];
     const row: RawRow = {
@@ -41,6 +43,7 @@ export function parseTableFromMatrix(
     }
 
     if (hasValue) {
+      // 全空行不进入业务层，避免格式污染或尾部空行影响行数和校验结果。
       rows.push(row);
     }
   }

@@ -25,6 +25,7 @@ function makeDate(dayOffset: number): string {
 }
 
 function makeOaRow(index: number): RawRow {
+  // benchmark 使用固定样本生成可重复输入，目标是比较策略变化，不代表真实工作簿绝对耗时。
   return {
     表单编号: `F${pad(index, 6)}`,
     金蝶云单据编号: `QOUT${pad(index, 6)}`,
@@ -67,6 +68,7 @@ export function generateBenchmarkData(rowCount: number): BenchmarkDataSet {
     oaRows.push(makeOaRow(index));
 
     const scenario = index % 10;
+    // 按固定比例造出缺 ERP、ERP-only、物料不同、数量不同和完全匹配几类代表性场景。
     if (scenario === 0) {
       continue;
     }

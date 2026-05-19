@@ -52,6 +52,7 @@ interface Candidate {
   nonBlankCount: number;
 }
 
+// 表头可能不在 UsedRange 第一行；rowNumberFor 把相对行号还原成用户能看到的工作表行号。
 function rowNumberFor(index: number, usedRangeStartRow: number | undefined): number | string {
   if (typeof usedRangeStartRow === "number" && Number.isFinite(usedRangeStartRow)) {
     return usedRangeStartRow + index;
@@ -72,6 +73,7 @@ function buildCandidate(
   let duplicateRequiredCount = 0;
   let nonBlankCount = 0;
 
+  // 候选行按“命中多少必需字段”评分，同时记录重复关键列，后续给出可操作的错误信息。
   const headers = row.map((cell, colIndex) => {
     const header = normalizeText(cell);
     if (header) {
@@ -104,6 +106,7 @@ function buildCandidate(
 }
 
 function compareCandidates(left: Candidate, right: Candidate): number {
+  // 优先选择命中必需字段最多的行；命中相同再偏向没有重复关键列、非空列更多的行。
   const matchDiff = right.matchedHeaders.size - left.matchedHeaders.size;
   if (matchDiff !== 0) {
     return matchDiff;
@@ -171,6 +174,7 @@ export function detectHeaderRow(
   options: HeaderDetectionOptions
 ): HeaderDetectionResult {
   const scanRows = Math.min(options.maxScanRows, matrix.length);
+  // ERP/OA 导出表前面可能有说明行，所以不能假设第 1 行就是表头；这里只扫描配置允许的前几行。
   const candidates = matrix
     .slice(0, scanRows)
     .map((row, rowIndex) => buildCandidate(row, rowIndex, requiredHeaders, options.usedRangeStartRow));
@@ -183,6 +187,7 @@ export function detectHeaderRow(
 
   const tied = sorted.filter((candidate) => compareCandidates(candidate, best) === 0);
   if (tied.length > 1 && best.matchedHeaders.size < requiredHeaders.length) {
+    // 没有完整命中时如果多个候选行同分，继续猜会导致下游字段错位，所以直接报不唯一。
     return failure("表头识别不唯一", requiredHeaders, best, scanRows);
   }
 

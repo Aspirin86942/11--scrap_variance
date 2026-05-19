@@ -34,6 +34,7 @@ function hasFunction(rootValue: unknown, fallbackValue: unknown): boolean {
 }
 
 function hasMemoryApi(...roots: unknown[]): boolean {
+  // 能力探针和实际采样共用 getMemorySample，避免诊断表声称支持但采样又拿不到值。
   return roots.some((root) => getMemorySample(root).available);
 }
 
@@ -41,6 +42,7 @@ export function probeRuntimeCapabilities(root: unknown = globalThis, fallbackRoo
   const runtime = root as RuntimeProbeRoot;
   const fallbackRuntime = fallbackRoot as RuntimeProbeRoot;
 
+  // 这些能力决定诊断、定时器和弹窗轮询能否在当前 WPS/浏览器宿主里可靠运行。
   return [
     capability("performance.now", hasFunction(runtime.performance?.now, fallbackRuntime.performance?.now)),
     capability("console.log", hasFunction(runtime.console?.log, fallbackRuntime.console?.log)),

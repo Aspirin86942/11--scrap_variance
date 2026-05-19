@@ -66,6 +66,7 @@ function rangeCount(collection: { Count?: number } | undefined): number | undefi
 }
 
 function readRangeValue(range: WpsRange): unknown {
+  // Value2 通常更接近原始单元格值；没有 Value2 时再回退 Value 兼容 WPS 宿主差异。
   const value2 = range.Value2;
   if (value2 !== undefined) {
     return value2;
@@ -82,6 +83,7 @@ function describeGroups(groups: ColumnGroup[], startRow: number, rowCount: numbe
 }
 
 function readUsedRangeDimensions(usedRange: WpsRange): RangeDimensions | null {
+  // 分组读取需要 UsedRange 的起点和尺寸；缺失这些元数据时只能回退整块读取。
   const startRow = typeof usedRange.Row === "number" && Number.isFinite(usedRange.Row) ? usedRange.Row : 1;
   const startCol = typeof usedRange.Column === "number" && Number.isFinite(usedRange.Column) ? usedRange.Column : 1;
   const rowCount = rangeCount(usedRange.Rows);
@@ -104,6 +106,7 @@ function readUsedRangeDimensions(usedRange: WpsRange): RangeDimensions | null {
 function contiguousGroups(columns: number[]): ColumnGroup[] {
   const sorted = [...columns].sort((left, right) => left - right);
   const groups: ColumnGroup[] = [];
+  // 把必需字段列合并成连续列组，减少 WPS Range 读取列数，同时保持批量读取。
   for (const column of sorted) {
     const last = groups[groups.length - 1];
     if (last && column === last.endCol + 1) {
@@ -127,6 +130,7 @@ function requiredColumnsFromHeader(
   return requiredHeaders.map((header) => {
     const relativeCol = columnIndex[header];
     if (typeof relativeCol !== "number") {
+      // 到这里还缺字段说明表头识别和读取计划不一致，必须中断并回退。
       throw new Error(`缺少必需字段列映射：${header}`);
     }
     return {
@@ -147,6 +151,7 @@ function buildGroupedReadPlan(
   const groups = contiguousGroups(uniqueColumns);
   const startRow = usedRange.startRow + headerRowOffset;
   const rowCount = usedRange.rowCount - headerRowOffset;
+  // 从真实表头行开始读取，返回矩阵第一行仍是表头，兼容下游 parseTableFromMatrix。
   return {
     startRow,
     rowCount,
@@ -176,6 +181,7 @@ function readGroupedMatrices(sheet: WpsSheet, plan: GroupedReadPlan): Map<string
     const matrix = readRectangleMatrix(sheet, group, plan.startRow, plan.rowCount);
     const expectedWidth = group.endCol - group.startCol + 1;
     const address = rangeAddress(plan.startRow, group.startCol, plan.rowCount, expectedWidth);
+    // WPS Range 返回形状不稳定，行列数不符合预期时必须回退 UsedRange，不能拼接错位矩阵。
     if (matrix.length !== plan.rowCount) {
       throw new Error(`列组读取行数不一致：${address} 期望 ${plan.rowCount} 行，实际 ${matrix.length} 行`);
     }
@@ -189,6 +195,7 @@ function readGroupedMatrices(sheet: WpsSheet, plan: GroupedReadPlan): Map<string
 
 function stitchRequiredHeaderMatrix(plan: GroupedReadPlan, groupMatrices: Map<string, WpsMatrix>): WpsMatrix {
   const result: WpsMatrix = [];
+  // 分组读取后按 requiredHeaders 顺序重新拼回矩阵，保证下游字段顺序不受源表列位置影响。
   for (let rowIndex = 0; rowIndex < plan.rowCount; rowIndex += 1) {
     const row = plan.requiredColumns.map((requiredColumn) => {
       const group = groupForColumn(plan.groups, requiredColumn.absoluteCol);
@@ -224,6 +231,7 @@ export function readUsedRangeMatrix(sheet: WpsSheet): { matrix: WpsMatrix; usedR
     }
 
     const matrix = normalizeMatrix(readRangeValue(usedRange));
+    // 整块 UsedRange 是正确性兜底路径；即使性能较差，也要确保能读到用户真实数据。
     if (matrix.length === 0 || !hasAnyNonBlankRow(matrix)) {
       throw new Error("UsedRange 没有可读取的数据");
     }
@@ -257,6 +265,7 @@ export function readSheetMatrixOptimized(
 
     const probeRows = Math.min(maxScanRows, dimensions.rowCount);
     const probeAddress = rangeAddress(dimensions.startRow, dimensions.startCol, probeRows, dimensions.colCount);
+    // 先用 UsedRange 前几行探测表头，只有知道必需字段列号后才能窄读连续列组。
     const headerProbeMatrix = normalizeMatrix(readRangeValue(sheet.Range(probeAddress)));
     const headerResult = detectHeaderRow(headerProbeMatrix, requiredHeaders, {
       minMatchCount,
@@ -280,6 +289,7 @@ export function readSheetMatrixOptimized(
       diagnostics: diagnosticsForGroupedPlan(plan, matrix)
     };
   } catch (groupedError) {
+    // 分组读取是性能优化，不是正确性前提；任何异常都整体回退 UsedRange 并记录原因。
     const fallback = readUsedRangeMatrix(sheet);
     const result: OptimizedMatrixReadResult = {
       matrix: fallback.matrix,

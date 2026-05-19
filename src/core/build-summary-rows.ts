@@ -16,12 +16,14 @@ interface SummaryAccumulator {
 }
 
 function makeSummaryKey(row: DetailRow): string {
+  // summary 聚合到公司和两级部门，不带单据和物料；这些明细只保留在 detail 输出。
   return `${normalizeText(row.company)}||${normalizeText(row.dept1)}||${normalizeText(row.dept2)}`;
 }
 
 export function buildSummaryRows(detailRows?: DetailRow[] | null): SummaryRow[] {
   const grouped = new Map<string, SummaryAccumulator>();
 
+  // 先从明细行累计部门维度的数量、金额和出现过的差异类型。
   for (const row of detailRows ?? []) {
     const key = makeSummaryKey(row);
     let summary = grouped.get(key);
@@ -65,6 +67,7 @@ export function buildSummaryRows(detailRows?: DetailRow[] | null): SummaryRow[] 
       oaAmount: decimalToNumber2(summary.oaAmount),
       erpCost: decimalToNumber2(summary.erpCost),
       amountDiff: decimalToNumber2(amountDiff),
+      // 差异摘要按业务优先级输出，避免 Set 插入顺序影响用户看到的摘要顺序。
       differenceSummary: DIFFERENCE_TYPE_PRIORITY.filter((type) => summary.differenceTypes.has(type)).join("、")
     });
   }
@@ -73,6 +76,7 @@ export function buildSummaryRows(detailRows?: DetailRow[] | null): SummaryRow[] 
 }
 
 export function summaryRowsToValues(summaryRows?: SummaryRow[] | null): OutputMatrix {
+  // 输出矩阵第一行固定为表头，后续写表逻辑可以整块写入 Range。
   return [
     [...SUMMARY_HEADERS],
     ...(summaryRows ?? []).map((row) => [
@@ -91,6 +95,7 @@ export function summaryRowsToValues(summaryRows?: SummaryRow[] | null): OutputMa
 }
 
 export function detailRowsToValues(detailRows?: DetailRow[] | null): OutputMatrix {
+  // detail 字段顺序必须和 DETAIL_HEADERS 保持一致，否则 WPS 输出列会错位。
   return [
     [...DETAIL_HEADERS],
     ...(detailRows ?? []).map((row) => [

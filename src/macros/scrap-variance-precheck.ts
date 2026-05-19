@@ -20,6 +20,7 @@ function assertPrecheckOutputLimit(issueRowCount: number): void {
   const lastIssueRow = 4 + issueRowCount - 1;
 
   if (lastIssueRow > MAX_PRECHECK_CLEAR_ROW) {
+    // 预验证结果超出固定清理范围时必须阻断，否则下次运行可能残留旧问题行。
     throw new Error(
       `预验证结果需要写到第 ${lastIssueRow} 行，超过当前清理上限 MAX_PRECHECK_CLEAR_ROW=${MAX_PRECHECK_CLEAR_ROW}。` +
         "请调整 MAX_PRECHECK_CLEAR_ROW 后重新运行。"
@@ -33,6 +34,7 @@ export function writePrecheckResults(issues: PrecheckIssue[], root?: ScrapVarian
   const issueValues = issueRowsToValues(issues);
 
   assertPrecheckOutputLimit(issueValues.length);
+  // 预验证页每次全量重写，保证用户看到的是本次源表状态，而不是旧结果叠加。
   clearPrecheckOutput(sheet);
   writeMatrixBulkOrChunks(
     sheet,
@@ -58,6 +60,7 @@ function readPrecheckTable(
     return readSheetTable(sheet, requiredHeaders, minMatchCount, MAX_HEADER_SCAN_ROWS);
   } catch (error) {
     if (error instanceof HeaderDetectionError) {
+      // 表头识别失败仍要返回结构化问题，让用户知道该改哪些关键列。
       headerIssues.push(buildHeaderDetectionIssue(source, error.result));
       return null;
     }
@@ -86,6 +89,7 @@ export function runScrapVariancePrecheck(root?: ScrapVarianceGlobal): void {
       MIN_ERP_HEADER_MATCH_COUNT,
       headerIssues
     );
+    // 表头问题优先输出；只有两张表表头都可识别时，才继续做行级数据校验。
     issues = headerIssues.length > 0 ? headerIssues : buildPrecheckIssues(oaTable, erpTable);
   } catch (error) {
     issues = [buildSystemErrorIssue(error)];

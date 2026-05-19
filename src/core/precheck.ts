@@ -15,6 +15,7 @@ function hasHeader(table: ParsedTable | null | undefined, fieldName: string): bo
 }
 
 function findMissingHeaders(table: ParsedTable | null | undefined, requiredHeaders: readonly string[]): string[] {
+  // 缺少必需字段时行级校验无法可靠执行，必须先把表头问题作为阻断错误返回。
   const headerSet = new Set((table?.headers ?? []).map((header) => normalizeText(header)).filter(Boolean));
   return requiredHeaders.filter((header) => !headerSet.has(header));
 }
@@ -36,6 +37,7 @@ export function buildIssue(
   reason: string,
   suggestion: string
 ): PrecheckIssue {
+  // 所有预验证问题都走统一结构，保证输出表能定位到来源、行号、字段和值。
   return {
     level,
     source,
@@ -97,6 +99,7 @@ function buildMissingRequiredHeaderIssue(
 function validateDateColumn(source: "OA" | "ERP", rows: RawRow[], fieldName: string): PrecheckIssue[] {
   const issues: PrecheckIssue[] = [];
 
+  // 日期参与过滤和单据展示，空值或无法解析都会让查询结果不可解释，所以按错误输出。
   for (const row of rows) {
     const rawValue = row[fieldName];
 
@@ -127,6 +130,7 @@ function validateDateColumn(source: "OA" | "ERP", rows: RawRow[], fieldName: str
 function validateNumberColumn(source: "OA" | "ERP", rows: RawRow[], fieldName: string): PrecheckIssue[] {
   const issues: PrecheckIssue[] = [];
 
+  // 数值列允许空值按 0 参与正式查询，但非法文本必须提前提示用户修正。
   for (const row of rows) {
     const rawValue = row[fieldName];
     if (isBlankValue(rawValue)) {
@@ -157,6 +161,7 @@ function validateNumberColumn(source: "OA" | "ERP", rows: RawRow[], fieldName: s
 function validateRequiredCell(source: "OA" | "ERP", rows: RawRow[], fieldName: string): PrecheckIssue[] {
   const issues: PrecheckIssue[] = [];
 
+  // 业务主键字段为空会破坏聚合和关联，必须作为会影响查询正确性的错误暴露出来。
   for (const row of rows) {
     if (!isBlankValue(row[fieldName])) {
       continue;
@@ -223,6 +228,7 @@ function validateDuplicateKeys(source: "OA" | "ERP", rows: RawRow[], fieldNames:
   const grouped = new Map<string, Array<number | string>>();
   const issues: PrecheckIssue[] = [];
 
+  // 重复业务键不一定是脏数据，正式查询会先合并；这里只提醒用户确认是否重复导出。
   for (const row of rows) {
     const key = buildCompositeKey(row, fieldNames);
     if (!key) {
@@ -273,6 +279,7 @@ function validateErpSourceFormExists(erpRows: RawRow[], oaFormNumbers: Set<strin
   const seenMissing = new Set<string>();
   const issues: PrecheckIssue[] = [];
 
+  // ERP 源单在 OA 全量中找不到时不阻断，因为可能是 OA 导出范围不全，但要给用户补查线索。
   for (const row of erpRows) {
     const sourceFormNumber = normalizeText(row["源单单号"]);
     if (!sourceFormNumber || oaFormNumbers.has(sourceFormNumber) || seenMissing.has(sourceFormNumber)) {
@@ -331,6 +338,7 @@ export function buildPrecheckIssues(
     );
   }
   if (missingHeaderIssues.length > 0) {
+    // 表头契约不满足时，继续做行级校验只会产生大量误报。
     return missingHeaderIssues;
   }
 
@@ -386,6 +394,7 @@ export function issueRowsToValues(issues: PrecheckIssue[] | null | undefined): O
   const rows = issues ?? [];
 
   if (rows.length === 0) {
+    // 没有问题也写一行提示，避免用户看到空表时误以为宏没有运行。
     values.push([
       "提醒",
       "系统",

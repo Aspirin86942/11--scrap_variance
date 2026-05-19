@@ -28,6 +28,7 @@ function errorMessage(error: unknown): string {
 
 function cellSafeNote(value: string): string {
   const normalized = value.replace(/\s+/g, " ").trim();
+  // 诊断说明会写进单元格，前缀为公式字符时加引号，避免被表格当公式执行。
   const escaped = /^[=+\-@]/.test(normalized) ? `'${normalized}` : normalized;
   if (escaped.length <= MAX_DIAGNOSTICS_NOTE_LENGTH) {
     return escaped;
@@ -36,6 +37,7 @@ function cellSafeNote(value: string): string {
 }
 
 function capabilityRows(capabilities: RuntimeCapability[]): OutputMatrix {
+  // 运行时能力不是阶段耗时，所以行数、耗时和内存列都明确标成“不适用”。
   return capabilities.map((capability) => [
     "运行时能力",
     capability.name,
@@ -61,6 +63,7 @@ function metricRows(stages: StageMetric[]): OutputMatrix {
 
 function readStrategyNote(diagnostics: SheetReadDiagnostics): string {
   if (diagnostics.strategy === "used_range_fallback" && diagnostics.fallbackReason) {
+    // fallback 原因要写入诊断表，方便判断是表头、列组还是 WPS Range 返回形状导致回退。
     return `${diagnostics.strategy}；原因：${cellSafeNote(diagnostics.fallbackReason)}`;
   }
   if (diagnostics.strategy === "grouped_ranges") {
@@ -110,6 +113,7 @@ function writeDiagnosticsRows(sheet: WpsSheet, rows: OutputMatrix): void {
 
 function writeDiagnosticsError(root: ScrapVarianceGlobal | undefined, message: string): void {
   const sheet = ensureSheet(SHEET_NAMES.performanceDiagnostics, root);
+  // 诊断自身失败时仍尽量写出错误行，避免用户面对空白诊断表。
   writeDiagnosticsRows(sheet, [
     [...DIAGNOSTICS_HEADERS],
     [
@@ -132,6 +136,7 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
     const oaSheet = getSheetByName(SHEET_NAMES.oa, root);
     const erpSheet = getSheetByName(SHEET_NAMES.erp, root);
 
+    // 诊断流程复用正式查询的读表和核心 pipeline，输出的耗时才和真实查询路径一致。
     const queryInput = metrics.measure("read_filters", { inputRows: 6, outputRows: 6 }, () => ({
       filters: readRibbonFilters(root),
       queryDirection: getRibbonState(root).queryDirection
@@ -188,6 +193,7 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
     ];
 
     const writeStageRow = rows.length + 1;
+    // 写诊断表本身也是一个阶段，先写已有行，再把写表阶段追加到末尾。
     metrics.measure("write_diagnostics_sheet", { inputRows: rows.length, outputRows: rows.length }, () => {
       writeDiagnosticsRows(diagnosticsSheet, rows);
       return rows.length;

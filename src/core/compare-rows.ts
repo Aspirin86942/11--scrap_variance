@@ -5,6 +5,7 @@ import { normalizeText } from "../utils/text";
 function buildFormNumberSet(groupedRows: Map<string, ErpAggRow> | null | undefined): Set<string> {
   const result = new Set<string>();
 
+  // 这个集合只判断“这张 OA 单据是否有任何 ERP 出库”，用于区分整单缺失和物料明细缺失。
   for (const [key, row] of (groupedRows ?? new Map<string, ErpAggRow>()).entries()) {
     const formNumber = normalizeText(row.formNumber || row.sourceFormNumber || key.split("||")[0]);
     if (formNumber) {
@@ -16,6 +17,7 @@ function buildFormNumberSet(groupedRows: Map<string, ErpAggRow> | null | undefin
 }
 
 function buildDifference(differenceType: string, oa?: OaAggRow, erp?: ErpAggRow): DetailRow {
+  // OA/ERP 任一侧缺失时，展示字段从存在的一侧兜底取值，让用户仍能定位单据和物料。
   const formNumber = normalizeText(oa?.formNumber || erp?.formNumber || erp?.sourceFormNumber);
   const oaKingdeeDocNumber = normalizeText(oa?.kingdeeDocNumber);
   const erpSourceFormNumber = normalizeText(erp?.sourceFormNumber);
@@ -70,6 +72,7 @@ export function compareRows(
   const activeErpRowsForOa = erpRowsForOa ?? new Map<string, ErpAggRow>();
   const activeErpOnlyRows = erpOnlyRows ?? new Map<string, ErpAggRow>();
 
+  // 先以 OA 聚合结果为主遍历，判断整单未出库、物料不一致、数量不同或数量一致。
   for (const [key, oa] of activeOaRows.entries()) {
     const erp = activeErpRowsForOa.get(key);
     const formNumber = normalizeText(oa?.formNumber || key.split("||")[0]);
@@ -88,6 +91,7 @@ export function compareRows(
     details.push(buildDifference(differenceType, oa, erp));
   }
 
+  // 再补 ERP 有、OA 同单据下没有的物料行，这类不是整单缺失，而是物料明细不一致。
   for (const [key, erp] of activeErpRowsForOa.entries()) {
     if (activeOaRows.has(key)) {
       continue;
@@ -96,6 +100,7 @@ export function compareRows(
     details.push(buildDifference("OA和ERP都有，但物料明细不一致", undefined, erp));
   }
 
+  // 最后补 ERP 源单完全不在当前 OA 数据中的记录，用单独差异类型提示用户回 OA 系统补查。
   for (const erp of activeErpOnlyRows.values()) {
     details.push(buildDifference("ERP出库对应OA未在当前OA数据中找到", undefined, erp));
   }

@@ -29,6 +29,7 @@ interface DocAccumulator {
   materials: Map<string, MaterialAccumulator>;
 }
 
+// 单据对比先按单据聚合，再在每张单据下面保留物料 Map，支撑后续“展开物料”。
 interface MatchedCounterpart {
   quantity: Decimal;
   amount: Decimal;
@@ -65,6 +66,7 @@ function appendCounterpartDocNumber(doc: DocAccumulator, docNumber: string): voi
     return;
   }
 
+  // 既保留 Set 便于匹配对方单据，也保留拼接文本便于直接写到输出表。
   doc.counterpartDocNumberSet.add(normalized);
   doc.counterpartDocNumbers = appendUniqueJoinedText(doc.counterpartDocNumbers, normalized, ",");
 }
@@ -106,6 +108,7 @@ function addMaterialTotals(
 ): void {
   let material = materials.get(itemCode);
   if (!material) {
+    // 物料层级也先聚合，避免一张单据同一物料多行直接变成多条展开结果。
     material = createMaterialAccumulator(itemCode, itemName);
     materials.set(itemCode, material);
   }
@@ -173,6 +176,7 @@ function buildOaDocGroups(
   const result = new Map<string, DocAccumulator>();
   const activeFilters = filters ?? parseFilters();
 
+  // OA 视角单据对比只按用户条件筛 OA 主单据，对方 ERP 单据在后面按金蝶编号匹配。
   for (const row of rows ?? []) {
     const dateKey = normalizeDateKey(row["申请日期"]);
     if (!isDateInRange(dateKey, activeFilters)) {
@@ -194,6 +198,7 @@ function buildErpDocGroups(
   const result = new Map<string, DocAccumulator>();
   const activeFilters = filters ?? parseFilters();
 
+  // ERP 视角单据对比只按用户条件筛 ERP 主单据，对方 OA 单据在后面按源单号匹配。
   for (const row of rows ?? []) {
     const dateKey = normalizeDateKey(row["日期"]);
     if (!isDateInRange(dateKey, activeFilters)) {
@@ -241,6 +246,7 @@ function buildMatchedCounterpart(
     materials: new Map<string, MaterialAccumulator>()
   };
 
+  // 对方单据可能有多张，逐张累加数量、金额和物料，用来生成汇总行与展开行。
   for (const counterpartDocNumber of primary.counterpartDocNumberSet) {
     const counterpart = counterpartGroups.get(counterpartDocNumber);
     if (!counterpart) {
@@ -258,6 +264,7 @@ function buildMatchedCounterpart(
 }
 
 function makeSummaryKey(kind: DocCompareKind, summaryRow: Pick<DocCompareRow, "primaryDocNumber">): string {
+  // 同一个单号在 OA/ERP 两个输出页含义不同，key 里带 kind 避免展开物料时串页。
   return JSON.stringify([kind, normalizeText(summaryRow.primaryDocNumber)]);
 }
 
@@ -300,6 +307,7 @@ function buildMaterialRows(
   const result: DocCompareRow[] = [];
   const processedItemCodes = new Set<string>();
 
+  // 先输出主单据自己的物料，再补对方独有物料，才能完整展示物料层级差异。
   for (const material of primary.materials.values()) {
     const counterpart = counterpartMaterials.get(material.itemCode) ?? createMaterialAccumulator(material.itemCode, "");
     result.push(
@@ -350,6 +358,7 @@ function buildDocCompareResult(
   const summaryRows: DocCompareRow[] = [];
   const materialRowsBySummaryKey = new Map<string, DocCompareRow[]>();
 
+  // 汇总行和物料行分开返回，宏层可以只写汇总，再按用户展开动作插入物料行。
   for (const primary of primaryGroups.values()) {
     const counterpart = buildMatchedCounterpart(primary, counterpartGroups);
     const summaryRow = buildDocCompareRow("汇总", primary, counterpart);

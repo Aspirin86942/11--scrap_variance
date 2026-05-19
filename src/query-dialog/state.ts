@@ -6,6 +6,7 @@ import { normalizeText } from "../utils/text";
 export type QueryDialogStateInput = Partial<Record<keyof RibbonQueryState, unknown>> | null | undefined;
 
 export function buildDefaultQueryDialogState(): RibbonQueryState {
+  // 弹窗默认值和功能区状态保持同一结构，提交后可以直接进入当前页查询流程。
   return {
     company: "",
     dept1: "",
@@ -18,6 +19,7 @@ export function buildDefaultQueryDialogState(): RibbonQueryState {
 
 export function normalizeQueryDialogState(input: QueryDialogStateInput = {}): RibbonQueryState {
   const source = input ?? {};
+  // dialog 页面传来的值都先当 unknown 处理，统一转成核心查询能接受的 RibbonQueryState。
   const queryState: RibbonQueryState = {
     company: normalizeText(source.company),
     dept1: normalizeText(source.dept1),

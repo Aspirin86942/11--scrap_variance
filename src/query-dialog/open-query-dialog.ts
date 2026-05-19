@@ -38,6 +38,7 @@ function errorMessage(error: unknown): string {
 function getStorage(root: ScrapVarianceGlobal) {
   const storage = root.Application?.PluginStorage;
   if (!storage) {
+    // 弹窗和主加载项之间只能通过 WPS PluginStorage 传递状态，没有它就无法可靠回传查询条件。
     throw new Error("当前 WPS 环境不支持 PluginStorage，无法打开查询弹窗。");
   }
   return storage;
@@ -48,6 +49,7 @@ function clearDialogResult(root: ScrapVarianceGlobal): void {
 }
 
 function buildDialogInitialStateKey(token: string): string {
+  // token 把本次弹窗的初始条件和返回结果隔离开，避免旧弹窗结果误触发当前查询。
   return `${QUERY_DIALOG_INITIAL_STATE_KEY_PREFIX}${token}`;
 }
 
@@ -78,6 +80,7 @@ function writeDialogInitialState(root: ScrapVarianceGlobal, token: string, outpu
   };
 
   try {
+    // 当前输出表自己的上次查询条件优先恢复；没有记录时弹窗使用空条件。
     const state = readOutputQueryState(activeSheet);
     if (state) {
       payload.state = state;
@@ -86,6 +89,7 @@ function writeDialogInitialState(root: ScrapVarianceGlobal, token: string, outpu
     root.console?.error?.("读取输出表查询条件失败，查询弹窗将使用空条件。", error);
   }
 
+  // 候选项只是辅助输入，读取失败不能阻断查询弹窗本身。
   payload.suggestions = buildQueryDialogSuggestions(root);
   getStorage(root).setItem(buildDialogInitialStateKey(token), JSON.stringify(payload));
 }
@@ -99,6 +103,7 @@ function readDialogResult(root: ScrapVarianceGlobal): QueryDialogResult | null {
   try {
     const parsed = JSON.parse(raw) as Partial<QueryDialogResult>;
     if (typeof parsed.token !== "string" || (parsed.action !== "query" && parsed.action !== "cancel")) {
+      // storage 内容可能来自旧弹窗或被手动污染，结构不对时忽略而不是执行查询。
       return null;
     }
 
@@ -120,6 +125,7 @@ function buildDialogUrl(token: string, outputKind: OutputSheetKind | null): stri
   const base =
     typeof globalThis.location?.href === "string" ? globalThis.location.href : "http://127.0.0.1:3889/index.html";
   const url = new URL("ui/query-dialog.html", base);
+  // 静态 dialog 只负责收集条件，token 和输出页类型通过 URL 传给页面脚本。
   url.searchParams.set("token", token);
   if (outputKind) {
     url.searchParams.set("outputKind", outputKind);
@@ -144,6 +150,7 @@ export function pollQueryDialogResult(
 ): boolean {
   const result = readDialogResult(root);
   if (!result || result.token !== token) {
+    // 只接受当前 token 的结果，避免多个弹窗或旧结果互相串扰。
     return false;
   }
 
@@ -154,6 +161,7 @@ export function pollQueryDialogResult(
   }
 
   try {
+    // 弹窗只回传条件，真正查询仍在主加载项上下文执行，避免静态 dialog 直接操作工作簿。
     runQuery(normalizeQueryDialogState(result.state));
   } catch (error) {
     reportError(error instanceof Error ? error : new Error(errorMessage(error)));
@@ -176,6 +184,7 @@ export function openQueryDialogAndRun(root: ScrapVarianceGlobal, runQuery: RunQu
   clearDialogResult(root);
   writeDialogInitialState(root, token, outputKind);
   try {
+    // ShowDialog 非阻塞返回时，后续用定时轮询等待静态页面写入 PluginStorage。
     application.ShowDialog(buildDialogUrl(token, outputKind), "报废差异查询条件", 560, 430, false);
   } catch (error) {
     clearDialogResult(root);
@@ -191,6 +200,7 @@ export function openQueryDialogAndRun(root: ScrapVarianceGlobal, runQuery: RunQu
     }
 
     if (Date.now() - startedAt > QUERY_DIALOG_TIMEOUT_MS) {
+      // 超时要清掉本次 token 相关状态，否则下次打开弹窗可能读到残留数据。
       globalThis.clearInterval(timer);
       clearDialogResult(root);
       clearDialogInitialState(root, token);

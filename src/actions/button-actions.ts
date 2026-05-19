@@ -12,6 +12,7 @@ export interface ButtonAction {
 
 export type ButtonActionRegistry = Record<string, ButtonAction>;
 
+// 这里列出加载项真正支持的业务动作，ribbon.xml 的按钮 id 会通过 registry 映射到这些函数。
 export interface ButtonActionRunners {
   runPrecheck(): unknown | Promise<unknown>;
   setupOutputSheets(): unknown | Promise<unknown>;
@@ -25,6 +26,7 @@ function errorMessage(error: unknown): string {
 }
 
 export function createButtonActions(runners: ButtonActionRunners): ButtonActionRegistry {
+  // 按钮 registry 把 ribbon.xml 的 control id 映射到真实业务函数，避免每个按钮分散写 try/catch 和 WPS 适配逻辑。
   return {
     btnPrecheck: {
       name: "runPrecheck",
@@ -61,6 +63,7 @@ export function getButtonAction(actions: ButtonActionRegistry, buttonId: string)
 export async function runAllButtonActionTests(actions: ButtonActionRegistry): Promise<ButtonActionTestResult[]> {
   const results: ButtonActionTestResult[] = [];
 
+  // 真机测试要调用真实按钮 action；失败时保留错误消息，不能把失败吞掉后假装通过。
   for (const action of Object.values(actions)) {
     try {
       await action.run();

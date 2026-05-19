@@ -9,6 +9,7 @@ function formatDateKey(year: number, month: number, day: number): string {
 }
 
 function buildValidatedDateKey(year: number, month: number, day: number, rawValue: unknown): string {
+  // 用 UTC 重新构造日期来校验 2026-02-31 这类溢出日期，避免 JS Date 自动进位后误判为合法。
   const date = new Date(Date.UTC(year, month - 1, day));
 
   if (
@@ -23,6 +24,7 @@ function buildValidatedDateKey(year: number, month: number, day: number, rawValu
 }
 
 export function normalizeDateKey(value: unknown): string {
+  // Excel/WPS 会把日期暴露成字符串、数字或 Date 对象；统一成 key 后，后续比较才不会受显示格式影响。
   if (value === null || value === undefined) {
     return "";
   }
@@ -39,6 +41,7 @@ export function normalizeDateKey(value: unknown): string {
     if (!Number.isFinite(value)) {
       throw new Error(`日期格式不正确：${String(value)}`);
     }
+    // Excel 序列号按 1899-12-30 为基准换算，这里只生成日期 key，不保留时间部分。
     const excelDate = new Date((value - 25569) * 86400 * 1000);
     if (Number.isNaN(excelDate.getTime())) {
       throw new Error(`日期格式不正确：${String(value)}`);
