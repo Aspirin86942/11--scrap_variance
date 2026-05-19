@@ -247,10 +247,6 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
       const parsedRange = parseRangeAddress(address);
       const range: WpsRange = {
         Address: address,
-        Row: parsedRange?.startRow,
-        Column: parsedRange?.startCol,
-        Rows: parsedRange ? { Count: parsedRange.endRow - parsedRange.startRow + 1 } : undefined,
-        Columns: parsedRange ? { Count: parsedRange.endCol - parsedRange.startCol + 1 } : undefined,
         get Value(): unknown {
           if (sheet.failReadAddresses.has(address)) {
             throw new Error(`range read failed: ${address}`);
@@ -281,6 +277,13 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
           sheet.writes.push({ address, value });
         }
       };
+
+      if (parsedRange) {
+        range.Row = parsedRange.startRow;
+        range.Column = parsedRange.startCol;
+        range.Rows = { Count: parsedRange.endRow - parsedRange.startRow + 1 };
+        range.Columns = { Count: parsedRange.endCol - parsedRange.startCol + 1 };
+      }
 
       if (rowRange) {
         range.EntireRow = {
