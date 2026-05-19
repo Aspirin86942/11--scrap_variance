@@ -362,7 +362,9 @@ describe("current sheet query macro", () => {
     expect(erpSheet.usedRangeValue2ReadCount).toBe(0);
     expect(oaSheet.rangeReads).toContain("A1:AC20");
     expect(oaSheet.rangeReads).not.toContain("A1:AC25");
+    expect(oaSheet.rangeReads).not.toContain("A1:AJ25");
     expect(oaSheet.rangeReads).toEqual(expect.arrayContaining(["A1:C25", "M1:O25", "Z1:AC25"]));
+    expect(oaSheet.rangeReads.filter((address) => address !== "A1:AC20")).toEqual(["A1:C25", "M1:O25", "Z1:AC25"]);
   });
 
   it("runCurrentSheetQuery throws for unsupported active sheet without writing or clearing source sheet ranges", () => {
