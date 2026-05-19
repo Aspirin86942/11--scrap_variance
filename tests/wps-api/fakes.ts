@@ -12,6 +12,7 @@ export interface FakeSheet extends WpsSheet {
   rowInserts: Array<{ afterRow: number; rowCount: number }>;
   rowDeletes: Array<{ startRow: number; rowCount: number }>;
   rangeValues: Map<string, unknown>;
+  failReadAddresses: Set<string>;
   failWriteAddresses: Set<string>;
   failNextBulkWrite: boolean;
   usedRangeValue2ReadCount: number;
@@ -35,6 +36,28 @@ interface ParsedRowRangeAddress {
 
 function columnIndex(columnName: string): number {
   return [...columnName.toUpperCase()].reduce((result, char) => result * 26 + char.charCodeAt(0) - 64, 0);
+}
+
+function columnName(columnNumber: number): string {
+  let remaining = columnNumber;
+  let name = "";
+  while (remaining > 0) {
+    const zeroBasedOffset = (remaining - 1) % 26;
+    name = String.fromCharCode(65 + zeroBasedOffset) + name;
+    remaining = Math.floor((remaining - 1) / 26);
+  }
+  return name;
+}
+
+function matrixWidth(values: WpsMatrix): number {
+  return values.reduce((width, row) => Math.max(width, row.length), 0);
+}
+
+function usedRangeAddress(rowCount: number, colCount: number): string {
+  if (rowCount <= 0 || colCount <= 0) {
+    return "A1:A1";
+  }
+  return `A1:${columnName(colCount)}${rowCount}`;
 }
 
 function parseCellAddress(address: string): { row: number; col: number } | null {
@@ -134,28 +157,50 @@ class FakeRangeValues extends Map<string, unknown> {
 }
 
 export function createFakeSheet(name: string, usedRangeValue: unknown = []): FakeSheet {
+  const usedRangeMatrix = normalizeMatrix(usedRangeValue);
+  const usedRangeRows = usedRangeMatrix.length;
+  const usedRangeCols = matrixWidth(usedRangeMatrix);
+  const initialUsedRangeAddress = usedRangeAddress(usedRangeRows, usedRangeCols);
+
   const sheet: FakeSheet = {
     Name: name,
     UsedRange: {
       Value2: usedRangeValue,
-      Row: 1
+      Row: 1,
+      Column: 1,
+      Address: initialUsedRangeAddress,
+      Rows: { Count: usedRangeRows },
+      Columns: { Count: usedRangeCols }
     },
     writes: [],
     clears: [],
     rowInserts: [],
     rowDeletes: [],
     rangeValues: new FakeRangeValues(),
+    failReadAddresses: new Set<string>(),
     failWriteAddresses: new Set<string>(),
     failNextBulkWrite: false,
     usedRangeValue2ReadCount: 0,
     Range(address: string): WpsRange {
       const rowRange = parseRowRangeAddress(address);
       const rowCount = rowRange ? rowRange.endRow - rowRange.startRow + 1 : 0;
+      const parsedRange = parseRangeAddress(address);
       const range: WpsRange = {
+        Address: address,
+        Row: parsedRange?.startRow,
+        Column: parsedRange?.startCol,
+        Rows: parsedRange ? { Count: parsedRange.endRow - parsedRange.startRow + 1 } : undefined,
+        Columns: parsedRange ? { Count: parsedRange.endCol - parsedRange.startCol + 1 } : undefined,
         get Value(): unknown {
+          if (sheet.failReadAddresses.has(address)) {
+            throw new Error(`range read failed: ${address}`);
+          }
           return sheet.rangeValues.get(address);
         },
         get Value2(): unknown {
+          if (sheet.failReadAddresses.has(address)) {
+            throw new Error(`range read failed: ${address}`);
+          }
           return sheet.rangeValues.get(address);
         },
         ClearContents(): void {
@@ -188,6 +233,9 @@ export function createFakeSheet(name: string, usedRangeValue: unknown = []): Fak
       return range;
     }
   };
+  if (usedRangeRows > 0 && usedRangeCols > 0) {
+    sheet.rangeValues.set(initialUsedRangeAddress, usedRangeMatrix);
+  }
   Object.defineProperty(sheet.UsedRange, "Value2", {
     get() {
       sheet.usedRangeValue2ReadCount += 1;

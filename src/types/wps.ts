@@ -9,10 +9,18 @@ export interface WpsRowOperationTarget {
   Delete?: () => void;
 }
 
+export interface WpsCollectionCount {
+  Count?: number;
+}
+
 export interface WpsRange {
   Value?: unknown;
   Value2?: unknown;
   Row?: number;
+  Column?: number;
+  Address?: string;
+  Rows?: WpsCollectionCount;
+  Columns?: WpsCollectionCount;
   EntireRow?: WpsRowOperationTarget;
   Insert?: () => void;
   Delete?: () => void;
