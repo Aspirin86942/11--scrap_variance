@@ -37,6 +37,38 @@
         background: #fff;
       }
 
+      .autocomplete-field {
+        position: relative;
+        width: 100%;
+      }
+
+      .autocomplete-menu {
+        position: absolute;
+        z-index: 1000;
+        box-sizing: border-box;
+        display: none;
+        max-height: 220px;
+        overflow-y: auto;
+        border: 1px solid #c9d1d9;
+        border-radius: 4px;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(31, 41, 51, 0.14);
+      }
+
+      .autocomplete-option {
+        box-sizing: border-box;
+        min-height: 28px;
+        padding: 5px 8px;
+        font-size: 14px;
+        line-height: 18px;
+        cursor: pointer;
+      }
+
+      .autocomplete-option:hover,
+      .autocomplete-option.active {
+        background: #e6f4ef;
+      }
+
       .direction-group {
         display: flex;
         align-items: center;
@@ -95,11 +127,17 @@
     <form id="queryForm">
       <div class="grid">
         <label for="company">公司简称</label>
-        <input id="company" class="text-input" name="company" autocomplete="off">
+        <div class="autocomplete-field">
+          <input id="company" class="text-input" name="company" autocomplete="off">
+        </div>
         <label for="dept1">一级部门</label>
-        <input id="dept1" class="text-input" name="dept1" autocomplete="off">
+        <div class="autocomplete-field">
+          <input id="dept1" class="text-input" name="dept1" autocomplete="off">
+        </div>
         <label for="dept2">二级部门</label>
-        <input id="dept2" class="text-input" name="dept2" autocomplete="off">
+        <div class="autocomplete-field">
+          <input id="dept2" class="text-input" name="dept2" autocomplete="off">
+        </div>
         <label for="startDate">开始日期</label>
         <input id="startDate" class="text-input" name="startDate" placeholder="2026/5/1" autocomplete="off">
         <label for="endDate">结束日期</label>

@@ -2,6 +2,7 @@
   var RESULT_KEY = "ScrapVarianceQueryDialogResult";
   var DEFAULT_DIRECTION = "OA金蝶单号查ERP";
   var REVERSE_DIRECTION = "ERP源单查OA";
+  var MAX_VISIBLE_OPTIONS = 30;
   var hasSubmitted = false;
 
   function decodeQueryPart(value) {
@@ -81,7 +82,7 @@
     return value === REVERSE_DIRECTION ? REVERSE_DIRECTION : DEFAULT_DIRECTION;
   }
 
-  function readInitialState() {
+  function readInitialPayload() {
     var storage = getStorage(false);
     var token = getToken();
     var raw;
@@ -102,10 +103,148 @@
       return null;
     }
 
-    if (!parsed || parsed.token !== token || !parsed.state) {
+    if (!parsed || parsed.token !== token) {
       return null;
     }
-    return parsed.state;
+    return parsed;
+  }
+
+  function readInitialState() {
+    var payload = readInitialPayload();
+    return payload && payload.state ? payload.state : null;
+  }
+
+  function normalizeSuggestions(input) {
+    var normalized = [];
+    var seen = {};
+    var index;
+    var value;
+
+    if (!input || typeof input.length !== "number") {
+      return [];
+    }
+
+    for (index = 0; index < input.length; index += 1) {
+      if (input[index] == null) {
+        continue;
+      }
+      value = String(input[index]).trim();
+      if (value && !seen[value]) {
+        seen[value] = true;
+        normalized.push(value);
+      }
+    }
+    return normalized;
+  }
+
+  function readSuggestions() {
+    var payload = readInitialPayload();
+    var suggestions = payload && payload.suggestions ? payload.suggestions : {};
+
+    return {
+      company: normalizeSuggestions(suggestions.company),
+      dept1: normalizeSuggestions(suggestions.dept1),
+      dept2: normalizeSuggestions(suggestions.dept2)
+    };
+  }
+
+  function getMatchedOptions(value, suggestions) {
+    var query = String(value || "").trim();
+    var options = normalizeSuggestions(suggestions);
+    var matched = [];
+    var index;
+
+    for (index = 0; index < options.length; index += 1) {
+      if (!query || options[index].indexOf(query) !== -1) {
+        matched.push(options[index]);
+      }
+      if (matched.length >= MAX_VISIBLE_OPTIONS) {
+        break;
+      }
+    }
+    return matched;
+  }
+
+  function createAutocompleteDropdown() {
+    var dropdown = document.createElement("div");
+    dropdown.className = "autocomplete-menu";
+    dropdown.setAttribute("role", "listbox");
+    document.body.appendChild(dropdown);
+    return dropdown;
+  }
+
+  function positionAutocompleteDropdown(input, dropdown) {
+    var rect = input.getBoundingClientRect();
+    var pageX = window.pageXOffset || 0;
+    var pageY = window.pageYOffset || 0;
+    dropdown.style.left = rect.left + pageX + "px";
+    dropdown.style.top = rect.bottom + pageY + "px";
+    dropdown.style.width = rect.width + "px";
+  }
+
+  function hideAutocompleteDropdown(dropdown) {
+    dropdown.style.display = "none";
+    dropdown.innerHTML = "";
+    while (dropdown.children && dropdown.children.length) {
+      dropdown.removeChild(dropdown.children[0]);
+    }
+  }
+
+  function renderAutocompleteOptions(dropdown, input, options) {
+    var index;
+    var option;
+
+    hideAutocompleteDropdown(dropdown);
+    if (!options.length) {
+      return;
+    }
+
+    for (index = 0; index < options.length; index += 1) {
+      option = document.createElement("div");
+      option.className = "autocomplete-option";
+      option.setAttribute("role", "option");
+      option.textContent = options[index];
+      option.addEventListener("mousedown", (function (selected) {
+        return function (event) {
+          event.preventDefault();
+          input.value = selected;
+          hideAutocompleteDropdown(dropdown);
+        };
+      })(options[index]));
+      dropdown.appendChild(option);
+    }
+    positionAutocompleteDropdown(input, dropdown);
+    dropdown.style.display = "block";
+  }
+
+  function attachAutocomplete(inputId, suggestions) {
+    var input = document.getElementById(inputId);
+    var options = normalizeSuggestions(suggestions);
+    var dropdown;
+
+    if (!input) {
+      return;
+    }
+
+    dropdown = createAutocompleteDropdown();
+    input.addEventListener("input", function () {
+      renderAutocompleteOptions(dropdown, input, getMatchedOptions(input.value, options));
+    });
+    input.addEventListener("focus", function () {
+      renderAutocompleteOptions(dropdown, input, getMatchedOptions(input.value, options));
+    });
+    input.addEventListener("blur", function () {
+      window.setTimeout(function () {
+        hideAutocompleteDropdown(dropdown);
+      }, 120);
+    });
+  }
+
+  function initializeAutocomplete() {
+    var suggestions = readSuggestions();
+    attachAutocomplete("company", suggestions.company);
+    attachAutocomplete("dept1", suggestions.dept1);
+    attachAutocomplete("dept2", suggestions.dept2);
   }
 
   function getDirectionInputs() {
@@ -180,6 +319,7 @@
     resetForm();
     applyInitialState(readInitialState());
     setDirectionEnabled(isDirectionEditable());
+    initializeAutocomplete();
   }
 
   function closeDialog() {
@@ -249,6 +389,12 @@
     submitResult("cancel", {});
   });
   window.addEventListener("beforeunload", writeCancelIfNeeded);
+
+  if (window.__SCRAP_VARIANCE_QUERY_DIALOG_TESTS__) {
+    window.__SCRAP_VARIANCE_QUERY_DIALOG_TESTS__.normalizeSuggestions = normalizeSuggestions;
+    window.__SCRAP_VARIANCE_QUERY_DIALOG_TESTS__.getMatchedOptions = getMatchedOptions;
+    window.__SCRAP_VARIANCE_QUERY_DIALOG_TESTS__.attachAutocomplete = attachAutocomplete;
+  }
 
   initializeForm();
 })();

@@ -58,11 +58,18 @@ describe("WPS add-in generated bundle", () => {
     expect(html).toContain('id="btnClear"');
     expect(html).toContain('id="btnCancel"');
     expect(html).toContain('src="./query-dialog.js"');
+    expect(html).toContain("autocomplete-field");
+    expect(html).toContain("autocomplete-menu");
+    expect(html).not.toContain("<datalist");
     expect(script).toContain("ScrapVarianceQueryDialogResult");
     expect(script).toContain("ScrapVarianceQueryDialogInitialState:");
     expect(script).toContain("readInitialState");
     expect(script).toContain("initializeForm");
     expect(script).toContain("getQueryParam");
+    expect(script).toContain("normalizeSuggestions");
+    expect(script).toContain("attachAutocomplete");
+    expect(script).toContain("MAX_VISIBLE_OPTIONS");
+    expect(script).toContain("__SCRAP_VARIANCE_QUERY_DIALOG_TESTS__");
     expect(script).not.toContain("URLSearchParams");
     expect(script).toContain("getOutputKind");
     expect(script).toContain("setDirectionEnabled");
