@@ -4,6 +4,7 @@
   var REVERSE_DIRECTION = "ERP源单查OA";
   var MAX_VISIBLE_OPTIONS = 30;
   var hasSubmitted = false;
+  var autocompleteDropdowns = [];
 
   function decodeQueryPart(value) {
     try {
@@ -170,7 +171,18 @@
     dropdown.className = "autocomplete-menu";
     dropdown.setAttribute("role", "listbox");
     document.body.appendChild(dropdown);
+    autocompleteDropdowns.push(dropdown);
     return dropdown;
+  }
+
+  function hideOtherAutocompleteDropdowns(activeDropdown) {
+    var index;
+
+    for (index = 0; index < autocompleteDropdowns.length; index += 1) {
+      if (autocompleteDropdowns[index] !== activeDropdown) {
+        hideAutocompleteDropdown(autocompleteDropdowns[index]);
+      }
+    }
   }
 
   function positionAutocompleteDropdown(input, dropdown) {
@@ -184,7 +196,6 @@
 
   function hideAutocompleteDropdown(dropdown) {
     dropdown.style.display = "none";
-    dropdown.innerHTML = "";
     while (dropdown.children && dropdown.children.length) {
       dropdown.removeChild(dropdown.children[0]);
     }
@@ -194,6 +205,7 @@
     var index;
     var option;
 
+    hideOtherAutocompleteDropdowns(dropdown);
     hideAutocompleteDropdown(dropdown);
     if (!options.length) {
       return;

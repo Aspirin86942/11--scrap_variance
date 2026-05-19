@@ -113,6 +113,10 @@ class FakeDocument {
     return dropdown;
   }
 
+  getAutocompleteDropdowns(): FakeElement[] {
+    return this.body.children.filter((child) => child.className === "autocomplete-menu");
+  }
+
   private register(id: string, element: FakeElement): FakeElement {
     element.id = id;
     this.elements.set(id, element);
@@ -140,10 +144,11 @@ interface QueryDialogHooks {
   attachAutocomplete(inputId: string, suggestions: string[]): void;
 }
 
-function loadQueryDialog(): { document: FakeDocument; hooks: QueryDialogHooks } {
+function loadQueryDialog(): { document: FakeDocument; hooks: QueryDialogHooks; runTimeouts(): void } {
   const document = new FakeDocument();
   const storage = new Map<string, string>();
   const hooks = {} as QueryDialogHooks;
+  const timeoutCallbacks: Array<() => void> = [];
   const windowObject = {
     Application: {
       PluginStorage: {
@@ -160,7 +165,11 @@ function loadQueryDialog(): { document: FakeDocument; hooks: QueryDialogHooks } 
     close() {},
     location: { search: "?token=test-token" },
     pageXOffset: 0,
-    pageYOffset: 0
+    pageYOffset: 0,
+    setTimeout(callback: () => void): number {
+      timeoutCallbacks.push(callback);
+      return timeoutCallbacks.length;
+    }
   };
   const context = vm.createContext({
     alert() {},
@@ -170,7 +179,15 @@ function loadQueryDialog(): { document: FakeDocument; hooks: QueryDialogHooks } 
 
   vm.runInContext(readFileSync(resolve(repoRoot, "ui/query-dialog.js"), "utf-8"), context);
 
-  return { document, hooks };
+  return {
+    document,
+    hooks,
+    runTimeouts() {
+      while (timeoutCallbacks.length > 0) {
+        timeoutCallbacks.shift()?.();
+      }
+    }
+  };
 }
 
 describe("static query dialog autocomplete", () => {
@@ -206,6 +223,75 @@ describe("static query dialog autocomplete", () => {
     dropdown.children[0]?.dispatchEvent("mousedown");
 
     expect(input.value).toBe("装备");
+    expect(dropdown.children).toHaveLength(0);
+  });
+
+  it("hides the dropdown after blur via window.setTimeout", () => {
+    const { document, hooks, runTimeouts } = loadQueryDialog();
+    const input = document.getElementById("company");
+    if (!input) {
+      throw new Error("expected company input");
+    }
+
+    hooks.attachAutocomplete("company", ["数控", "装备"]);
+    input.value = "数";
+    input.dispatchEvent("focus");
+
+    const dropdown = document.getLastDropdown();
+    expect(dropdown.style.display).toBe("block");
+
+    input.dispatchEvent("blur");
+    expect(dropdown.style.display).toBe("block");
+
+    runTimeouts();
+
+    expect(dropdown.style.display).toBe("none");
+    expect(dropdown.children).toHaveLength(0);
+  });
+
+  it("hides the previous autocomplete dropdown when another field opens", () => {
+    const { document, hooks } = loadQueryDialog();
+    const company = document.getElementById("company");
+    const dept1 = document.getElementById("dept1");
+    if (!company || !dept1) {
+      throw new Error("expected autocomplete inputs");
+    }
+
+    hooks.attachAutocomplete("company", ["数控", "装备"]);
+    hooks.attachAutocomplete("dept1", ["生产", "售后"]);
+    const dropdowns = document.getAutocompleteDropdowns();
+    const companyDropdown = dropdowns[dropdowns.length - 2];
+    const dept1Dropdown = dropdowns[dropdowns.length - 1];
+    if (!companyDropdown || !dept1Dropdown) {
+      throw new Error("expected two attached dropdowns");
+    }
+
+    company.value = "数";
+    company.dispatchEvent("focus");
+    expect(companyDropdown.style.display).toBe("block");
+
+    dept1.value = "生";
+    dept1.dispatchEvent("focus");
+
+    expect(companyDropdown.style.display).toBe("none");
+    expect(dept1Dropdown.style.display).toBe("block");
+    expect(dept1Dropdown.children.map((child) => child.textContent)).toEqual(["生产"]);
+  });
+
+  it("does not show an empty dropdown shell when there are no suggestions", () => {
+    const { document, hooks } = loadQueryDialog();
+    const input = document.getElementById("company");
+    if (!input) {
+      throw new Error("expected company input");
+    }
+
+    hooks.attachAutocomplete("company", []);
+    input.value = "自由输入";
+    input.dispatchEvent("focus");
+    input.dispatchEvent("input");
+
+    const dropdown = document.getLastDropdown();
+    expect(dropdown.style.display).not.toBe("block");
     expect(dropdown.children).toHaveLength(0);
   });
 });
