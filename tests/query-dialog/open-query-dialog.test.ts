@@ -223,6 +223,27 @@ describe("query dialog bridge", () => {
     vi.clearAllTimers();
   });
 
+  it("clears tokenized initial state when ShowDialog throws synchronously", () => {
+    vi.useFakeTimers();
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+    root.Application.ActiveSheet = createFakeSheet(SHEET_NAMES.oaDocCompare);
+    root.Application.ShowDialog.mockImplementation(() => {
+      throw new Error("ShowDialog failed");
+    });
+    attachSourceWorkbook(root);
+
+    expect(() => openQueryDialogAndRun(root, runQuery, reportError)).toThrow("ShowDialog failed");
+
+    const token = readTokenFromShowDialog(root);
+    expect(root.Application.PluginStorage.values.get(initialStateStorageKey(token))).toBeUndefined();
+    expect(root.Application.PluginStorage.values.get(QUERY_DIALOG_RESULT_KEY)).toBe("");
+    expect(runQuery).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
+    vi.clearAllTimers();
+  });
+
   it("clears initial state after a submitted query result is consumed", () => {
     vi.useFakeTimers();
     const root = makeRoot();

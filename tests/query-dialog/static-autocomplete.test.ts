@@ -144,11 +144,19 @@ interface QueryDialogHooks {
   attachAutocomplete(inputId: string, suggestions: string[]): void;
 }
 
-function loadQueryDialog(): { document: FakeDocument; hooks: QueryDialogHooks; runTimeouts(): void } {
+function loadQueryDialog(initialPayload?: unknown): {
+  document: FakeDocument;
+  hooks: QueryDialogHooks;
+  storage: Map<string, string>;
+  runTimeouts(): void;
+} {
   const document = new FakeDocument();
   const storage = new Map<string, string>();
   const hooks = {} as QueryDialogHooks;
   const timeoutCallbacks: Array<() => void> = [];
+  if (initialPayload) {
+    storage.set("ScrapVarianceQueryDialogInitialState:test-token", JSON.stringify(initialPayload));
+  }
   const windowObject = {
     Application: {
       PluginStorage: {
@@ -182,6 +190,7 @@ function loadQueryDialog(): { document: FakeDocument; hooks: QueryDialogHooks; r
   return {
     document,
     hooks,
+    storage,
     runTimeouts() {
       while (timeoutCallbacks.length > 0) {
         timeoutCallbacks.shift()?.();
@@ -224,6 +233,45 @@ describe("static query dialog autocomplete", () => {
 
     expect(input.value).toBe("装备");
     expect(dropdown.children).toHaveLength(0);
+  });
+
+  it("renders autocomplete suggestions from the tokenized initial payload", () => {
+    const { document, storage } = loadQueryDialog({
+      token: "test-token",
+      suggestions: {
+        company: ["数控", "装备"],
+        dept1: ["生产", "售后"],
+        dept2: ["仓储", "维修"]
+      }
+    });
+    const company = document.getElementById("company");
+    const dept1 = document.getElementById("dept1");
+    const form = document.getElementById("queryForm");
+    if (!company || !dept1 || !form) {
+      throw new Error("expected query form fields");
+    }
+
+    company.value = "装";
+    company.dispatchEvent("focus");
+    const companyDropdown = document.getAutocompleteDropdowns()[0];
+    expect(companyDropdown?.children.map((child) => child.textContent)).toEqual(["装备"]);
+
+    dept1.value = "售";
+    dept1.dispatchEvent("focus");
+    const dept1Dropdown = document.getAutocompleteDropdowns()[1];
+    expect(companyDropdown?.style.display).toBe("none");
+    expect(dept1Dropdown?.children.map((child) => child.textContent)).toEqual(["售后"]);
+
+    company.value = "自由公司";
+    form.dispatchEvent("submit");
+
+    expect(JSON.parse(String(storage.get("ScrapVarianceQueryDialogResult")))).toMatchObject({
+      token: "test-token",
+      action: "query",
+      state: {
+        company: "自由公司"
+      }
+    });
   });
 
   it("hides the dropdown after blur via window.setTimeout", () => {

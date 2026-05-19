@@ -578,10 +578,10 @@ root2);clearDialogInitialState(root2,token);if(result.action==="cancel"){return 
 error instanceof Error?error:new Error(errorMessage8(error)))}return true}function openQueryDialogAndRun(root2,runQuery,reportError){const application=root2.Application;
 if(typeof(application==null?void 0:application.ShowDialog)!=="function"){throw new Error("\u5F53\u524D WPS \u73AF\u5883\u4E0D\u652F\u6301 ShowDialog\uFF0C\u65E0\u6CD5\u6253\u5F00\u67E5\u8BE2\u5F39\u7A97\u3002")}
 const outputKind=getActiveOutputKind(root2);if(!outputKind){throw new Error(unsupportedOutputSheetMessage())}const token=createDialogToken();clearDialogResult(root2);
-writeDialogInitialState(root2,token,outputKind);application.ShowDialog(buildDialogUrl(token,outputKind),"\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2\u6761\u4EF6",560,430,
-false);const startedAt=Date.now();const timer=globalThis.setInterval(()=>{if(pollQueryDialogResult(root2,token,runQuery,reportError)){globalThis.clearInterval(timer);
-return}if(Date.now()-startedAt>QUERY_DIALOG_TIMEOUT_MS){globalThis.clearInterval(timer);clearDialogResult(root2);clearDialogInitialState(root2,token);reportError(
-buildDialogTimeoutError())}},QUERY_DIALOG_POLL_MS)}function isPromiseLike(value){return typeof value==="object"&&value!==null&&typeof value.then==="function"}function isRecord(value){return typeof value==="objec\
+writeDialogInitialState(root2,token,outputKind);try{application.ShowDialog(buildDialogUrl(token,outputKind),"\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2\u6761\u4EF6",560,
+430,false)}catch(error){clearDialogResult(root2);clearDialogInitialState(root2,token);throw error}const startedAt=Date.now();const timer=globalThis.setInterval(
+()=>{if(pollQueryDialogResult(root2,token,runQuery,reportError)){globalThis.clearInterval(timer);return}if(Date.now()-startedAt>QUERY_DIALOG_TIMEOUT_MS){globalThis.
+clearInterval(timer);clearDialogResult(root2);clearDialogInitialState(root2,token);reportError(buildDialogTimeoutError())}},QUERY_DIALOG_POLL_MS)}function isPromiseLike(value){return typeof value==="object"&&value!==null&&typeof value.then==="function"}function isRecord(value){return typeof value==="objec\
 t"&&value!==null}function getControlId(control){var _a,_b;if(!isRecord(control)){return""}return normalizeText((_b=(_a=control.Id)!=null?_a:control.id)!=null?_b:
 control.ID)}function createRibbonHandlers(dependencies){var _a;const root2=(_a=dependencies.root)!=null?_a:globalThis;return{OnAddinLoad(ribbonUi){root2.ScrapVarianceRibbonUi=
 ribbonUi},OnAction(control){try{const controlId=getControlId(control);const result=getButtonAction(dependencies.buttonActions,controlId).run();if(isPromiseLike(

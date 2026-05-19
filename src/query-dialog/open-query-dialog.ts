@@ -175,7 +175,13 @@ export function openQueryDialogAndRun(root: ScrapVarianceGlobal, runQuery: RunQu
   const token = createDialogToken();
   clearDialogResult(root);
   writeDialogInitialState(root, token, outputKind);
-  application.ShowDialog(buildDialogUrl(token, outputKind), "报废差异查询条件", 560, 430, false);
+  try {
+    application.ShowDialog(buildDialogUrl(token, outputKind), "报废差异查询条件", 560, 430, false);
+  } catch (error) {
+    clearDialogResult(root);
+    clearDialogInitialState(root, token);
+    throw error;
+  }
 
   const startedAt = Date.now();
   const timer = globalThis.setInterval(() => {
