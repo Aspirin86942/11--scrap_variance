@@ -247,8 +247,8 @@ export function readSheetMatrixOptimized(
       diagnostics: {
         strategy: "used_range_fallback",
         usedRangeAddress: dimensions?.address ?? "无确切信息",
-        usedRangeRows: fallback.matrix.length,
-        usedRangeCols: matrixWidth(fallback.matrix),
+        usedRangeRows: dimensions?.rowCount ?? fallback.matrix.length,
+        usedRangeCols: dimensions?.colCount ?? matrixWidth(fallback.matrix),
         readRangeDescription: dimensions?.address ?? "UsedRange.Value2",
         readRows: fallback.matrix.length,
         readCols: matrixWidth(fallback.matrix),

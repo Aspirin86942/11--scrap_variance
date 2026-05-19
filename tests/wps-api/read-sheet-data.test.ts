@@ -136,6 +136,41 @@ describe("optimized WPS source reads", () => {
     expect(sheet.usedRangeValue2ReadCount).toBe(1);
   });
 
+  it("reports UsedRange metadata dimensions when fallback matrix shape is trimmed", () => {
+    const sheet = createFakeSheet("OA", [
+      [...OA_REQUIRED_HEADERS],
+      ["F1", "OUT1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
+    ]);
+    const usedRange = sheet.UsedRange;
+    if (!usedRange) {
+      throw new Error("missing fake UsedRange");
+    }
+    usedRange.Row = 5;
+    usedRange.Column = 3;
+    usedRange.Address = "C5:N9";
+    usedRange.Rows = { Count: 5 };
+    usedRange.Columns = { Count: 12 };
+    sheet.rangeValues.set("C5:N9", [
+      [...OA_REQUIRED_HEADERS, "", ""],
+      ["F1", "OUT1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10, "", ""],
+      [],
+      [],
+      []
+    ]);
+    sheet.failReadAddresses.add("C5:N9");
+
+    const result = readSheetTableWithDiagnostics(sheet, [...OA_REQUIRED_HEADERS], 5, 20);
+
+    expect(result.diagnostics.strategy).toBe("used_range_fallback");
+    expect(result.diagnostics.usedRangeAddress).toBe("C5:N9");
+    expect(result.diagnostics.usedRangeRows).toBe(5);
+    expect(result.diagnostics.usedRangeCols).toBe(12);
+    expect(result.diagnostics.readRows).toBe(2);
+    expect(result.diagnostics.readCols).toBe(10);
+    expect(result.table.headerRowNumber).toBe(5);
+    expect(result.table.rows[0]?._rowNumber).toBe(6);
+  });
+
   it("keeps full UsedRange reads available for explicit fallback callers", () => {
     const sheet = createFakeSheet("OA", [
       [...OA_REQUIRED_HEADERS],
