@@ -326,42 +326,48 @@ startRow,startCol,values.length,width);try{assignRangeValue(sheet.Range(address)
 chunkRows);for(let rowOffset=0;rowOffset<rectangularValues.length;rowOffset+=safeChunkRows){const chunk=rectangularValues.slice(rowOffset,rowOffset+safeChunkRows);
 const chunkWidth=matrixWidth(chunk);if(chunkWidth===0){continue}const chunkAddress=rangeAddress(startRow+rowOffset,startCol,chunk.length,chunkWidth);try{assignRangeValue(
 sheet.Range(chunkAddress),chunk)}catch(chunkWriteError){const chunkNumber=Math.floor(rowOffset/safeChunkRows)+1;throw new Error(`\u6574\u5757\u5199\u5165\u5931\u8D25\uFF1A${address}\
-\uFF1B${errorMessage3(fullWriteError)}\u3002\u5206\u5757\u5199\u5165\u5931\u8D25\uFF1A\u7B2C ${chunkNumber} \u5757 ${chunkAddress}\uFF1B${errorMessage3(chunkWriteError)}`)}}}}function clearPrecheckOutput(sheet){clearRange(sheet,`A1:H${MAX_PRECHECK_CLEAR_ROW}`)}function clearDiagnosticsOutput(sheet){clearRange(sheet,`A1:G${MAX_DIAGNOSTICS_CLEAR_ROW}`)}function errorMessage4(error){return error instanceof Error?error.message:String(error)}var RECTANGLE_SPAN_MULTIPLIER=2;var MAX_GROUPED_RANGES=4;function rangeCount(collection){
-return typeof(collection==null?void 0:collection.Count)==="number"&&Number.isFinite(collection.Count)?collection.Count:void 0}function readRangeValue(range){const value2=range.
-Value2;if(value2!==void 0){return value2}return range.Value}function matrixWidth2(matrix){return matrix.reduce((width,row)=>Math.max(width,row.length),0)}function describeGroups(groups,startRow,rowCount){
+\uFF1B${errorMessage3(fullWriteError)}\u3002\u5206\u5757\u5199\u5165\u5931\u8D25\uFF1A\u7B2C ${chunkNumber} \u5757 ${chunkAddress}\uFF1B${errorMessage3(chunkWriteError)}`)}}}}function clearPrecheckOutput(sheet){clearRange(sheet,`A1:H${MAX_PRECHECK_CLEAR_ROW}`)}function clearDiagnosticsOutput(sheet){clearRange(sheet,`A1:G${MAX_DIAGNOSTICS_CLEAR_ROW}`)}function errorMessage4(error){return error instanceof Error?error.message:String(error)}function rangeCount(collection){return typeof(collection==null?void 0:collection.
+Count)==="number"&&Number.isFinite(collection.Count)?collection.Count:void 0}function readRangeValue(range){const value2=range.Value2;if(value2!==void 0){return value2}
+return range.Value}function matrixWidth2(matrix){return matrix.reduce((width,row)=>Math.max(width,row.length),0)}function describeGroups(groups,startRow,rowCount){
 return groups.map(group=>rangeAddress(startRow,group.startCol,rowCount,group.endCol-group.startCol+1)).join(",")}function readUsedRangeDimensions(usedRange){const startRow=typeof usedRange.
 Row==="number"&&Number.isFinite(usedRange.Row)?usedRange.Row:1;const startCol=typeof usedRange.Column==="number"&&Number.isFinite(usedRange.Column)?usedRange.Column:
 1;const rowCount=rangeCount(usedRange.Rows);const colCount=rangeCount(usedRange.Columns);if(!rowCount||!colCount){return null}return{startRow,startCol,rowCount,
 colCount,address:typeof usedRange.Address==="string"&&usedRange.Address?usedRange.Address:rangeAddress(startRow,startCol,rowCount,colCount)}}function contiguousGroups(columns){
 const sorted=[...columns].sort((left,right)=>left-right);const groups=[];for(const column of sorted){const last=groups[groups.length-1];if(last&&column===last.endCol+
-1){last.endCol=column}else{groups.push({startCol:column,endCol:column})}}return groups}function compactColumnsFromHeader(requiredHeaders,columnIndex2,usedRangeStartCol){
-const columns=requiredHeaders.map(header=>columnIndex2[header]).filter(index=>typeof index==="number");return[...new Set(columns.map(index=>usedRangeStartCol+index))].
-sort((left,right)=>left-right)}function buildReadPlan(usedRange,headerRowOffset,requiredColumns){const startRow=usedRange.startRow+headerRowOffset;const rowCount=usedRange.
-rowCount-headerRowOffset;const minCol=Math.min(...requiredColumns);const maxCol=Math.max(...requiredColumns);const span=maxCol-minCol+1;const compactGroups=contiguousGroups(
-requiredColumns);const useGrouped=span>requiredColumns.length*RECTANGLE_SPAN_MULTIPLIER&&compactGroups.length<=MAX_GROUPED_RANGES;const groups=useGrouped?compactGroups:
-[{startCol:minCol,endCol:maxCol}];const strategy=useGrouped?"grouped_columns":"narrow_rectangle";return{strategy,startRow,rowCount,groups,usedRange,description:describeGroups(
-groups,startRow,rowCount),readCols:useGrouped?requiredColumns.length:span}}function readRectangleMatrix(sheet,group,startRow,rowCount){const address=rangeAddress(
-startRow,group.startCol,rowCount,group.endCol-group.startCol+1);return normalizeMatrix(readRangeValue(sheet.Range(address)))}function readPlannedMatrix(sheet,plan){
-var _a,_b;const matrices=plan.groups.map(group=>readRectangleMatrix(sheet,group,plan.startRow,plan.rowCount));if(matrices.length===1){return(_a=matrices[0])!=null?
-_a:[]}const result=[];for(let rowIndex=0;rowIndex<plan.rowCount;rowIndex+=1){const row=[];for(const matrix of matrices){row.push(...(_b=matrix[rowIndex])!=null?
-_b:[])}result.push(row)}return result}function diagnosticsForPlan(plan,matrix){return{strategy:plan.strategy,usedRangeAddress:plan.usedRange.address,usedRangeRows:plan.
-usedRange.rowCount,usedRangeCols:plan.usedRange.colCount,readRangeDescription:plan.description,readRows:matrix.length,readCols:matrixWidth2(matrix)}}function readUsedRangeMatrix(sheet){
-try{const usedRange=sheet.UsedRange;if(!usedRange){throw new Error("UsedRange \u4E0D\u5B58\u5728")}const matrix=normalizeMatrix(readRangeValue(usedRange));if(matrix.
-length===0||!hasAnyNonBlankRow(matrix)){throw new Error("UsedRange \u6CA1\u6709\u53EF\u8BFB\u53D6\u7684\u6570\u636E")}const usedRangeStartRow=Number.isFinite(usedRange.
-Row)?usedRange.Row:void 0;if(usedRangeStartRow===void 0){return{matrix}}return{matrix,usedRangeStartRow}}catch(error){throw new Error(`\u8BFB\u53D6\u5DE5\u4F5C\u8868\u5931\u8D25\uFF1A${sheet.
+1){last.endCol=column}else{groups.push({startCol:column,endCol:column})}}return groups}function groupKey(group){return`${group.startCol}:${group.endCol}`}function requiredColumnsFromHeader(requiredHeaders,columnIndex2,usedRangeStartCol){
+return requiredHeaders.map(header=>{const relativeCol=columnIndex2[header];if(typeof relativeCol!=="number"){throw new Error(`\u7F3A\u5C11\u5FC5\u9700\u5B57\u6BB5\u5217\u6620\u5C04\uFF1A${header}`)}
+return{header,absoluteCol:usedRangeStartCol+relativeCol}})}function buildGroupedReadPlan(usedRange,headerRowOffset,requiredHeaders,columnIndex2){const requiredColumns=requiredColumnsFromHeader(
+requiredHeaders,columnIndex2,usedRange.startCol);const uniqueColumns=[...new Set(requiredColumns.map(column=>column.absoluteCol))];const groups=contiguousGroups(
+uniqueColumns);const startRow=usedRange.startRow+headerRowOffset;const rowCount=usedRange.rowCount-headerRowOffset;return{startRow,rowCount,groups,requiredColumns,
+usedRange,description:describeGroups(groups,startRow,rowCount)}}function readRectangleMatrix(sheet,group,startRow,rowCount){const address=rangeAddress(startRow,
+group.startCol,rowCount,group.endCol-group.startCol+1);return normalizeMatrix(readRangeValue(sheet.Range(address)))}function groupForColumn(groups,absoluteCol){
+const group=groups.find(candidate=>candidate.startCol<=absoluteCol&&absoluteCol<=candidate.endCol);if(!group){throw new Error(`\u627E\u4E0D\u5230\u5B57\u6BB5\u5217\u6240\u5728\u8BFB\u53D6\u7EC4\uFF1A${absoluteCol}`)}
+return group}function readGroupedMatrices(sheet,plan){const matrices=new Map;for(const group of plan.groups){const matrix=readRectangleMatrix(sheet,group,plan.startRow,
+plan.rowCount);const expectedWidth=group.endCol-group.startCol+1;const address=rangeAddress(plan.startRow,group.startCol,plan.rowCount,expectedWidth);if(matrix.
+length!==plan.rowCount){throw new Error(`\u5217\u7EC4\u8BFB\u53D6\u884C\u6570\u4E0D\u4E00\u81F4\uFF1A${address} \u671F\u671B ${plan.rowCount} \u884C\uFF0C\u5B9E\u9645 ${matrix.
+length} \u884C`)}if(matrix.some(row=>row.length!==expectedWidth)){throw new Error(`\u5217\u7EC4\u8BFB\u53D6\u5217\u6570\u4E0D\u4E00\u81F4\uFF1A${address} \u671F\u671B ${expectedWidth}\
+ \u5217`)}matrices.set(groupKey(group),matrix)}return matrices}function stitchRequiredHeaderMatrix(plan,groupMatrices){const result=[];for(let rowIndex=0;rowIndex<
+plan.rowCount;rowIndex+=1){const row=plan.requiredColumns.map(requiredColumn=>{var _a,_b;const group=groupForColumn(plan.groups,requiredColumn.absoluteCol);const matrix=groupMatrices.
+get(groupKey(group));if(!matrix){throw new Error(`\u7F3A\u5C11\u5217\u7EC4\u8BFB\u53D6\u7ED3\u679C\uFF1A${groupKey(group)}`)}return(_b=(_a=matrix[rowIndex])==null?
+void 0:_a[requiredColumn.absoluteCol-group.startCol])!=null?_b:""});result.push(row)}return result}function diagnosticsForGroupedPlan(plan,matrix){return{strategy:"\
+grouped_ranges",usedRangeAddress:plan.usedRange.address,usedRangeRows:plan.usedRange.rowCount,usedRangeCols:plan.usedRange.colCount,readRangeDescription:plan.description,
+readRows:matrix.length,readCols:plan.requiredColumns.length,groupCount:plan.groups.length}}function readUsedRangeMatrix(sheet){try{const usedRange=sheet.UsedRange;
+if(!usedRange){throw new Error("UsedRange \u4E0D\u5B58\u5728")}const matrix=normalizeMatrix(readRangeValue(usedRange));if(matrix.length===0||!hasAnyNonBlankRow(
+matrix)){throw new Error("UsedRange \u6CA1\u6709\u53EF\u8BFB\u53D6\u7684\u6570\u636E")}const usedRangeStartRow=Number.isFinite(usedRange.Row)?usedRange.Row:void 0;
+if(usedRangeStartRow===void 0){return{matrix}}return{matrix,usedRangeStartRow}}catch(error){throw new Error(`\u8BFB\u53D6\u5DE5\u4F5C\u8868\u5931\u8D25\uFF1A${sheet.
 Name}\uFF1B${errorMessage4(error)}`)}}function readSheetMatrixOptimized(sheet,requiredHeaders,minMatchCount,maxScanRows){var _a,_b,_c,_d;const usedRange=sheet.UsedRange;
 if(!usedRange){throw new Error(`\u8BFB\u53D6\u5DE5\u4F5C\u8868\u5931\u8D25\uFF1A${sheet.Name}\uFF1BUsedRange \u4E0D\u5B58\u5728`)}const dimensions=readUsedRangeDimensions(
 usedRange);try{if(!dimensions){throw new Error("UsedRange \u7F3A\u5C11\u884C\u5217\u8303\u56F4\u4FE1\u606F")}const probeRows=Math.min(maxScanRows,dimensions.rowCount);
 const probeAddress=rangeAddress(dimensions.startRow,dimensions.startCol,probeRows,dimensions.colCount);const headerProbeMatrix=normalizeMatrix(readRangeValue(sheet.
 Range(probeAddress)));const headerResult=detectHeaderRow(headerProbeMatrix,requiredHeaders,{minMatchCount,maxScanRows,usedRangeStartRow:dimensions.startRow});if(!headerResult.
-ok){throw new HeaderDetectionError(headerResult)}const requiredColumns=compactColumnsFromHeader(requiredHeaders,headerResult.columnIndex,dimensions.startCol);const plan=buildReadPlan(
-dimensions,headerResult.headerRowIndex,requiredColumns);const matrix=readPlannedMatrix(sheet,plan);if(matrix.length===0||!hasAnyNonBlankRow(matrix)){throw new Error(
-"\u7A84\u8BFB\u8303\u56F4\u6CA1\u6709\u53EF\u8BFB\u53D6\u7684\u6570\u636E")}return{matrix,usedRangeStartRow:plan.startRow,diagnostics:diagnosticsForPlan(plan,matrix)}}catch(narrowError){
-const fallback=readUsedRangeMatrix(sheet);const result={matrix:fallback.matrix,diagnostics:{strategy:"used_range_fallback",usedRangeAddress:(_a=dimensions==null?
-void 0:dimensions.address)!=null?_a:"\u65E0\u786E\u5207\u4FE1\u606F",usedRangeRows:(_b=dimensions==null?void 0:dimensions.rowCount)!=null?_b:fallback.matrix.length,
-usedRangeCols:(_c=dimensions==null?void 0:dimensions.colCount)!=null?_c:matrixWidth2(fallback.matrix),readRangeDescription:(_d=dimensions==null?void 0:dimensions.
-address)!=null?_d:"UsedRange.Value2",readRows:fallback.matrix.length,readCols:matrixWidth2(fallback.matrix),fallbackReason:errorMessage4(narrowError)}};if(fallback.
-usedRangeStartRow!==void 0){result.usedRangeStartRow=fallback.usedRangeStartRow}return result}}function readSheetTableWithDiagnostics(sheet,requiredHeaders,minMatchCount,maxScanRows){
+ok){throw new HeaderDetectionError(headerResult)}const plan=buildGroupedReadPlan(dimensions,headerResult.headerRowIndex,requiredHeaders,headerResult.columnIndex);
+const groupMatrices=readGroupedMatrices(sheet,plan);const matrix=stitchRequiredHeaderMatrix(plan,groupMatrices);if(matrix.length===0||!hasAnyNonBlankRow(matrix)){
+throw new Error("\u5206\u7EC4\u8BFB\u53D6\u8303\u56F4\u6CA1\u6709\u53EF\u8BFB\u53D6\u7684\u6570\u636E")}return{matrix,usedRangeStartRow:plan.startRow,diagnostics:diagnosticsForGroupedPlan(
+plan,matrix)}}catch(groupedError){const fallback=readUsedRangeMatrix(sheet);const result={matrix:fallback.matrix,diagnostics:{strategy:"used_range_fallback",usedRangeAddress:(_a=
+dimensions==null?void 0:dimensions.address)!=null?_a:"\u65E0\u786E\u5207\u4FE1\u606F",usedRangeRows:(_b=dimensions==null?void 0:dimensions.rowCount)!=null?_b:fallback.
+matrix.length,usedRangeCols:(_c=dimensions==null?void 0:dimensions.colCount)!=null?_c:matrixWidth2(fallback.matrix),readRangeDescription:(_d=dimensions==null?void 0:
+dimensions.address)!=null?_d:"UsedRange.Value2",readRows:fallback.matrix.length,readCols:matrixWidth2(fallback.matrix),fallbackReason:errorMessage4(groupedError)}};
+if(fallback.usedRangeStartRow!==void 0){result.usedRangeStartRow=fallback.usedRangeStartRow}return result}}function readSheetTableWithDiagnostics(sheet,requiredHeaders,minMatchCount,maxScanRows){
 const result=readSheetMatrixOptimized(sheet,requiredHeaders,minMatchCount,maxScanRows);return{table:parseTableFromMatrix(result.matrix,requiredHeaders,{minMatchCount,
 maxScanRows,usedRangeStartRow:result.usedRangeStartRow}),diagnostics:result.diagnostics}}function readSheetTable(sheet,requiredHeaders,minMatchCount,maxScanRows){
 return readSheetTableWithDiagnostics(sheet,requiredHeaders,minMatchCount,maxScanRows).table}function isUsableSheets(value){return Boolean(value&&typeof value.Count==="number"&&typeof value.Item==="function")}function getApplication(root2=globalThis){if(!root2.
@@ -377,11 +383,13 @@ const sheet=sheets.Add();sheet.Name=sheetName;return sheet}var MAX_DIAGNOSTICS_N
 replace(/\s+/g," ").trim();const escaped=/^[=+\-@]/.test(normalized)?`'${normalized}`:normalized;if(escaped.length<=MAX_DIAGNOSTICS_NOTE_LENGTH){return escaped}
 return`${escaped.slice(0,MAX_DIAGNOSTICS_NOTE_LENGTH-3)}...`}function capabilityRows(capabilities){return capabilities.map(capability2=>["\u8FD0\u884C\u65F6\u80FD\u529B",
 capability2.name,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,capability2.note])}function metricRows(stages){return stages.map(stage=>["\u9636\u6BB5\u8017\u65F6",
-stage.name,stage.inputRows,stage.outputRows,stage.timeMs,stage.heapDeltaMb,stage.note])}function readDiagnosticsRows(source,diagnostics){const prefix=source==="\
-oa"?"oa":"erp";const strategyNote=diagnostics.strategy==="used_range_fallback"&&diagnostics.fallbackReason?`${diagnostics.strategy}\uFF1B\u539F\u56E0\uFF1A${cellSafeNote(
-diagnostics.fallbackReason)}`:diagnostics.strategy;return[["\u8BFB\u8868\u7B56\u7565",`${prefix}_read_strategy`,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,
-strategyNote],["\u8BFB\u8868\u8303\u56F4",`${prefix}_used_range`,diagnostics.usedRangeRows,diagnostics.usedRangeCols,NOT_APPLICABLE,NOT_APPLICABLE,diagnostics.usedRangeAddress],
-["\u8BFB\u8868\u8303\u56F4",`${prefix}_read_range`,diagnostics.readRows,diagnostics.readCols,NOT_APPLICABLE,NOT_APPLICABLE,diagnostics.readRangeDescription]]}function writeDiagnosticsRows(sheet,rows){
+stage.name,stage.inputRows,stage.outputRows,stage.timeMs,stage.heapDeltaMb,stage.note])}function readStrategyNote(diagnostics){var _a;if(diagnostics.strategy===
+"used_range_fallback"&&diagnostics.fallbackReason){return`${diagnostics.strategy}\uFF1B\u539F\u56E0\uFF1A${cellSafeNote(diagnostics.fallbackReason)}`}if(diagnostics.
+strategy==="grouped_ranges"){return`${diagnostics.strategy}\uFF1B\u5217\u7EC4=${(_a=diagnostics.groupCount)!=null?_a:0}\uFF1B\u8BFB\u53D6\u5217=${diagnostics.readCols}\
+\uFF1B\u603B\u884C=${diagnostics.readRows}`}return diagnostics.strategy}function readDiagnosticsRows(source,diagnostics){const prefix=source==="oa"?"oa":"erp";const strategyNote=readStrategyNote(
+diagnostics);return[["\u8BFB\u8868\u7B56\u7565",`${prefix}_read_strategy`,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,strategyNote],["\u8BFB\u8868\u8303\u56F4",
+`${prefix}_used_range`,diagnostics.usedRangeRows,diagnostics.usedRangeCols,NOT_APPLICABLE,NOT_APPLICABLE,diagnostics.usedRangeAddress],["\u8BFB\u8868\u8303\u56F4",
+`${prefix}_read_range`,diagnostics.readRows,diagnostics.readCols,NOT_APPLICABLE,NOT_APPLICABLE,diagnostics.readRangeDescription]]}function writeDiagnosticsRows(sheet,rows){
 clearDiagnosticsOutput(sheet);writeMatrixBulkOrChunks(sheet,1,1,rows,WRITE_CHUNK_ROWS)}function writeDiagnosticsError(root2,message){const sheet=ensureSheet(SHEET_NAMES.
 performanceDiagnostics,root2);writeDiagnosticsRows(sheet,[[...DIAGNOSTICS_HEADERS],["\u9519\u8BEF","performance_diagnostics",NOT_APPLICABLE,NOT_APPLICABLE,NOT_APPLICABLE,
 NOT_APPLICABLE,cellSafeNote(message)]])}function runPerformanceDiagnostics(root2){try{const diagnosticsSheet=ensureSheet(SHEET_NAMES.performanceDiagnostics,root2);
