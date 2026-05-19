@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
+import { QUERY_DIRECTIONS } from "../../src/core/query-direction";
 import type { WpsSheet } from "../../src/types/wps";
 import {
   adjustOutputMetadataRows,
   saveOutputMetadata,
   readOutputMetadata,
+  readOutputQueryState,
   clearPreviousToolOutput
 } from "../../src/wps-api/output-metadata";
 import { createFakeSheet } from "./fakes";
@@ -49,6 +51,22 @@ describe("output metadata", () => {
     };
 
     expect(readOutputMetadata(sheet)).toEqual({ kind: "oa_doc_compare", rangeAddress: "A1:P3" });
+  });
+
+  it("normalizes Excel serial dates when reading saved output query state", () => {
+    const sheet = createFakeSheet("OA视角单据对比");
+    sheet.rangeValues.set("CB2:CG2", [
+      ["数控", "生产运营中心", "仓储部", 46023, 46139, QUERY_DIRECTIONS.oaKingdeeToErp]
+    ]);
+
+    expect(readOutputQueryState(sheet)).toEqual({
+      company: "数控",
+      dept1: "生产运营中心",
+      dept2: "仓储部",
+      startDate: "2026-01-01",
+      endDate: "2026-04-27",
+      queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+    });
   });
 
   it("ignores invalid metadata and never clears unsafe ranges", () => {

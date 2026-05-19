@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SHEET_NAMES } from "../../src/constants";
 import { QUERY_DIRECTIONS } from "../../src/core/query-direction";
 import {
   QUERY_DIALOG_RESULT_KEY,
@@ -6,6 +7,7 @@ import {
   pollQueryDialogResult
 } from "../../src/query-dialog/open-query-dialog";
 import type { ScrapVarianceGlobal } from "../../src/types/wps";
+import { createFakeSheet } from "../wps-api/fakes";
 
 type ShowDialogMock = ReturnType<
   typeof vi.fn<(url: string, title: string, width: number, height: number, modal: boolean) => unknown>
@@ -17,6 +19,7 @@ function makeRoot(): ScrapVarianceGlobal & {
       values: Map<string, unknown>;
       getItem(key: string): unknown;
       setItem(key: string, value: unknown): void;
+      removeItem(key: string): void;
     };
     ShowDialog: ShowDialogMock;
   };
@@ -31,11 +34,23 @@ function makeRoot(): ScrapVarianceGlobal & {
         },
         setItem(key: string, value: unknown): void {
           values.set(key, value);
+        },
+        removeItem(key: string): void {
+          values.delete(key);
         }
       },
       ShowDialog: vi.fn<(url: string, title: string, width: number, height: number, modal: boolean) => unknown>()
     }
   };
+}
+
+function readTokenFromShowDialog(root: ReturnType<typeof makeRoot>): string {
+  const [url] = root.Application.ShowDialog.mock.calls[0] ?? [];
+  return new URL(String(url)).searchParams.get("token") ?? "";
+}
+
+function initialStateStorageKey(token: string): string {
+  return `ScrapVarianceQueryDialogInitialState:${token}`;
 }
 
 afterEach(() => {
@@ -52,6 +67,7 @@ describe("query dialog bridge", () => {
     openQueryDialogAndRun(root, runQuery, reportError);
 
     expect(root.Application.ShowDialog).toHaveBeenCalledOnce();
+    expect(root.Application.ShowDialog.mock.contexts[0]).toBe(root.Application);
     const [url, title, width, height, modal] = root.Application.ShowDialog.mock.calls[0] ?? [];
     expect(String(url)).toContain("ui/query-dialog.html");
     expect(String(url)).toContain("token=");
@@ -62,6 +78,164 @@ describe("query dialog bridge", () => {
     expect(runQuery).not.toHaveBeenCalled();
     expect(reportError).not.toHaveBeenCalled();
     vi.clearAllTimers();
+  });
+
+  it("passes the active output sheet kind to the dialog URL", () => {
+    vi.useFakeTimers();
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+    root.Application.ActiveSheet = {
+      Name: SHEET_NAMES.oaDocCompare,
+      Range: vi.fn()
+    };
+
+    openQueryDialogAndRun(root, runQuery, reportError);
+
+    const [url] = root.Application.ShowDialog.mock.calls[0] ?? [];
+    expect(new URL(String(url)).searchParams.get("outputKind")).toBe("oa_doc_compare");
+    vi.clearAllTimers();
+  });
+
+  it("writes the current output sheet saved query state for the dialog token", () => {
+    vi.useFakeTimers();
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+    const sheet = createFakeSheet(SHEET_NAMES.oaDocCompare);
+    sheet.rangeValues.set("CB2:CG2", [
+      ["数控", "生产运营中心", "仓储部", "2026-01-01", "2026-04-27", QUERY_DIRECTIONS.oaKingdeeToErp]
+    ]);
+    root.Application.ActiveSheet = sheet;
+
+    openQueryDialogAndRun(root, runQuery, reportError);
+
+    const token = readTokenFromShowDialog(root);
+    expect(JSON.parse(String(root.Application.PluginStorage.values.get(initialStateStorageKey(token))))).toEqual({
+      token,
+      state: {
+        company: "数控",
+        dept1: "生产运营中心",
+        dept2: "仓储部",
+        startDate: "2026-01-01",
+        endDate: "2026-04-27",
+        queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+      }
+    });
+    vi.clearAllTimers();
+  });
+
+  it("does not write initial state when the current output sheet has no saved query state", () => {
+    vi.useFakeTimers();
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+    root.Application.ActiveSheet = createFakeSheet(SHEET_NAMES.oaDocCompare);
+
+    openQueryDialogAndRun(root, runQuery, reportError);
+
+    const token = readTokenFromShowDialog(root);
+    expect(root.Application.PluginStorage.values.get(initialStateStorageKey(token))).toBeUndefined();
+    vi.clearAllTimers();
+  });
+
+  it("does not write initial state when the active sheet is not an output sheet", () => {
+    vi.useFakeTimers();
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+    const sheet = createFakeSheet("临时查询条件");
+    sheet.rangeValues.set("CB2:CG2", [
+      ["数控", "生产运营中心", "仓储部", "2026-01-01", "2026-04-27", QUERY_DIRECTIONS.oaKingdeeToErp]
+    ]);
+    root.Application.ActiveSheet = sheet;
+
+    openQueryDialogAndRun(root, runQuery, reportError);
+
+    const token = readTokenFromShowDialog(root);
+    const [url] = root.Application.ShowDialog.mock.calls[0] ?? [];
+    expect(new URL(String(url)).searchParams.get("outputKind")).toBeNull();
+    expect(root.Application.PluginStorage.values.get(initialStateStorageKey(token))).toBeUndefined();
+    vi.clearAllTimers();
+  });
+
+  it("clears initial state after a submitted query result is consumed", () => {
+    vi.useFakeTimers();
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+    const sheet = createFakeSheet(SHEET_NAMES.oaDocCompare);
+    sheet.rangeValues.set("CB2:CG2", [
+      ["数控", "", "", "2026-01-01", "2026-04-27", QUERY_DIRECTIONS.oaKingdeeToErp]
+    ]);
+    root.Application.ActiveSheet = sheet;
+
+    openQueryDialogAndRun(root, runQuery, reportError);
+    const token = readTokenFromShowDialog(root);
+    root.Application.PluginStorage.setItem(
+      QUERY_DIALOG_RESULT_KEY,
+      JSON.stringify({
+        token,
+        action: "query",
+        state: {
+          company: "数控",
+          queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+        }
+      })
+    );
+
+    expect(pollQueryDialogResult(root, token, runQuery, reportError)).toBe(true);
+
+    expect(root.Application.PluginStorage.values.get(initialStateStorageKey(token))).toBeUndefined();
+    expect(runQuery).toHaveBeenCalledWith(
+      expect.objectContaining({
+        company: "数控",
+        queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+      })
+    );
+    vi.clearAllTimers();
+  });
+
+  it("clears initial state after a cancel result is consumed", () => {
+    vi.useFakeTimers();
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+    const sheet = createFakeSheet(SHEET_NAMES.oaDocCompare);
+    sheet.rangeValues.set("CB2:CG2", [
+      ["数控", "", "", "2026-01-01", "2026-04-27", QUERY_DIRECTIONS.oaKingdeeToErp]
+    ]);
+    root.Application.ActiveSheet = sheet;
+
+    openQueryDialogAndRun(root, runQuery, reportError);
+    const token = readTokenFromShowDialog(root);
+    root.Application.PluginStorage.setItem(QUERY_DIALOG_RESULT_KEY, JSON.stringify({ token, action: "cancel" }));
+
+    expect(pollQueryDialogResult(root, token, runQuery, reportError)).toBe(true);
+
+    expect(root.Application.PluginStorage.values.get(initialStateStorageKey(token))).toBeUndefined();
+    expect(runQuery).not.toHaveBeenCalled();
+    vi.clearAllTimers();
+  });
+
+  it("clears initial state when the opened dialog times out", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-19T00:00:00Z"));
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+    const sheet = createFakeSheet(SHEET_NAMES.oaDocCompare);
+    sheet.rangeValues.set("CB2:CG2", [
+      ["数控", "", "", "2026-01-01", "2026-04-27", QUERY_DIRECTIONS.oaKingdeeToErp]
+    ]);
+    root.Application.ActiveSheet = sheet;
+
+    openQueryDialogAndRun(root, runQuery, reportError);
+    const token = readTokenFromShowDialog(root);
+    vi.advanceTimersByTime(5 * 60 * 1000 + 250);
+
+    expect(root.Application.PluginStorage.values.get(initialStateStorageKey(token))).toBeUndefined();
+    expect(reportError).toHaveBeenCalledOnce();
   });
 
   it("reports a timeout when the opened dialog never returns a result", () => {

@@ -1,6 +1,7 @@
 import { parseQueryDirection } from "../core/query-direction";
 import type { OutputSheetKind, RibbonQueryState } from "../types/scrap";
 import type { WpsCellValue, WpsSheet } from "../types/wps";
+import { normalizeDateKey } from "../utils/date";
 import { normalizeMatrix } from "../utils/matrix";
 import { clearRange, writeMatrixBulkOrChunks } from "./write-results";
 
@@ -107,8 +108,8 @@ export function readOutputQueryState(sheet: WpsSheet): RibbonQueryState | null {
       company: normalizeText(row[0]),
       dept1: normalizeText(row[1]),
       dept2: normalizeText(row[2]),
-      startDate: normalizeText(row[3]),
-      endDate: normalizeText(row[4]),
+      startDate: normalizeDateKey(row[3]),
+      endDate: normalizeDateKey(row[4]),
       queryDirection: parseQueryDirection(row[5])
     };
   } catch {

@@ -4,8 +4,47 @@
   var REVERSE_DIRECTION = "ERP源单查OA";
   var hasSubmitted = false;
 
+  function decodeQueryPart(value) {
+    try {
+      return decodeURIComponent(String(value).replace(/\+/g, " "));
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function getQueryParam(name) {
+    var search = window.location && window.location.search ? String(window.location.search) : "";
+    var query = search.charAt(0) === "?" ? search.slice(1) : search;
+    var parts;
+    var index;
+    var pair;
+    var key;
+
+    if (!query) {
+      return "";
+    }
+
+    parts = query.split("&");
+    for (index = 0; index < parts.length; index += 1) {
+      pair = parts[index].split("=");
+      key = decodeQueryPart(pair[0]);
+      if (key === name) {
+        return decodeQueryPart(pair.slice(1).join("="));
+      }
+    }
+    return "";
+  }
+
   function getToken() {
-    return new URLSearchParams(window.location.search).get("token") || "";
+    return getQueryParam("token");
+  }
+
+  function getInitialStateKey() {
+    return "ScrapVarianceQueryDialogInitialState:" + getToken();
+  }
+
+  function getOutputKind() {
+    return getQueryParam("outputKind");
   }
 
   function getStorage(showAlert) {
@@ -31,13 +70,116 @@
     }
   }
 
+  function stateValue(state, key) {
+    if (!state || !Object.prototype.hasOwnProperty.call(state, key) || state[key] == null) {
+      return "";
+    }
+    return String(state[key]);
+  }
+
+  function normalizeDirectionValue(value) {
+    return value === REVERSE_DIRECTION ? REVERSE_DIRECTION : DEFAULT_DIRECTION;
+  }
+
+  function readInitialState() {
+    var storage = getStorage(false);
+    var token = getToken();
+    var raw;
+    var parsed;
+
+    if (!storage || !token) {
+      return null;
+    }
+
+    raw = storage.getItem(getInitialStateKey());
+    if (typeof raw !== "string" || !raw.trim()) {
+      return null;
+    }
+
+    try {
+      parsed = JSON.parse(raw);
+    } catch (error) {
+      return null;
+    }
+
+    if (!parsed || parsed.token !== token || !parsed.state) {
+      return null;
+    }
+    return parsed.state;
+  }
+
+  function getDirectionInputs() {
+    return document.querySelectorAll('input[name="queryDirection"]');
+  }
+
+  function setQueryDirection(value) {
+    var inputs = getDirectionInputs();
+    var index;
+    for (index = 0; index < inputs.length; index += 1) {
+      inputs[index].checked = inputs[index].value === value;
+    }
+  }
+
+  function getQueryDirection() {
+    var inputs = getDirectionInputs();
+    var index;
+    for (index = 0; index < inputs.length; index += 1) {
+      if (inputs[index].checked) {
+        return inputs[index].value;
+      }
+    }
+    return DEFAULT_DIRECTION;
+  }
+
+  function setDirectionEnabled(enabled) {
+    var group = document.getElementById("queryDirectionGroup");
+    var inputs = getDirectionInputs();
+    var index;
+    if (group) {
+      if (enabled) {
+        group.removeAttribute("disabled");
+        group.className = "direction-group";
+      } else {
+        group.setAttribute("disabled", "disabled");
+        group.className = "direction-group disabled";
+      }
+    }
+    for (index = 0; index < inputs.length; index += 1) {
+      inputs[index].disabled = !enabled;
+    }
+  }
+
+  function isDirectionEditable() {
+    var outputKind = getOutputKind();
+    return !outputKind || outputKind === "legacy_detail";
+  }
+
   function resetForm() {
     setValue("company", "");
     setValue("dept1", "");
     setValue("dept2", "");
     setValue("startDate", "");
     setValue("endDate", "");
-    setValue("queryDirection", DEFAULT_DIRECTION);
+    setQueryDirection(DEFAULT_DIRECTION);
+  }
+
+  function applyInitialState(state) {
+    if (!state) {
+      return;
+    }
+
+    setValue("company", stateValue(state, "company"));
+    setValue("dept1", stateValue(state, "dept1"));
+    setValue("dept2", stateValue(state, "dept2"));
+    setValue("startDate", stateValue(state, "startDate"));
+    setValue("endDate", stateValue(state, "endDate"));
+    setQueryDirection(normalizeDirectionValue(stateValue(state, "queryDirection")));
+  }
+
+  function initializeForm() {
+    resetForm();
+    applyInitialState(readInitialState());
+    setDirectionEnabled(isDirectionEditable());
   }
 
   function closeDialog() {
@@ -98,7 +240,7 @@
       dept2: valueOf("dept2"),
       startDate: valueOf("startDate"),
       endDate: valueOf("endDate"),
-      queryDirection: valueOf("queryDirection") || DEFAULT_DIRECTION
+      queryDirection: getQueryDirection() || DEFAULT_DIRECTION
     });
   });
 
@@ -108,5 +250,5 @@
   });
   window.addEventListener("beforeunload", writeCancelIfNeeded);
 
-  resetForm();
+  initializeForm();
 })();

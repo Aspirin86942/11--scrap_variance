@@ -39,6 +39,7 @@ export interface WpsWorkbook {
 export interface WpsPluginStorage {
   getItem(key: string): unknown;
   setItem(key: string, value: unknown): void;
+  removeItem?(key: string): void;
 }
 
 export interface WpsApplication {
