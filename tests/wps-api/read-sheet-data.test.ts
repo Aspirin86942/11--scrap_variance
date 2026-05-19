@@ -40,7 +40,7 @@ function scatteredOaDataRow(): Array<string | number> {
 }
 
 describe("optimized WPS source reads", () => {
-  it("reads a compact rectangle without touching full UsedRange.Value2", () => {
+  it("reads compact required columns without touching full UsedRange.Value2", () => {
     const sheet = createFakeSheet("OA", [
       [...OA_REQUIRED_HEADERS],
       ["F1", "OUT1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
@@ -50,7 +50,8 @@ describe("optimized WPS source reads", () => {
 
     expect(result.table.rows).toHaveLength(1);
     expect(result.table.rows[0]?.["表单编号"]).toBe("F1");
-    expect(result.diagnostics.strategy).toBe("narrow_rectangle");
+    expect(result.diagnostics.strategy).toBe("grouped_ranges");
+    expect(result.diagnostics.groupCount).toBe(1);
     expect(result.diagnostics.usedRangeAddress).toBe("A1:J2");
     expect(result.diagnostics.readRangeDescription).toBe("A1:J2");
     expect(result.diagnostics.readRows).toBe(2);
@@ -193,12 +194,13 @@ describe("optimized WPS source reads", () => {
     expect(sheet.usedRangeValue2ReadCount).toBe(0);
   });
 
-  it("uses grouped column reads when required headers are scattered", () => {
+  it("uses grouped range reads when required headers are scattered", () => {
     const sheet = createFakeSheet("OA", [scatteredOaHeaderRow(), scatteredOaDataRow()]);
 
     const result = readSheetTableWithDiagnostics(sheet, [...OA_REQUIRED_HEADERS], 5, 20);
 
-    expect(result.diagnostics.strategy).toBe("grouped_columns");
+    expect(result.diagnostics.strategy).toBe("grouped_ranges");
+    expect(result.diagnostics.groupCount).toBe(3);
     expect(result.diagnostics.usedRangeAddress).toBe("A1:AC2");
     expect(result.diagnostics.readRangeDescription).not.toBe(result.diagnostics.usedRangeAddress);
     expect(result.diagnostics.readRangeDescription).toContain("A1");
@@ -209,7 +211,7 @@ describe("optimized WPS source reads", () => {
     expect(sheet.usedRangeValue2ReadCount).toBe(0);
   });
 
-  it("falls back to full UsedRange when the narrow read fails", () => {
+  it("falls back to full UsedRange when the grouped read fails", () => {
     const sheet = createFakeSheet("OA", [
       [...OA_REQUIRED_HEADERS],
       ["F1", "OUT1", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]

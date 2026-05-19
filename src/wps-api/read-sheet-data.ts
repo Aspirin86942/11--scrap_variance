@@ -9,7 +9,7 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-export type SheetReadStrategy = "narrow_rectangle" | "grouped_columns" | "used_range_fallback";
+export type SheetReadStrategy = "grouped_ranges" | "used_range_fallback";
 
 export interface SheetReadDiagnostics {
   strategy: SheetReadStrategy;
@@ -19,6 +19,7 @@ export interface SheetReadDiagnostics {
   readRangeDescription: string;
   readRows: number;
   readCols: number;
+  groupCount?: number;
   fallbackReason?: string;
 }
 
@@ -46,18 +47,19 @@ interface ColumnGroup {
   endCol: number;
 }
 
-interface ReadPlan {
-  strategy: Exclude<SheetReadStrategy, "used_range_fallback">;
+interface RequiredColumn {
+  header: string;
+  absoluteCol: number;
+}
+
+interface GroupedReadPlan {
   startRow: number;
   rowCount: number;
   groups: ColumnGroup[];
+  requiredColumns: RequiredColumn[];
   usedRange: RangeDimensions;
   description: string;
-  readCols: number;
 }
-
-const RECTANGLE_SPAN_MULTIPLIER = 2;
-const MAX_GROUPED_RANGES = 4;
 
 function rangeCount(collection: { Count?: number } | undefined): number | undefined {
   return typeof collection?.Count === "number" && Number.isFinite(collection.Count) ? collection.Count : undefined;
@@ -113,33 +115,45 @@ function contiguousGroups(columns: number[]): ColumnGroup[] {
   return groups;
 }
 
-function compactColumnsFromHeader(
+function groupKey(group: ColumnGroup): string {
+  return `${group.startCol}:${group.endCol}`;
+}
+
+function requiredColumnsFromHeader(
   requiredHeaders: string[],
   columnIndex: Record<string, number>,
   usedRangeStartCol: number
-): number[] {
-  const columns = requiredHeaders.map((header) => columnIndex[header]).filter((index) => typeof index === "number");
-  return [...new Set(columns.map((index) => usedRangeStartCol + index))].sort((left, right) => left - right);
+): RequiredColumn[] {
+  return requiredHeaders.map((header) => {
+    const relativeCol = columnIndex[header];
+    if (typeof relativeCol !== "number") {
+      throw new Error(`缺少必需字段列映射：${header}`);
+    }
+    return {
+      header,
+      absoluteCol: usedRangeStartCol + relativeCol
+    };
+  });
 }
 
-function buildReadPlan(usedRange: RangeDimensions, headerRowOffset: number, requiredColumns: number[]): ReadPlan {
+function buildGroupedReadPlan(
+  usedRange: RangeDimensions,
+  headerRowOffset: number,
+  requiredHeaders: string[],
+  columnIndex: Record<string, number>
+): GroupedReadPlan {
+  const requiredColumns = requiredColumnsFromHeader(requiredHeaders, columnIndex, usedRange.startCol);
+  const uniqueColumns = [...new Set(requiredColumns.map((column) => column.absoluteCol))];
+  const groups = contiguousGroups(uniqueColumns);
   const startRow = usedRange.startRow + headerRowOffset;
   const rowCount = usedRange.rowCount - headerRowOffset;
-  const minCol = Math.min(...requiredColumns);
-  const maxCol = Math.max(...requiredColumns);
-  const span = maxCol - minCol + 1;
-  const compactGroups = contiguousGroups(requiredColumns);
-  const useGrouped = span > requiredColumns.length * RECTANGLE_SPAN_MULTIPLIER && compactGroups.length <= MAX_GROUPED_RANGES;
-  const groups = useGrouped ? compactGroups : [{ startCol: minCol, endCol: maxCol }];
-  const strategy = useGrouped ? "grouped_columns" : "narrow_rectangle";
   return {
-    strategy,
     startRow,
     rowCount,
     groups,
+    requiredColumns,
     usedRange,
-    description: describeGroups(groups, startRow, rowCount),
-    readCols: useGrouped ? requiredColumns.length : span
+    description: describeGroups(groups, startRow, rowCount)
   };
 }
 
@@ -148,32 +162,57 @@ function readRectangleMatrix(sheet: WpsSheet, group: ColumnGroup, startRow: numb
   return normalizeMatrix(readRangeValue(sheet.Range(address)));
 }
 
-function readPlannedMatrix(sheet: WpsSheet, plan: ReadPlan): WpsMatrix {
-  const matrices = plan.groups.map((group) => readRectangleMatrix(sheet, group, plan.startRow, plan.rowCount));
-  if (matrices.length === 1) {
-    return matrices[0] ?? [];
+function groupForColumn(groups: ColumnGroup[], absoluteCol: number): ColumnGroup {
+  const group = groups.find((candidate) => candidate.startCol <= absoluteCol && absoluteCol <= candidate.endCol);
+  if (!group) {
+    throw new Error(`找不到字段列所在读取组：${absoluteCol}`);
   }
+  return group;
+}
 
+function readGroupedMatrices(sheet: WpsSheet, plan: GroupedReadPlan): Map<string, WpsMatrix> {
+  const matrices = new Map<string, WpsMatrix>();
+  for (const group of plan.groups) {
+    const matrix = readRectangleMatrix(sheet, group, plan.startRow, plan.rowCount);
+    const expectedWidth = group.endCol - group.startCol + 1;
+    const address = rangeAddress(plan.startRow, group.startCol, plan.rowCount, expectedWidth);
+    if (matrix.length !== plan.rowCount) {
+      throw new Error(`列组读取行数不一致：${address} 期望 ${plan.rowCount} 行，实际 ${matrix.length} 行`);
+    }
+    if (matrix.some((row) => row.length < expectedWidth)) {
+      throw new Error(`列组读取列数不一致：${address} 期望 ${expectedWidth} 列`);
+    }
+    matrices.set(groupKey(group), matrix);
+  }
+  return matrices;
+}
+
+function stitchRequiredHeaderMatrix(plan: GroupedReadPlan, groupMatrices: Map<string, WpsMatrix>): WpsMatrix {
   const result: WpsMatrix = [];
   for (let rowIndex = 0; rowIndex < plan.rowCount; rowIndex += 1) {
-    const row = [];
-    for (const matrix of matrices) {
-      row.push(...(matrix[rowIndex] ?? []));
-    }
+    const row = plan.requiredColumns.map((requiredColumn) => {
+      const group = groupForColumn(plan.groups, requiredColumn.absoluteCol);
+      const matrix = groupMatrices.get(groupKey(group));
+      if (!matrix) {
+        throw new Error(`缺少列组读取结果：${groupKey(group)}`);
+      }
+      return matrix[rowIndex]?.[requiredColumn.absoluteCol - group.startCol] ?? "";
+    });
     result.push(row);
   }
   return result;
 }
 
-function diagnosticsForPlan(plan: ReadPlan, matrix: WpsMatrix): SheetReadDiagnostics {
+function diagnosticsForGroupedPlan(plan: GroupedReadPlan, matrix: WpsMatrix): SheetReadDiagnostics {
   return {
-    strategy: plan.strategy,
+    strategy: "grouped_ranges",
     usedRangeAddress: plan.usedRange.address,
     usedRangeRows: plan.usedRange.rowCount,
     usedRangeCols: plan.usedRange.colCount,
     readRangeDescription: plan.description,
     readRows: matrix.length,
-    readCols: matrixWidth(matrix)
+    readCols: plan.requiredColumns.length,
+    groupCount: plan.groups.length
   };
 }
 
@@ -228,19 +267,19 @@ export function readSheetMatrixOptimized(
       throw new HeaderDetectionError(headerResult);
     }
 
-    const requiredColumns = compactColumnsFromHeader(requiredHeaders, headerResult.columnIndex, dimensions.startCol);
-    const plan = buildReadPlan(dimensions, headerResult.headerRowIndex, requiredColumns);
-    const matrix = readPlannedMatrix(sheet, plan);
+    const plan = buildGroupedReadPlan(dimensions, headerResult.headerRowIndex, requiredHeaders, headerResult.columnIndex);
+    const groupMatrices = readGroupedMatrices(sheet, plan);
+    const matrix = stitchRequiredHeaderMatrix(plan, groupMatrices);
     if (matrix.length === 0 || !hasAnyNonBlankRow(matrix)) {
-      throw new Error("窄读范围没有可读取的数据");
+      throw new Error("分组读取范围没有可读取的数据");
     }
 
     return {
       matrix,
       usedRangeStartRow: plan.startRow,
-      diagnostics: diagnosticsForPlan(plan, matrix)
+      diagnostics: diagnosticsForGroupedPlan(plan, matrix)
     };
-  } catch (narrowError) {
+  } catch (groupedError) {
     const fallback = readUsedRangeMatrix(sheet);
     const result: OptimizedMatrixReadResult = {
       matrix: fallback.matrix,
@@ -252,7 +291,7 @@ export function readSheetMatrixOptimized(
         readRangeDescription: dimensions?.address ?? "UsedRange.Value2",
         readRows: fallback.matrix.length,
         readCols: matrixWidth(fallback.matrix),
-        fallbackReason: errorMessage(narrowError)
+        fallbackReason: errorMessage(groupedError)
       }
     };
     if (fallback.usedRangeStartRow !== undefined) {
