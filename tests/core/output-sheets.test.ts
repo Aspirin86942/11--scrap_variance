@@ -22,7 +22,7 @@ describe("output sheet detection", () => {
 
   it("returns the exact unsupported-sheet guidance", () => {
     expect(unsupportedOutputSheetMessage()).toBe(
-      "当前工作表不支持查询，请切换到 报废差异明细、OA视角单据对比 或 ERP视角单据对比。"
+      "当前工作表不支持查询或展开，请切换到 报废差异明细、OA视角单据对比 或 ERP视角单据对比。"
     );
   });
 });

@@ -21,5 +21,5 @@ export function detectOutputSheetKind(sheetName: string): OutputSheetKind | null
 }
 
 export function unsupportedOutputSheetMessage(): string {
-  return `当前工作表不支持查询，请切换到 ${SHEET_NAMES.detailOutput}、${SHEET_NAMES.oaDocCompare} 或 ${SHEET_NAMES.erpDocCompare}。`;
+  return `当前工作表不支持查询或展开，请切换到 ${SHEET_NAMES.detailOutput}、${SHEET_NAMES.oaDocCompare} 或 ${SHEET_NAMES.erpDocCompare}。`;
 }
