@@ -53,6 +53,11 @@ function validErpRow(): Array<string | number> {
   return ["ERP-778", "2026/5/2", "OA-001", "数控", "生产", "仓储", "MAT-A", "物料A", 9, 91];
 }
 
+function scatteredRequiredRow(values: Record<number, string | number>): Array<string | number> {
+  const width = Math.max(...Object.keys(values).map(Number));
+  return Array.from({ length: width }, (_, index) => values[index + 1] ?? "");
+}
+
 function visibleWrites(sheet: FakeSheet): Array<{ address: string; value: unknown }> {
   return sheet.writes.filter((write) => !write.address.startsWith("CB"));
 }
@@ -133,6 +138,8 @@ describe("current sheet query macro", () => {
     expect(erpCompareSheet.writes).toEqual([]);
     expect(oaSheet.writes).toEqual([]);
     expect(erpSheet.writes).toEqual([]);
+    expect(oaSheet.usedRangeValue2ReadCount).toBe(0);
+    expect(erpSheet.usedRangeValue2ReadCount).toBe(0);
   });
 
   it("runCurrentSheetQuery treats blank department and date filters as all when only company is set", () => {
@@ -302,6 +309,52 @@ describe("current sheet query macro", () => {
     });
     expect(oaCompareSheet.writes).toEqual([]);
     expect(erpCompareSheet.writes).toEqual([]);
+  });
+
+  it("runCurrentSheetQuery can read scattered required columns without full UsedRange reads", () => {
+    const oaSheet = createFakeSheet(SHEET_NAMES.oa, [
+      scatteredRequiredRow({
+        1: "表单编号",
+        2: "金蝶云单据编号",
+        3: "申请日期",
+        13: "公司简称",
+        14: "一级部门",
+        15: "二级部门",
+        26: "物料代码",
+        27: "物料名称",
+        28: "数量",
+        29: "实际预算金额mx"
+      }),
+      scatteredRequiredRow({
+        1: "OA-001",
+        2: "ERP-778",
+        3: "2026/5/1",
+        13: "数控",
+        14: "生产",
+        15: "仓储",
+        26: "MAT-A",
+        27: "物料A",
+        28: 10,
+        29: 100
+      })
+    ]);
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = { company: "数控" };
+    setActiveSheet(root, oaCompareSheet);
+
+    runCurrentSheetQuery(root);
+
+    const output = flattenWrites(oaCompareSheet);
+    expect(output).toContain("OA-001");
+    expect(output).toContain("数控");
+    expect(output).toContain("ERP-778");
+    expect(output).not.toContain("查询条件没有匹配到 OA 数据。");
+    expect(oaSheet.usedRangeValue2ReadCount).toBe(0);
+    expect(erpSheet.usedRangeValue2ReadCount).toBe(0);
   });
 
   it("runCurrentSheetQuery throws for unsupported active sheet without writing or clearing source sheet ranges", () => {
