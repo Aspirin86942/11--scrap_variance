@@ -179,7 +179,7 @@ function readGroupedMatrices(sheet: WpsSheet, plan: GroupedReadPlan): Map<string
     if (matrix.length !== plan.rowCount) {
       throw new Error(`列组读取行数不一致：${address} 期望 ${plan.rowCount} 行，实际 ${matrix.length} 行`);
     }
-    if (matrix.some((row) => row.length < expectedWidth)) {
+    if (matrix.some((row) => row.length !== expectedWidth)) {
       throw new Error(`列组读取列数不一致：${address} 期望 ${expectedWidth} 列`);
     }
     matrices.set(groupKey(group), matrix);

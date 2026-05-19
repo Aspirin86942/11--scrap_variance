@@ -227,6 +227,42 @@ describe("optimized WPS source reads", () => {
     expect(sheet.usedRangeValue2ReadCount).toBe(1);
   });
 
+  it("falls back to full UsedRange when a grouped range returns too many columns", () => {
+    const requiredHeaders = ["C字段", "A字段", "B字段"];
+    const sheet = createFakeSheet("DATA", [
+      rowWith({
+        1: "A字段",
+        2: "B字段",
+        5: "C字段"
+      }),
+      rowWith({
+        1: "A1",
+        2: "B1",
+        5: "C1"
+      })
+    ]);
+    const originalRange = sheet.Range.bind(sheet);
+    sheet.Range = (address: string) => {
+      if (address === "E1:E2") {
+        return {
+          Address: address,
+          Value2: [
+            ["C字段", "extra"],
+            ["C1", "extra"]
+          ]
+        };
+      }
+      return originalRange(address);
+    };
+
+    const result = readSheetTableWithDiagnostics(sheet, requiredHeaders, 2, 20);
+
+    expect(result.diagnostics.strategy).toBe("used_range_fallback");
+    expect(result.diagnostics.fallbackReason).toContain("列组读取列数不一致");
+    expect(result.table.rows[0]?.["C字段"]).toBe("C1");
+    expect(sheet.usedRangeValue2ReadCount).toBe(1);
+  });
+
   it("reports UsedRange metadata dimensions when fallback matrix shape is trimmed", () => {
     const sheet = createFakeSheet("OA", [
       [...OA_REQUIRED_HEADERS],
