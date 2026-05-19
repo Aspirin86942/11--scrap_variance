@@ -49,6 +49,25 @@ describe("query dialog suggestions", () => {
     );
   });
 
+  it("returns a fresh empty suggestion result after failure so caller mutation cannot pollute later failures", () => {
+    const root: ScrapVarianceGlobal = {
+      Application: createFakeApplication([]),
+      console: { error: vi.fn(), log: vi.fn() }
+    };
+
+    const firstResult = buildQueryDialogSuggestions(root);
+    firstResult.company.push("污染值");
+
+    const secondResult = buildQueryDialogSuggestions(root);
+
+    expect(secondResult).toEqual(EMPTY_QUERY_DIALOG_SUGGESTIONS);
+    expect(secondResult.company).not.toContain("污染值");
+    expect(secondResult).not.toBe(firstResult);
+    expect(secondResult.company).not.toBe(firstResult.company);
+    expect(secondResult.dept1).not.toBe(firstResult.dept1);
+    expect(secondResult.dept2).not.toBe(firstResult.dept2);
+  });
+
   it("returns empty suggestions and logs when source sheets exist but UsedRange is unreadable", () => {
     const error = vi.fn();
     const root: ScrapVarianceGlobal = {

@@ -24,6 +24,14 @@ export const EMPTY_QUERY_DIALOG_SUGGESTIONS: QueryDialogSuggestions = {
   dept2: []
 };
 
+function createEmptyQueryDialogSuggestions(): QueryDialogSuggestions {
+  return {
+    company: [],
+    dept1: [],
+    dept2: []
+  };
+}
+
 function pickColumnText(rows: RawRow[], header: string): string[] {
   return rows.map((row) => normalizeText(row[header])).filter((value) => value.length > 0);
 }
@@ -62,6 +70,6 @@ export function buildQueryDialogSuggestions(root?: ScrapVarianceGlobal): QueryDi
     };
   } catch (error) {
     runtimeRoot.console?.error?.("读取查询候选失败，查询弹窗将不显示补全下拉。", error);
-    return EMPTY_QUERY_DIALOG_SUGGESTIONS;
+    return createEmptyQueryDialogSuggestions();
   }
 }
