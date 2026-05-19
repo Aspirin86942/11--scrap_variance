@@ -411,7 +411,7 @@ var _a;return[...(_a=result.materialRowsBySummaryKey.get(makeSummaryKey2(result.
 row.date,row.primaryDocNumber,row.primaryQuantity,row.primaryAmount,row.counterpartDocNumber,row.counterpartQuantity,row.counterpartAmount,row.quantityDiff,row.
 amountDiff,row.itemCode,row.itemName,row.remark])]}var OUTPUT_SHEET_KINDS={legacyDetail:"legacy_detail",oaDocCompare:"oa_doc_compare",erpDocCompare:"erp_doc_compare"};function detectOutputSheetKind(sheetName){switch(sheetName){case SHEET_NAMES.
 detailOutput:return OUTPUT_SHEET_KINDS.legacyDetail;case SHEET_NAMES.oaDocCompare:return OUTPUT_SHEET_KINDS.oaDocCompare;case SHEET_NAMES.erpDocCompare:return OUTPUT_SHEET_KINDS.
-erpDocCompare;default:return null}}function unsupportedOutputSheetMessage(){return`\u5F53\u524D\u5DE5\u4F5C\u8868\u4E0D\u652F\u6301\u67E5\u8BE2\uFF0C\u8BF7\u5207\u6362\u5230 ${SHEET_NAMES.
+erpDocCompare;default:return null}}function unsupportedOutputSheetMessage(){return`\u5F53\u524D\u5DE5\u4F5C\u8868\u4E0D\u652F\u6301\u67E5\u8BE2\u6216\u5C55\u5F00\uFF0C\u8BF7\u5207\u6362\u5230 ${SHEET_NAMES.
 detailOutput}\u3001${SHEET_NAMES.oaDocCompare} \u6216 ${SHEET_NAMES.erpDocCompare}\u3002`}function assertPositiveInteger2(value,name){if(!Number.isInteger(value)||value<=0){throw new Error(`${name} \u5FC5\u987B\u662F\u6B63\u6574\u6570\u3002`)}}function getActiveSheet(root2){
 const app=getApplication(root2);if(!app.ActiveSheet){throw new Error("\u5F53\u524D WPS Application \u6CA1\u6709 ActiveSheet\uFF0C\u65E0\u6CD5\u8BC6\u522B\u5F53\u524D\u5DE5\u4F5C\u8868\u3002")}
 return app.ActiveSheet}function getSelectedRowNumber(root2){var _a;const row=(_a=getApplication(root2).Selection)==null?void 0:_a.Row;if(typeof row!=="number"||
@@ -547,7 +547,15 @@ minMatchCount,MAX_HEADER_SCAN_ROWS)}catch(error){if(error instanceof HeaderDetec
 throw error}}function runScrapVariancePrecheck(root2){let issues;try{const oaSheet=getSheetByName(SHEET_NAMES.oa,root2);const erpSheet=getSheetByName(SHEET_NAMES.
 erp,root2);const headerIssues=[];const oaTable=readPrecheckTable("OA",oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,headerIssues);const erpTable=readPrecheckTable(
 "ERP",erpSheet,[...ERP_REQUIRED_HEADERS],MIN_ERP_HEADER_MATCH_COUNT,headerIssues);issues=headerIssues.length>0?headerIssues:buildPrecheckIssues(oaTable,erpTable)}catch(error){
-issues=[buildSystemErrorIssue(error)]}writePrecheckResults(issues,root2)}function normalizeQueryDialogState(input={}){const source=input!=null?input:{};const queryState={company:normalizeText(source.company),dept1:normalizeText(source.
+issues=[buildSystemErrorIssue(error)]}writePrecheckResults(issues,root2)}var EMPTY_QUERY_DIALOG_SUGGESTIONS={company:[],dept1:[],dept2:[]};function createEmptyQueryDialogSuggestions(){return{company:[],dept1:[],dept2:[]}}function pickColumnText(rows,header){
+return rows.map(row=>normalizeText(row[header])).filter(value=>value.length>0)}function uniqueSorted(values){return[...new Set(values)].sort((left,right)=>left.
+localeCompare(right,"zh-CN"))}function buildQueryDialogSuggestions(root2){var _a,_b;const runtimeRoot=root2!=null?root2:globalThis;try{const oaSheet=getSheetByName(
+SHEET_NAMES.oa,runtimeRoot);const erpSheet=getSheetByName(SHEET_NAMES.erp,runtimeRoot);const oaTable=readSheetTable(oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,
+MAX_HEADER_SCAN_ROWS);const erpTable=readSheetTable(erpSheet,[...ERP_REQUIRED_HEADERS],MIN_ERP_HEADER_MATCH_COUNT,MAX_HEADER_SCAN_ROWS);return{company:uniqueSorted(
+[...pickColumnText(oaTable.rows,"\u516C\u53F8\u7B80\u79F0"),...pickColumnText(erpTable.rows,"\u533A\u5206\u516C\u53F8\u7B80\u79F0")]),dept1:uniqueSorted([...pickColumnText(
+oaTable.rows,"\u4E00\u7EA7\u90E8\u95E8"),...pickColumnText(erpTable.rows,"\u4E00\u7EA7\u90E8\u95E8")]),dept2:uniqueSorted([...pickColumnText(oaTable.rows,"\u4E8C\u7EA7\u90E8\u95E8"),
+...pickColumnText(erpTable.rows,"\u4E8C\u7EA7\u90E8\u95E8")])}}catch(error){(_b=(_a=runtimeRoot.console)==null?void 0:_a.error)==null?void 0:_b.call(_a,"\u8BFB\u53D6\u67E5\u8BE2\u5019\u9009\u5931\
+\u8D25\uFF0C\u67E5\u8BE2\u5F39\u7A97\u5C06\u4E0D\u663E\u793A\u8865\u5168\u4E0B\u62C9\u3002",error);return createEmptyQueryDialogSuggestions()}}function normalizeQueryDialogState(input={}){const source=input!=null?input:{};const queryState={company:normalizeText(source.company),dept1:normalizeText(source.
 dept1),dept2:normalizeText(source.dept2),startDate:normalizeText(source.startDate),endDate:normalizeText(source.endDate),queryDirection:parseQueryDirection(normalizeText(
 source.queryDirection)||DEFAULT_QUERY_DIRECTION)};parseFilters(queryState);return queryState}var QUERY_DIALOG_RESULT_KEY="ScrapVarianceQueryDialogResult";var QUERY_DIALOG_INITIAL_STATE_KEY_PREFIX="ScrapVarianceQueryDialogInitialState:";var QUERY_DIALOG_TIMEOUT_MS=5*
 60*1e3;var QUERY_DIALOG_POLL_MS=250;function errorMessage8(error){return error instanceof Error?error.message:String(error)}function getStorage(root2){var _a;const storage=(_a=
@@ -555,24 +563,25 @@ root2.Application)==null?void 0:_a.PluginStorage;if(!storage){throw new Error("\
 return storage}function clearDialogResult(root2){getStorage(root2).setItem(QUERY_DIALOG_RESULT_KEY,"")}function buildDialogInitialStateKey(token){return`${QUERY_DIALOG_INITIAL_STATE_KEY_PREFIX}${token}`}
 function clearDialogInitialState(root2,token){const storage=getStorage(root2);const key=buildDialogInitialStateKey(token);if(typeof storage.removeItem==="functi\
 on"){storage.removeItem(key);return}storage.setItem(key,"")}function writeDialogInitialState(root2,token,outputKind){var _a,_b,_c;if(!outputKind){return}const activeSheet=(_a=
-root2.Application)==null?void 0:_a.ActiveSheet;if(!activeSheet){return}let state=null;try{state=readOutputQueryState(activeSheet)}catch(error){(_c=(_b=root2.console)==
-null?void 0:_b.error)==null?void 0:_c.call(_b,"\u8BFB\u53D6\u8F93\u51FA\u8868\u67E5\u8BE2\u6761\u4EF6\u5931\u8D25\uFF0C\u67E5\u8BE2\u5F39\u7A97\u5C06\u4F7F\u7528\u7A7A\u6761\u4EF6\u3002",
-error);return}if(!state){return}getStorage(root2).setItem(buildDialogInitialStateKey(token),JSON.stringify({token,state}))}function readDialogResult(root2){const raw=getStorage(
-root2).getItem(QUERY_DIALOG_RESULT_KEY);if(typeof raw!=="string"||!raw.trim()){return null}try{const parsed=JSON.parse(raw);if(typeof parsed.token!=="string"||parsed.
-action!=="query"&&parsed.action!=="cancel"){return null}return{token:parsed.token,action:parsed.action,state:parsed.state}}catch(e){return null}}function createDialogToken(){
-return`${Date.now()}-${Math.random().toString(36).slice(2)}`}function buildDialogUrl(token,outputKind){var _a;const base=typeof((_a=globalThis.location)==null?void 0:
-_a.href)==="string"?globalThis.location.href:"http://127.0.0.1:3889/index.html";const url=new URL("ui/query-dialog.html",base);url.searchParams.set("token",token);
-if(outputKind){url.searchParams.set("outputKind",outputKind)}return url.toString()}function getActiveOutputKind(root2){var _a,_b;const sheetName=(_b=(_a=root2.Application)==
-null?void 0:_a.ActiveSheet)==null?void 0:_b.Name;return typeof sheetName==="string"?detectOutputSheetKind(sheetName):null}function buildDialogTimeoutError(){return new Error(
-"\u67E5\u8BE2\u5F39\u7A97\u8D85\u65F6\uFF1A\u6CA1\u6709\u6536\u5230\u67E5\u8BE2\u6216\u53D6\u6D88\u7ED3\u679C\uFF0C\u8BF7\u5173\u95ED\u5F39\u7A97\u540E\u91CD\u8BD5\u3002")}
+root2.Application)==null?void 0:_a.ActiveSheet;if(!activeSheet){return}const payload={token,suggestions:EMPTY_QUERY_DIALOG_SUGGESTIONS};try{const state=readOutputQueryState(
+activeSheet);if(state){payload.state=state}}catch(error){(_c=(_b=root2.console)==null?void 0:_b.error)==null?void 0:_c.call(_b,"\u8BFB\u53D6\u8F93\u51FA\u8868\u67E5\u8BE2\u6761\u4EF6\u5931\u8D25\uFF0C\u67E5\u8BE2\u5F39\u7A97\u5C06\u4F7F\u7528\u7A7A\u6761\u4EF6\u3002",
+error)}payload.suggestions=buildQueryDialogSuggestions(root2);getStorage(root2).setItem(buildDialogInitialStateKey(token),JSON.stringify(payload))}function readDialogResult(root2){
+const raw=getStorage(root2).getItem(QUERY_DIALOG_RESULT_KEY);if(typeof raw!=="string"||!raw.trim()){return null}try{const parsed=JSON.parse(raw);if(typeof parsed.
+token!=="string"||parsed.action!=="query"&&parsed.action!=="cancel"){return null}return{token:parsed.token,action:parsed.action,state:parsed.state}}catch(e){return null}}
+function createDialogToken(){return`${Date.now()}-${Math.random().toString(36).slice(2)}`}function buildDialogUrl(token,outputKind){var _a;const base=typeof((_a=
+globalThis.location)==null?void 0:_a.href)==="string"?globalThis.location.href:"http://127.0.0.1:3889/index.html";const url=new URL("ui/query-dialog.html",base);
+url.searchParams.set("token",token);if(outputKind){url.searchParams.set("outputKind",outputKind)}return url.toString()}function getActiveOutputKind(root2){var _a,
+_b;const sheetName=(_b=(_a=root2.Application)==null?void 0:_a.ActiveSheet)==null?void 0:_b.Name;return typeof sheetName==="string"?detectOutputSheetKind(sheetName):
+null}function buildDialogTimeoutError(){return new Error("\u67E5\u8BE2\u5F39\u7A97\u8D85\u65F6\uFF1A\u6CA1\u6709\u6536\u5230\u67E5\u8BE2\u6216\u53D6\u6D88\u7ED3\u679C\uFF0C\u8BF7\u5173\u95ED\u5F39\u7A97\u540E\u91CD\u8BD5\u3002")}
 function pollQueryDialogResult(root2,token,runQuery,reportError){const result=readDialogResult(root2);if(!result||result.token!==token){return false}clearDialogResult(
 root2);clearDialogInitialState(root2,token);if(result.action==="cancel"){return true}try{runQuery(normalizeQueryDialogState(result.state))}catch(error){reportError(
 error instanceof Error?error:new Error(errorMessage8(error)))}return true}function openQueryDialogAndRun(root2,runQuery,reportError){const application=root2.Application;
 if(typeof(application==null?void 0:application.ShowDialog)!=="function"){throw new Error("\u5F53\u524D WPS \u73AF\u5883\u4E0D\u652F\u6301 ShowDialog\uFF0C\u65E0\u6CD5\u6253\u5F00\u67E5\u8BE2\u5F39\u7A97\u3002")}
-const token=createDialogToken();const outputKind=getActiveOutputKind(root2);clearDialogResult(root2);writeDialogInitialState(root2,token,outputKind);application.
-ShowDialog(buildDialogUrl(token,outputKind),"\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2\u6761\u4EF6",560,430,false);const startedAt=Date.now();const timer=globalThis.
-setInterval(()=>{if(pollQueryDialogResult(root2,token,runQuery,reportError)){globalThis.clearInterval(timer);return}if(Date.now()-startedAt>QUERY_DIALOG_TIMEOUT_MS){
-globalThis.clearInterval(timer);clearDialogResult(root2);clearDialogInitialState(root2,token);reportError(buildDialogTimeoutError())}},QUERY_DIALOG_POLL_MS)}function isPromiseLike(value){return typeof value==="object"&&value!==null&&typeof value.then==="function"}function isRecord(value){return typeof value==="objec\
+const outputKind=getActiveOutputKind(root2);if(!outputKind){throw new Error(unsupportedOutputSheetMessage())}const token=createDialogToken();clearDialogResult(root2);
+writeDialogInitialState(root2,token,outputKind);application.ShowDialog(buildDialogUrl(token,outputKind),"\u62A5\u5E9F\u5DEE\u5F02\u67E5\u8BE2\u6761\u4EF6",560,430,
+false);const startedAt=Date.now();const timer=globalThis.setInterval(()=>{if(pollQueryDialogResult(root2,token,runQuery,reportError)){globalThis.clearInterval(timer);
+return}if(Date.now()-startedAt>QUERY_DIALOG_TIMEOUT_MS){globalThis.clearInterval(timer);clearDialogResult(root2);clearDialogInitialState(root2,token);reportError(
+buildDialogTimeoutError())}},QUERY_DIALOG_POLL_MS)}function isPromiseLike(value){return typeof value==="object"&&value!==null&&typeof value.then==="function"}function isRecord(value){return typeof value==="objec\
 t"&&value!==null}function getControlId(control){var _a,_b;if(!isRecord(control)){return""}return normalizeText((_b=(_a=control.Id)!=null?_a:control.id)!=null?_b:
 control.ID)}function createRibbonHandlers(dependencies){var _a;const root2=(_a=dependencies.root)!=null?_a:globalThis;return{OnAddinLoad(ribbonUi){root2.ScrapVarianceRibbonUi=
 ribbonUi},OnAction(control){try{const controlId=getControlId(control);const result=getButtonAction(dependencies.buttonActions,controlId).run();if(isPromiseLike(
