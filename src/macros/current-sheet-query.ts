@@ -13,10 +13,12 @@ import {
   buildOaDocCompare,
   docCompareRowsToValues
 } from "../core/doc-compare";
+import {
+  buildDepartmentVarianceSummaryRows,
+  departmentVarianceSummaryRowsToValues
+} from "../core/department-variance-summary";
 import { parseFilters } from "../core/build-oa-rows";
 import { detectOutputSheetKind, unsupportedOutputSheetMessage } from "../core/output-sheets";
-import { QUERY_DIRECTIONS } from "../core/query-direction";
-import { runQueryCorePipeline } from "../core/query-pipeline";
 import { getRibbonState } from "../ribbon/state";
 import type { OutputMatrix, OutputSheetKind, QueryFilters, RawRow, RibbonQueryState } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
@@ -86,7 +88,7 @@ function readSourceRows(root?: ScrapVarianceGlobal): SourceRows {
   };
 }
 
-function buildLegacyDetailValues(
+function buildVarianceSummaryValues(
   oaRows: RawRow[],
   erpRows: RawRow[],
   filters: QueryFilters,
@@ -94,21 +96,21 @@ function buildLegacyDetailValues(
 ):
   | { values: OutputMatrix; noResultMessage: null }
   | { values: null; noResultMessage: string } {
-  const pipeline = runQueryCorePipeline(oaRows, erpRows, filters, undefined, queryDirection);
+  const summaryRows = buildDepartmentVarianceSummaryRows(oaRows, erpRows, filters, queryDirection);
 
-  if (pipeline.detailRows.length === 0) {
+  if (summaryRows.length === 0) {
     return {
       values: null,
       noResultMessage:
         // 无结果提示要跟查询方向一致，用户才能知道是 OA 侧还是 ERP 侧条件没有命中。
-        pipeline.queryDirection === QUERY_DIRECTIONS.erpSourceToOa
+        queryDirection === "ERP源单查OA"
           ? "查询条件没有匹配到 ERP 数据。"
           : "查询条件没有匹配到 OA 数据。"
     };
   }
 
   return {
-    values: [["汇总差异"], ...pipeline.summaryValues, ["明细差异"], ...pipeline.detailValues],
+    values: departmentVarianceSummaryRowsToValues(summaryRows),
     noResultMessage: null
   };
 }
@@ -155,7 +157,7 @@ function safeWriteCurrentSheetError(
 ): void {
   try {
     // 查询失败也写回当前输出表，避免用户只看到旧结果而不知道本次执行失败。
-    clearPreviousToolOutput(sheet, kind);
+    clearPreviousToolOutput(sheet, kind, kind === "variance_summary" ? ["legacy_detail"] : []);
     writeOutputWithMetadata(sheet, kind, [["错误", message]], queryState);
   } catch (writeError) {
     throw new Error(`查询执行失败：${message}；错误信息写入也失败：${errorMessage(writeError)}`);
@@ -193,13 +195,13 @@ export function runCurrentSheetQueryWithState(root: ScrapVarianceGlobal | undefi
     const { oaRows, erpRows } = readSourceRows(root);
     // 三张输出页共享查询条件格式，但刷新时只处理当前页，避免一次查询覆盖其他输出页。
     const result =
-      kind === "legacy_detail"
-        ? buildLegacyDetailValues(oaRows, erpRows, filters, queryState.queryDirection)
+      kind === "variance_summary"
+        ? buildVarianceSummaryValues(oaRows, erpRows, filters, queryState.queryDirection)
         : kind === "oa_doc_compare"
           ? buildOaDocCompareValues(oaRows, erpRows, filters)
           : buildErpDocCompareValues(oaRows, erpRows, filters);
 
-    clearPreviousToolOutput(activeSheet, kind);
+    clearPreviousToolOutput(activeSheet, kind, kind === "variance_summary" ? ["legacy_detail"] : []);
     // 成功或无结果都保存本次条件，下一次打开弹窗才能恢复当前输出页自己的状态。
     writeOutputWithMetadata(activeSheet, kind, result.values ?? [[result.noResultMessage]], queryState);
   } catch (error) {
@@ -274,7 +276,7 @@ export function toggleMaterialRows(root?: ScrapVarianceGlobal): void {
   if (!kind) {
     throw new Error(unsupportedOutputSheetMessage());
   }
-  if (kind === "legacy_detail") {
+  if (kind === "variance_summary") {
     throw new Error("当前工作表不支持展开物料。");
   }
 

@@ -157,7 +157,7 @@ describe("TypeScript macro orchestration", () => {
     expect(output).toContain("未发现预验证问题");
   });
 
-  it("runScrapVarianceQuery reads tables and writes summary plus detail matrices", () => {
+  it("runScrapVarianceQuery reads tables and writes the variance summary matrix", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
     const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
     const panelSheet = createFakeSheet(SHEET_NAMES.panel);
@@ -170,12 +170,12 @@ describe("TypeScript macro orchestration", () => {
     expect(panelSheet.Name).toBe(SHEET_NAMES.varianceSummary);
     expect(panelSheet.clears).toEqual([]);
     expect(panelSheet.writes).toContainEqual({
-      address: "A1:S6",
+      address: "A1:O2",
       value: expect.any(Array)
     });
-    expect(output).toContain("汇总差异");
-    expect(output).toContain("明细差异");
-    expect(output).toContain("OA和ERP都有，数量一致");
+    expect(output).toContain("查询视角");
+    expect(output).toContain("主视角单据数");
+    expect(output).toContain("OA视角");
   });
 
   it("runScrapVarianceQuery keeps non-empty panel filters after setup and applies them", () => {
@@ -197,10 +197,10 @@ describe("TypeScript macro orchestration", () => {
     runScrapVarianceQuery(root);
 
     const output = flattenWrites(panelSheet);
-    expect(output).toContain("F1");
-    expect(output).toContain("MAT-A");
-    expect(output).not.toContain("F2");
-    expect(output).not.toContain("MAT-B");
+    expect(output).toContain("数控");
+    expect(output).toContain("OA视角");
+    expect(output).toContain("OA和ERP都有，数量一致");
+    expect(output).not.toContain("装备");
   });
 
   it("runScrapVarianceQuery clears output and writes a no-match message when filters match nothing", () => {
@@ -285,7 +285,8 @@ describe("TypeScript macro orchestration", () => {
 
     const output = flattenWrites(panelSheet);
     expect(panelSheet.clears).toEqual([]);
-    expect(output).toContain("F1");
+    expect(output).toContain("数控");
+    expect(output).toContain("ERP视角");
     expect(output).toContain("OA和ERP都有，数量一致");
   });
 

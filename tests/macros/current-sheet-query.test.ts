@@ -235,19 +235,91 @@ describe("current sheet query macro", () => {
     });
   });
 
-  it("runCurrentSheetQueryWithState applies explicit direction to variance summary", () => {
+  it("runCurrentSheetQueryWithState writes OA perspective variance summary for the active summary sheet", () => {
     const oaSheet = makeOaSheet([
-      ["OA-001", "ERP-778", "2026/4/1", "其他公司", "其他部门", "其他二级", "MAT-A", "物料A", 10, 100]
+      validOaRow(),
+      ["OA-002", "ERP-MISSING", "2026/5/3", "数控", "生产", "仓储", "MAT-B", "物料B", 2, 20]
     ]);
-    const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const erpSheet = makeErpSheet([validErpRow()]);
+    const summarySheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
-    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
-    root.ScrapVarianceRibbonState = {
+    const root = makeRoot([oaSheet, erpSheet, summarySheet, oaCompareSheet, erpCompareSheet]);
+    setActiveSheet(root, summarySheet);
+
+    runCurrentSheetQueryWithState(root, {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31",
       queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
-    };
-    setActiveSheet(root, detailSheet);
+    });
+
+    expect(visibleWrites(summarySheet)).toEqual([
+      {
+        address: "A1:O2",
+        value: [
+          [
+            "公司简称",
+            "一级部门",
+            "二级部门",
+            "查询视角",
+            "主视角单据数",
+            "已匹配单据数",
+            "未匹配单据数",
+            "有差异单据数",
+            "OA数量合计",
+            "ERP实发数量合计",
+            "数量差额",
+            "OA实际预算金额mx合计",
+            "ERP总成本合计",
+            "金额差额",
+            "差异类型摘要"
+          ],
+          [
+            "数控",
+            "生产",
+            "仓储",
+            "OA视角",
+            2,
+            1,
+            1,
+            1,
+            12,
+            9,
+            3,
+            120,
+            91,
+            29,
+            "OA有申请，ERP无出库、OA和ERP都有，但数量不同"
+          ]
+        ]
+      }
+    ]);
+    expect(summarySheet.writes).toContainEqual({
+      address: "CB1:CC1",
+      value: [["variance_summary", "A1:O2"]]
+    });
+    expect(summarySheet.writes).toContainEqual({
+      address: "CB2:CG2",
+      value: [["数控", "生产", "仓储", "2026/5/1", "2026/5/31", QUERY_DIRECTIONS.oaKingdeeToErp]]
+    });
+    expect(oaCompareSheet.writes).toEqual([]);
+    expect(erpCompareSheet.writes).toEqual([]);
+  });
+
+  it("runCurrentSheetQueryWithState writes ERP perspective variance summary for the active summary sheet", () => {
+    const oaSheet = makeOaSheet([validOaRow()]);
+    const erpSheet = makeErpSheet([
+      validErpRow(),
+      ["ERP-999", "2026/5/3", "OA-MISSING", "数控", "生产", "仓储", "MAT-B", "物料B", 3, 30]
+    ]);
+    const summarySheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, summarySheet, oaCompareSheet, erpCompareSheet]);
+    setActiveSheet(root, summarySheet);
 
     runCurrentSheetQueryWithState(root, {
       company: "数控",
@@ -258,10 +330,47 @@ describe("current sheet query macro", () => {
       queryDirection: QUERY_DIRECTIONS.erpSourceToOa
     });
 
-    const output = flattenWrites(detailSheet);
-    expect(output).toContain("OA和ERP都有，但数量不同");
-    expect(output).toContain("OA-001");
-    expect(output).not.toContain("查询条件没有匹配到 OA 数据。");
+    const output = visibleWrites(summarySheet)[0]?.value;
+    expect(output).toEqual([
+      [
+        "公司简称",
+        "一级部门",
+        "二级部门",
+        "查询视角",
+        "主视角单据数",
+        "已匹配单据数",
+        "未匹配单据数",
+        "有差异单据数",
+        "OA数量合计",
+        "ERP实发数量合计",
+        "数量差额",
+        "OA实际预算金额mx合计",
+        "ERP总成本合计",
+        "金额差额",
+        "差异类型摘要"
+      ],
+      [
+        "数控",
+        "生产",
+        "仓储",
+        "ERP视角",
+        2,
+        1,
+        1,
+        1,
+        10,
+        12,
+        -2,
+        100,
+        121,
+        -21,
+        "ERP出库对应OA未在当前OA数据中找到、OA和ERP都有，但数量不同"
+      ]
+    ]);
+    expect(summarySheet.writes).toContainEqual({
+      address: "CB1:CC1",
+      value: [["variance_summary", "A1:O2"]]
+    });
   });
 
   it("runCurrentSheetQuery writes only ERP document compare output for the active ERP compare sheet", () => {
@@ -323,17 +432,43 @@ describe("current sheet query macro", () => {
     runCurrentSheetQuery(root);
 
     const output = flattenWrites(detailSheet);
-    expect(visibleWrites(detailSheet).map((write) => write.address)).toEqual(["A1:S6"]);
-    expect(output).toContain("汇总差异");
-    expect(output).toContain("明细差异");
+    expect(visibleWrites(detailSheet).map((write) => write.address)).toEqual(["A1:O2"]);
+    expect(output).toContain("查询视角");
+    expect(output).toContain("主视角单据数");
+    expect(output).toContain("ERP视角");
     expect(output).toContain("OA和ERP都有，但数量不同");
-    expect(output).toContain("OA-001");
     expect(detailSheet.writes).toContainEqual({
       address: "CB1:CC1",
-      value: [["legacy_detail", "A1:S6"]]
+      value: [["variance_summary", "A1:O2"]]
     });
     expect(oaCompareSheet.writes).toEqual([]);
     expect(erpCompareSheet.writes).toEqual([]);
+  });
+
+  it("runCurrentSheetQuery clears legacy detail metadata when the migrated summary page is queried first time", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const summarySheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    summarySheet.rangeValues.set("CB1:CC1", [["legacy_detail", "A1:S6"]]);
+    const root = makeRoot([oaSheet, erpSheet, summarySheet, oaCompareSheet, erpCompareSheet]);
+    setActiveSheet(root, summarySheet);
+
+    runCurrentSheetQueryWithState(root, {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31",
+      queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+    });
+
+    expect(summarySheet.clears).toEqual(["A1:S6"]);
+    expect(summarySheet.writes).toContainEqual({
+      address: "CB1:CC1",
+      value: [["variance_summary", "A1:O2"]]
+    });
   });
 
   it("runCurrentSheetQuery can read scattered required columns without full UsedRange reads", () => {
@@ -563,6 +698,18 @@ describe("current sheet query macro", () => {
     expect(oaSheet.clears).toEqual([]);
     expect(erpSheet.writes).toEqual([]);
     expect(erpSheet.clears).toEqual([]);
+  });
+
+  it("toggleMaterialRows rejects the variance summary sheet without clearing output", () => {
+    const summarySheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const root = makeRoot([summarySheet]);
+    setActiveSheet(root, summarySheet);
+
+    expect(() => toggleMaterialRows(root)).toThrow("当前工作表不支持展开物料。");
+
+    expect(summarySheet.clears).toEqual([]);
+    expect(summarySheet.rowInserts).toEqual([]);
+    expect(summarySheet.rowDeletes).toEqual([]);
   });
 
   it("toggleMaterialRows rejects non-summary selections without clearing existing output", () => {
