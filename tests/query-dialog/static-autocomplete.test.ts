@@ -144,7 +144,18 @@ interface QueryDialogHooks {
   attachAutocomplete(inputId: string, suggestions: string[]): void;
 }
 
-function loadQueryDialog(initialPayload?: unknown): {
+function checkedDirection(document: FakeDocument): string {
+  return document.querySelectorAll('input[name="queryDirection"]').find((input) => input.checked)?.value ?? "";
+}
+
+function submittedState(storage: Map<string, string>): Record<string, unknown> {
+  const result = JSON.parse(String(storage.get("ScrapVarianceQueryDialogResult"))) as {
+    state?: Record<string, unknown>;
+  };
+  return result.state ?? {};
+}
+
+function loadQueryDialog(initialPayload?: unknown, outputKind = ""): {
   document: FakeDocument;
   hooks: QueryDialogHooks;
   storage: Map<string, string>;
@@ -154,6 +165,7 @@ function loadQueryDialog(initialPayload?: unknown): {
   const storage = new Map<string, string>();
   const hooks = {} as QueryDialogHooks;
   const timeoutCallbacks: Array<() => void> = [];
+  const search = `?token=test-token${outputKind ? `&outputKind=${encodeURIComponent(outputKind)}` : ""}`;
   if (initialPayload) {
     storage.set("ScrapVarianceQueryDialogInitialState:test-token", JSON.stringify(initialPayload));
   }
@@ -171,7 +183,7 @@ function loadQueryDialog(initialPayload?: unknown): {
     __SCRAP_VARIANCE_QUERY_DIALOG_TESTS__: hooks,
     addEventListener() {},
     close() {},
-    location: { search: "?token=test-token" },
+    location: { search },
     pageXOffset: 0,
     pageYOffset: 0,
     setTimeout(callback: () => void): number {
@@ -204,6 +216,124 @@ describe("static query dialog autocomplete", () => {
     const { hooks } = loadQueryDialog();
 
     expect(hooks.normalizeSuggestions([" 数控 ", "", "数控", null, "装备", "  "])).toEqual(["数控", "装备"]);
+  });
+
+  it("keeps direction editable on the variance summary page and restores saved direction", () => {
+    const { document } = loadQueryDialog(
+      {
+        token: "test-token",
+        state: {
+          queryDirection: "ERP源单查OA"
+        },
+        suggestions: {}
+      },
+      "variance_summary"
+    );
+    const group = document.getElementById("queryDirectionGroup");
+
+    expect(checkedDirection(document)).toBe("ERP源单查OA");
+    expect(group?.getAttribute("disabled")).toBeUndefined();
+    expect(document.querySelectorAll('input[name="queryDirection"]').every((input) => !input.disabled)).toBe(true);
+  });
+
+  it("locks OA compare dialog direction to OA perspective even if saved state says ERP", () => {
+    const { document } = loadQueryDialog(
+      {
+        token: "test-token",
+        state: {
+          queryDirection: "ERP源单查OA"
+        },
+        suggestions: {}
+      },
+      "oa_doc_compare"
+    );
+    const group = document.getElementById("queryDirectionGroup");
+
+    expect(checkedDirection(document)).toBe("OA金蝶单号查ERP");
+    expect(group?.getAttribute("disabled")).toBe("disabled");
+    expect(document.querySelectorAll('input[name="queryDirection"]').every((input) => input.disabled)).toBe(true);
+  });
+
+  it("locks ERP compare dialog direction to ERP perspective even if saved state says OA", () => {
+    const { document } = loadQueryDialog(
+      {
+        token: "test-token",
+        state: {
+          queryDirection: "OA金蝶单号查ERP"
+        },
+        suggestions: {}
+      },
+      "erp_doc_compare"
+    );
+    const group = document.getElementById("queryDirectionGroup");
+
+    expect(checkedDirection(document)).toBe("ERP源单查OA");
+    expect(group?.getAttribute("disabled")).toBe("disabled");
+    expect(document.querySelectorAll('input[name="queryDirection"]').every((input) => input.disabled)).toBe(true);
+  });
+
+  it("keeps ERP compare direction locked after Clear and submits ERP perspective", () => {
+    const { document, storage } = loadQueryDialog(
+      {
+        token: "test-token",
+        state: {
+          company: "数控",
+          startDate: "2026-01-01",
+          endDate: "2026-01-31",
+          queryDirection: "OA金蝶单号查ERP"
+        },
+        suggestions: {}
+      },
+      "erp_doc_compare"
+    );
+    const clear = document.getElementById("btnClear");
+    const form = document.getElementById("queryForm");
+    if (!clear || !form) {
+      throw new Error("expected clear button and query form");
+    }
+
+    clear.dispatchEvent("click");
+    form.dispatchEvent("submit");
+
+    expect(checkedDirection(document)).toBe("ERP源单查OA");
+    expect(submittedState(storage)).toMatchObject({
+      company: "",
+      startDate: "",
+      endDate: "",
+      queryDirection: "ERP源单查OA"
+    });
+  });
+
+  it("keeps OA compare direction locked after Clear and submits OA perspective", () => {
+    const { document, storage } = loadQueryDialog(
+      {
+        token: "test-token",
+        state: {
+          company: "数控",
+          startDate: "2026-01-01",
+          endDate: "2026-01-31",
+          queryDirection: "ERP源单查OA"
+        },
+        suggestions: {}
+      },
+      "oa_doc_compare"
+    );
+    const clear = document.getElementById("btnClear");
+    const form = document.getElementById("queryForm");
+    if (!clear || !form) {
+      throw new Error("expected clear button and query form");
+    }
+
+    clear.dispatchEvent("click");
+    form.dispatchEvent("submit");
+
+    expect(checkedDirection(document)).toBe("OA金蝶单号查ERP");
+    expect(submittedState(storage)).toMatchObject({
+      company: "",
+      startDate: "",
+      endDate: "",
+      queryDirection: "OA金蝶单号查ERP"
+    });
   });
 
   it("matches suggestions by substring and caps visible options at 30", () => {

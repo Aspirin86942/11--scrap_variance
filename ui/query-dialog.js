@@ -302,7 +302,18 @@
 
   function isDirectionEditable() {
     var outputKind = getOutputKind();
-    return !outputKind || outputKind === "legacy_detail";
+    return !outputKind || outputKind === "variance_summary";
+  }
+
+  function directionForOutputKind() {
+    var outputKind = getOutputKind();
+    if (outputKind === "erp_doc_compare") {
+      return REVERSE_DIRECTION;
+    }
+    if (outputKind === "oa_doc_compare") {
+      return DEFAULT_DIRECTION;
+    }
+    return getQueryDirection() || DEFAULT_DIRECTION;
   }
 
   function resetForm() {
@@ -327,11 +338,21 @@
     setQueryDirection(normalizeDirectionValue(stateValue(state, "queryDirection")));
   }
 
+  function applyOutputKindDirectionContract() {
+    setQueryDirection(directionForOutputKind());
+    setDirectionEnabled(isDirectionEditable());
+  }
+
   function initializeForm() {
     resetForm();
     applyInitialState(readInitialState());
-    setDirectionEnabled(isDirectionEditable());
+    applyOutputKindDirectionContract();
     initializeAutocomplete();
+  }
+
+  function clearForm() {
+    resetForm();
+    applyOutputKindDirectionContract();
   }
 
   function closeDialog() {
@@ -396,7 +417,7 @@
     });
   });
 
-  document.getElementById("btnClear").addEventListener("click", resetForm);
+  document.getElementById("btnClear").addEventListener("click", clearForm);
   document.getElementById("btnCancel").addEventListener("click", function () {
     submitResult("cancel", {});
   });

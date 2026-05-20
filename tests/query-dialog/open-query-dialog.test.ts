@@ -41,7 +41,7 @@ function makeRoot(): ScrapVarianceGlobal & {
         }
       },
       ShowDialog: vi.fn<(url: string, title: string, width: number, height: number, modal: boolean) => unknown>(),
-      ActiveSheet: createFakeSheet(SHEET_NAMES.detailOutput)
+      ActiveSheet: createFakeSheet(SHEET_NAMES.varianceSummary)
     }
   };
 }
@@ -109,7 +109,20 @@ describe("query dialog bridge", () => {
     vi.clearAllTimers();
   });
 
-  it("passes the active output sheet kind to the dialog URL", () => {
+  it("passes the active variance summary sheet kind to the dialog URL", () => {
+    vi.useFakeTimers();
+    const root = makeRoot();
+    const runQuery = vi.fn();
+    const reportError = vi.fn();
+
+    openQueryDialogAndRun(root, runQuery, reportError);
+
+    const [url] = root.Application.ShowDialog.mock.calls[0] ?? [];
+    expect(new URL(String(url)).searchParams.get("outputKind")).toBe("variance_summary");
+    vi.clearAllTimers();
+  });
+
+  it("passes the active OA compare sheet kind to the dialog URL", () => {
     vi.useFakeTimers();
     const root = makeRoot();
     const runQuery = vi.fn();
