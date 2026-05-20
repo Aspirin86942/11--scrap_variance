@@ -76,14 +76,14 @@ function scatteredRequiredRow(columns: Record<number, string | number>): Array<s
 }
 
 describe("TypeScript macro orchestration", () => {
-  it("setupQueryPanel creates current output sheets and returns the detail output sheet", () => {
+  it("setupQueryPanel creates current output sheets and returns the variance summary sheet", () => {
     const root = makeRoot([]);
 
     const sheet = setupQueryPanel(root) as FakeSheet;
 
-    expect(sheet.Name).toBe(SHEET_NAMES.detailOutput);
+    expect(sheet.Name).toBe(SHEET_NAMES.varianceSummary);
     expect(root.Application?.ActiveWorkbook?.Worksheets?.Count).toBe(3);
-    expect(getSheet(root, 1).Name).toBe(SHEET_NAMES.detailOutput);
+    expect(getSheet(root, 1).Name).toBe(SHEET_NAMES.varianceSummary);
     expect(getSheet(root, 2).Name).toBe(SHEET_NAMES.oaDocCompare);
     expect(getSheet(root, 3).Name).toBe(SHEET_NAMES.erpDocCompare);
     expect(sheet.writes).toEqual([]);
@@ -97,7 +97,7 @@ describe("TypeScript macro orchestration", () => {
     const sheet = setupQueryPanel(root) as FakeSheet;
 
     expect(sheet).toBe(panelSheet);
-    expect(panelSheet.Name).toBe(SHEET_NAMES.detailOutput);
+    expect(panelSheet.Name).toBe(SHEET_NAMES.varianceSummary);
     expect(panelSheet.Range("B2:B7").Value2).toEqual([
       ["数控"],
       ["生产"],
@@ -125,7 +125,7 @@ describe("TypeScript macro orchestration", () => {
 
     setupQueryPanel(root);
 
-    expect(panelSheet.Name).toBe(SHEET_NAMES.detailOutput);
+    expect(panelSheet.Name).toBe(SHEET_NAMES.varianceSummary);
     expect(panelSheet.Range("B2:B7").Value2).toEqual([
       ["数控"],
       ["生产"],
@@ -167,7 +167,7 @@ describe("TypeScript macro orchestration", () => {
     runScrapVarianceQuery(root);
 
     const output = flattenWrites(panelSheet);
-    expect(panelSheet.Name).toBe(SHEET_NAMES.detailOutput);
+    expect(panelSheet.Name).toBe(SHEET_NAMES.varianceSummary);
     expect(panelSheet.clears).toEqual([]);
     expect(panelSheet.writes).toContainEqual({
       address: "A1:S6",
@@ -206,7 +206,7 @@ describe("TypeScript macro orchestration", () => {
   it("runScrapVarianceQuery clears output and writes a no-match message when filters match nothing", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
     const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
-    const panelSheet = createFakeSheet(SHEET_NAMES.detailOutput);
+    const panelSheet = createFakeSheet(SHEET_NAMES.varianceSummary);
     panelSheet.rangeValues.set("CB1:CC1", [["legacy_detail", "A1:S6"]]);
     const root = makeRoot([oaSheet, erpSheet, panelSheet]);
     root.ScrapVarianceRibbonState = { company: "不存在公司" };
@@ -224,7 +224,7 @@ describe("TypeScript macro orchestration", () => {
   it("runScrapVarianceQuery writes the ERP no-match message for ERP source direction", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
     const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
-    const panelSheet = createFakeSheet(SHEET_NAMES.detailOutput);
+    const panelSheet = createFakeSheet(SHEET_NAMES.varianceSummary);
     const root = makeRoot([oaSheet, erpSheet, panelSheet]);
     root.ScrapVarianceRibbonState = {
       company: "不存在公司",
@@ -244,7 +244,7 @@ describe("TypeScript macro orchestration", () => {
   it("runScrapVarianceQuery writes an error for an invalid query direction", () => {
     const oaSheet = createFakeSheet(SHEET_NAMES.oa, [[...OA_REQUIRED_HEADERS], validOaRow()]);
     const erpSheet = createFakeSheet(SHEET_NAMES.erp, [[...ERP_REQUIRED_HEADERS], validErpRow()]);
-    const panelSheet = createFakeSheet(SHEET_NAMES.detailOutput);
+    const panelSheet = createFakeSheet(SHEET_NAMES.varianceSummary);
     const root = makeRoot([oaSheet, erpSheet, panelSheet]);
     root.ScrapVarianceRibbonState = { queryDirection: "坏方向" as typeof QUERY_DIRECTIONS.oaKingdeeToErp };
     setActiveSheet(root, panelSheet);
@@ -269,7 +269,7 @@ describe("TypeScript macro orchestration", () => {
       [...ERP_REQUIRED_HEADERS],
       ["OUT1", "2026/5/2", "F1", "数控", "生产", "仓储", "MAT-A", "物料A", 1, 10]
     ]);
-    const panelSheet = createFakeSheet(SHEET_NAMES.detailOutput);
+    const panelSheet = createFakeSheet(SHEET_NAMES.varianceSummary);
     const root = makeRoot([oaSheet, erpSheet, panelSheet]);
     root.ScrapVarianceRibbonState = {
       company: "数控",
@@ -339,7 +339,7 @@ describe("TypeScript macro orchestration", () => {
     const diagnosticsSheet = getFakeSheetByName(root, SHEET_NAMES.performanceDiagnostics);
     const output = flattenWrites(diagnosticsSheet);
     expect(diagnosticsSheet.Name).toBe(SHEET_NAMES.performanceDiagnostics);
-    expect(panelSheet.Name).toBe(SHEET_NAMES.detailOutput);
+    expect(panelSheet.Name).toBe(SHEET_NAMES.varianceSummary);
     expect(panelSheet.clears).toEqual([]);
     expect(output).toContain("类别");
     expect(output).toContain("read_oa_source_table");

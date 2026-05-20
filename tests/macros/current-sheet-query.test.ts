@@ -86,22 +86,43 @@ describe("current sheet query macro", () => {
     setupOutputSheets(root);
 
     expect(sheetNames(root)).toEqual([
-      SHEET_NAMES.detailOutput,
+      SHEET_NAMES.varianceSummary,
       SHEET_NAMES.oaDocCompare,
       SHEET_NAMES.erpDocCompare
     ]);
   });
 
-  it("setupOutputSheets renames the old query panel to detail output when detail output is missing", () => {
+  it("setupOutputSheets renames the old query panel to variance summary when summary is missing", () => {
     const oldPanel = createFakeSheet(SHEET_NAMES.panel);
     const root = makeRoot([oldPanel]);
 
-    const detailSheet = setupOutputSheets(root);
+    const summarySheet = setupOutputSheets(root);
 
-    expect(detailSheet).toBe(oldPanel);
-    expect(oldPanel.Name).toBe(SHEET_NAMES.detailOutput);
+    expect(summarySheet).toBe(oldPanel);
+    expect(oldPanel.Name).toBe(SHEET_NAMES.varianceSummary);
     expect(sheetNames(root)).toEqual([
-      SHEET_NAMES.detailOutput,
+      SHEET_NAMES.varianceSummary,
+      SHEET_NAMES.oaDocCompare,
+      SHEET_NAMES.erpDocCompare
+    ]);
+  });
+
+  it("setupOutputSheets renames the old detail output to variance summary when summary is missing", () => {
+    const oldDetail = createFakeSheet(SHEET_NAMES.legacyDetailOutput);
+    oldDetail.rangeValues.set("CB2:CG2", [
+      ["数控", "生产", "仓储", "2026-05-01", "2026-05-31", QUERY_DIRECTIONS.erpSourceToOa]
+    ]);
+    const root = makeRoot([oldDetail]);
+
+    const summarySheet = setupOutputSheets(root);
+
+    expect(summarySheet).toBe(oldDetail);
+    expect(oldDetail.Name).toBe(SHEET_NAMES.varianceSummary);
+    expect(oldDetail.Range("CB2:CG2").Value2).toEqual([
+      ["数控", "生产", "仓储", "2026-05-01", "2026-05-31", QUERY_DIRECTIONS.erpSourceToOa]
+    ]);
+    expect(sheetNames(root)).toEqual([
+      SHEET_NAMES.varianceSummary,
       SHEET_NAMES.oaDocCompare,
       SHEET_NAMES.erpDocCompare
     ]);
@@ -110,7 +131,7 @@ describe("current sheet query macro", () => {
   it("runCurrentSheetQuery writes only OA document compare output for the active OA compare sheet", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -155,7 +176,7 @@ describe("current sheet query macro", () => {
       validErpRow(),
       ["ERP-999", "2026/4/2", "OA-002", "装备", "其他一级", "其他二级", "MAT-B", "物料B", 2, 20]
     ]);
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -182,7 +203,7 @@ describe("current sheet query macro", () => {
       validErpRow(),
       ["ERP-999", "2026/4/2", "OA-002", "装备", "其他一级", "其他二级", "MAT-B", "物料B", 2, 20]
     ]);
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -214,12 +235,12 @@ describe("current sheet query macro", () => {
     });
   });
 
-  it("runCurrentSheetQueryWithState applies explicit direction to legacy detail output", () => {
+  it("runCurrentSheetQueryWithState applies explicit direction to variance summary", () => {
     const oaSheet = makeOaSheet([
       ["OA-001", "ERP-778", "2026/4/1", "其他公司", "其他部门", "其他二级", "MAT-A", "物料A", 10, 100]
     ]);
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -246,7 +267,7 @@ describe("current sheet query macro", () => {
   it("runCurrentSheetQuery writes only ERP document compare output for the active ERP compare sheet", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -280,12 +301,12 @@ describe("current sheet query macro", () => {
     expect(erpSheet.writes).toEqual([]);
   });
 
-  it("runCurrentSheetQuery writes legacy detail output for the active detail sheet and respects ribbon direction", () => {
+  it("runCurrentSheetQuery writes variance summary output for the active summary sheet and respects ribbon direction", () => {
     const oaSheet = makeOaSheet([
       ["OA-001", "ERP-778", "2026/4/1", "其他公司", "其他部门", "其他二级", "MAT-A", "物料A", 10, 100]
     ]);
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -344,7 +365,7 @@ describe("current sheet query macro", () => {
       ...Array.from({ length: 23 }, blankScatteredRequiredRow)
     ]);
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -383,7 +404,7 @@ describe("current sheet query macro", () => {
   it("runCurrentSheetQuery clears previous output only on the active output sheet before a no-result message", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     oaCompareSheet.rangeValues.set("CB1:CC1", [["oa_doc_compare", "A1:P2"]]);
@@ -415,7 +436,7 @@ describe("current sheet query macro", () => {
   it("toggleMaterialRows inserts material rows below the selected OA summary row", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -465,7 +486,7 @@ describe("current sheet query macro", () => {
   it("toggleMaterialRows inserts material rows below the selected ERP summary row", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -511,7 +532,7 @@ describe("current sheet query macro", () => {
   it("toggleMaterialRows deletes continuous material rows when the selected summary is expanded", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -547,7 +568,7 @@ describe("current sheet query macro", () => {
   it("toggleMaterialRows rejects non-summary selections without clearing existing output", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -567,7 +588,7 @@ describe("current sheet query macro", () => {
   it("toggleMaterialRows rolls back inserted rows when material row writing fails", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -595,7 +616,7 @@ describe("current sheet query macro", () => {
   it("toggleMaterialRows rolls back inserted rows when metadata update fails after material writing succeeds", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -623,7 +644,7 @@ describe("current sheet query macro", () => {
   it("toggleMaterialRows restores deleted material rows when collapse metadata update fails", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -664,7 +685,7 @@ describe("current sheet query macro", () => {
       validErpRow(),
       ["ERP-999", "2026/5/2", "OA-002", "装备", "生产", "仓储", "MAT-B", "物料B", 2, 20]
     ]);
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
@@ -722,7 +743,7 @@ describe("current sheet query macro", () => {
   it("toggleMaterialRows rejects missing output query state instead of falling back to current ribbon filters", () => {
     const oaSheet = makeOaSheet();
     const erpSheet = makeErpSheet();
-    const detailSheet = makeOutputSheet(SHEET_NAMES.detailOutput);
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
     const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
     const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
     const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);

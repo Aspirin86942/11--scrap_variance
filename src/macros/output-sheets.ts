@@ -3,16 +3,19 @@ import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
 import { ensureSheet, findSheetByName } from "../wps-api/workbook";
 
 export function setupOutputSheets(root?: ScrapVarianceGlobal): WpsSheet {
-  let detailSheet = findSheetByName(SHEET_NAMES.detailOutput, root);
+  let summarySheet = findSheetByName(SHEET_NAMES.varianceSummary, root);
 
-  if (!detailSheet) {
+  if (!summarySheet) {
+    const oldDetail = findSheetByName(SHEET_NAMES.legacyDetailOutput, root);
     const oldPanel = findSheetByName(SHEET_NAMES.panel, root);
-    if (oldPanel) {
-      // 旧工作簿可能仍有“查询面板”，直接改名成新版明细页，减少用户手动迁移。
-      oldPanel.Name = SHEET_NAMES.detailOutput;
-      detailSheet = oldPanel;
+    const migrationSource = oldDetail ?? oldPanel;
+
+    if (migrationSource) {
+      // 旧工作簿可能仍有“报废差异明细”或更早的“查询面板”，直接改名成新版汇总页。
+      migrationSource.Name = SHEET_NAMES.varianceSummary;
+      summarySheet = migrationSource;
     } else {
-      detailSheet = ensureSheet(SHEET_NAMES.detailOutput, root);
+      summarySheet = ensureSheet(SHEET_NAMES.varianceSummary, root);
     }
   }
 
@@ -20,5 +23,5 @@ export function setupOutputSheets(root?: ScrapVarianceGlobal): WpsSheet {
   ensureSheet(SHEET_NAMES.oaDocCompare, root);
   ensureSheet(SHEET_NAMES.erpDocCompare, root);
 
-  return detailSheet;
+  return summarySheet;
 }
