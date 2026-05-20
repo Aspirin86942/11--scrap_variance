@@ -36,6 +36,13 @@ function isOutputMetadataKind(value: string): value is OutputMetadataKind {
   return VALID_OUTPUT_KINDS.has(value as OutputMetadataKind);
 }
 
+function isCompatibleLegacyKind(
+  kind: OutputMetadataKind,
+  compatibleLegacyKinds: LegacyOutputSheetKind[]
+): kind is LegacyOutputSheetKind {
+  return compatibleLegacyKinds.some((legacyKind) => legacyKind === kind);
+}
+
 function columnIndex(columnName: string): number {
   return [...columnName.toUpperCase()].reduce((result, char) => result * 26 + char.charCodeAt(0) - 64, 0);
 }
@@ -133,7 +140,7 @@ export function clearPreviousToolOutput(
   compatibleLegacyKinds: LegacyOutputSheetKind[] = []
 ): void {
   const metadata = readOutputMetadata(sheet);
-  if (!metadata || (metadata.kind !== expectedKind && !compatibleLegacyKinds.includes(metadata.kind))) {
+  if (!metadata || (metadata.kind !== expectedKind && !isCompatibleLegacyKind(metadata.kind, compatibleLegacyKinds))) {
     return;
   }
 

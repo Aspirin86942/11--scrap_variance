@@ -70,7 +70,7 @@ export const DEPARTMENT_VARIANCE_SUMMARY_HEADERS = [
   "差异类型摘要"
 ] as const;
 
-// detail 是报废差异明细的完整字段契约，顺序必须和 DetailRow 转矩阵逻辑保持一致。
+// detail 是内部单据/物料明细的完整字段契约，顺序必须和 DetailRow 转矩阵逻辑保持一致。
 export const DETAIL_HEADERS = [
   "差异类型",
   "OA表单编号",

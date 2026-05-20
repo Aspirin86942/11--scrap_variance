@@ -57,7 +57,7 @@ export interface ErpAggRow {
   erpDocNumbers: string;
 }
 
-// DetailRow 是报废差异明细的行契约，字段顺序需要和 DETAIL_HEADERS 保持一致。
+// DetailRow 是内部单据/物料明细行契约，字段顺序需要和 DETAIL_HEADERS 保持一致。
 export interface DetailRow {
   differenceType: string;
   formNumber: string;

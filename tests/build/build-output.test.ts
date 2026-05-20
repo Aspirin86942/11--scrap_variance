@@ -15,6 +15,12 @@ function normalizeJsContinuedLines(source: string): string {
   return source.replace(/\\\r?\n/g, "");
 }
 
+function decodeJsUnicodeEscapes(source: string): string {
+  return source.replace(/\\u([0-9a-fA-F]{4})/g, (_match, code: string) =>
+    String.fromCharCode(Number.parseInt(code, 16))
+  );
+}
+
 describe("WPS add-in generated bundle", () => {
   it("keeps index.html pointed at the generated root main.js", () => {
     const html = readText("index.html");
@@ -96,6 +102,7 @@ describe("WPS add-in generated bundle", () => {
 
   it("generated main.js is a bundle and does not document.write source files", () => {
     const source = readText("main.js");
+    const searchableSource = decodeJsUnicodeEscapes(normalizeJsContinuedLines(source));
 
     expect(source).not.toContain("document.write");
     expect(source).not.toContain("src/macros");
@@ -103,6 +110,12 @@ describe("WPS add-in generated bundle", () => {
     expect(source).not.toContain("ribbon.js");
     expect(source).not.toContain("require(");
     expect(source).not.toContain("process.");
+    expect(source).not.toContain("child_process");
+    expect(source).not.toMatch(/\bfs\b/);
+    expect(source).not.toMatch(/\bpath\b/);
+    expect(searchableSource).toContain("报废差异汇总");
+    expect(searchableSource).toContain("variance_summary");
+    expect(searchableSource).not.toContain("报废差异明细、OA视角单据对比 或 ERP视角单据对比");
     expect(source).toContain("ribbon");
   });
 
