@@ -1,5 +1,5 @@
 import { parseQueryDirection } from "../core/query-direction";
-import type { OutputSheetKind, RibbonQueryState } from "../types/scrap";
+import type { LegacyOutputSheetKind, OutputMetadataKind, OutputSheetKind, RibbonQueryState } from "../types/scrap";
 import type { WpsCellValue, WpsSheet } from "../types/wps";
 import { normalizeDateKey } from "../utils/date";
 import { normalizeMatrix } from "../utils/matrix";
@@ -11,12 +11,17 @@ const METADATA_ADDRESS = "CB1:CC1";
 const QUERY_STATE_ADDRESS = "CB2:CG2";
 const QUERY_STATE_START_ROW = 2;
 const QUERY_STATE_START_COL = 80;
-const VALID_OUTPUT_KINDS = new Set<OutputSheetKind>(["legacy_detail", "oa_doc_compare", "erp_doc_compare"]);
+const VALID_OUTPUT_KINDS = new Set<OutputMetadataKind>([
+  "variance_summary",
+  "legacy_detail",
+  "oa_doc_compare",
+  "erp_doc_compare"
+]);
 const A1_RECTANGLE_ADDRESS_PATTERN = /^([A-Z]+)([1-9]\d*):([A-Z]+)([1-9]\d*)$/i;
 
 // metadata 写在远离用户可见输出的隐藏列区域，用来记录本工具上次生成了哪块范围。
 export interface OutputMetadata {
-  kind: OutputSheetKind;
+  kind: OutputMetadataKind;
   rangeAddress: string;
 }
 
@@ -27,8 +32,8 @@ function normalizeText(value: WpsCellValue): string {
   return String(value).trim();
 }
 
-function isOutputSheetKind(value: string): value is OutputSheetKind {
-  return VALID_OUTPUT_KINDS.has(value as OutputSheetKind);
+function isOutputMetadataKind(value: string): value is OutputMetadataKind {
+  return VALID_OUTPUT_KINDS.has(value as OutputMetadataKind);
 }
 
 function columnIndex(columnName: string): number {
@@ -75,7 +80,7 @@ export function readOutputMetadata(sheet: WpsSheet): OutputMetadata | null {
   const kind = normalizeText(matrix[0]?.[0]);
   const rangeAddress = normalizeText(matrix[0]?.[1]);
 
-  if (!isOutputSheetKind(kind) || !isSafeA1RectangleAddress(rangeAddress)) {
+  if (!isOutputMetadataKind(kind) || !isSafeA1RectangleAddress(rangeAddress)) {
     // metadata 不可信时宁可不清理，也不能拿错误地址清空工作表。
     return null;
   }
@@ -122,13 +127,16 @@ export function readOutputQueryState(sheet: WpsSheet): RibbonQueryState | null {
   }
 }
 
-export function clearPreviousToolOutput(sheet: WpsSheet, expectedKind: OutputSheetKind): void {
+export function clearPreviousToolOutput(
+  sheet: WpsSheet,
+  expectedKind: OutputSheetKind,
+  compatibleLegacyKinds: LegacyOutputSheetKind[] = []
+): void {
   const metadata = readOutputMetadata(sheet);
-  if (!metadata || metadata.kind !== expectedKind) {
+  if (!metadata || (metadata.kind !== expectedKind && !compatibleLegacyKinds.includes(metadata.kind))) {
     return;
   }
 
-  // 只清理上次由本工具记录的输出范围，避免误删用户在同一工作表上的其他内容。
   clearRange(sheet, metadata.rangeAddress);
 }
 

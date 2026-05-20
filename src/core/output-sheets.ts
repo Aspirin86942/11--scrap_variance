@@ -1,17 +1,20 @@
 import { SHEET_NAMES } from "../constants";
-import type { OutputSheetKind } from "../types/scrap";
+import type { LegacyOutputSheetKind, OutputSheetKind } from "../types/scrap";
 
 export const OUTPUT_SHEET_KINDS = {
-  legacyDetail: "legacy_detail",
+  varianceSummary: "variance_summary",
   oaDocCompare: "oa_doc_compare",
   erpDocCompare: "erp_doc_compare"
 } as const satisfies Record<string, OutputSheetKind>;
 
+export const LEGACY_OUTPUT_SHEET_KINDS = {
+  legacyDetail: "legacy_detail"
+} as const satisfies Record<string, LegacyOutputSheetKind>;
+
 export function detectOutputSheetKind(sheetName: string): OutputSheetKind | null {
-  // 查询弹窗和展开物料都只允许在工具生成的三张输出页上运行，避免误清用户源数据表。
   switch (sheetName) {
-    case SHEET_NAMES.detailOutput:
-      return OUTPUT_SHEET_KINDS.legacyDetail;
+    case SHEET_NAMES.varianceSummary:
+      return OUTPUT_SHEET_KINDS.varianceSummary;
     case SHEET_NAMES.oaDocCompare:
       return OUTPUT_SHEET_KINDS.oaDocCompare;
     case SHEET_NAMES.erpDocCompare:
@@ -22,5 +25,5 @@ export function detectOutputSheetKind(sheetName: string): OutputSheetKind | null
 }
 
 export function unsupportedOutputSheetMessage(): string {
-  return `当前工作表不支持查询或展开，请切换到 ${SHEET_NAMES.detailOutput}、${SHEET_NAMES.oaDocCompare} 或 ${SHEET_NAMES.erpDocCompare}。`;
+  return `当前工作表不支持查询或展开，请切换到 ${SHEET_NAMES.varianceSummary}、${SHEET_NAMES.oaDocCompare} 或 ${SHEET_NAMES.erpDocCompare}。`;
 }

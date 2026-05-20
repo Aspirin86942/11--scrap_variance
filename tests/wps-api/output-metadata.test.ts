@@ -19,6 +19,14 @@ describe("output metadata", () => {
     expect(readOutputMetadata(sheet)).toEqual({ kind: "oa_doc_compare", rangeAddress: "A1:P3" });
   });
 
+  it("stores and reads variance summary metadata", () => {
+    const sheet = createFakeSheet("报废差异汇总");
+
+    saveOutputMetadata(sheet, { kind: "variance_summary", rangeAddress: "A1:O3" });
+
+    expect(readOutputMetadata(sheet)).toEqual({ kind: "variance_summary", rangeAddress: "A1:O3" });
+  });
+
   it("clears only the metadata range", () => {
     const sheet = createFakeSheet("OA视角单据对比");
     saveOutputMetadata(sheet, { kind: "oa_doc_compare", rangeAddress: "A1:P3" });
@@ -26,6 +34,31 @@ describe("output metadata", () => {
     clearPreviousToolOutput(sheet, "oa_doc_compare");
 
     expect(sheet.clears).toEqual(["A1:P3"]);
+  });
+
+  it("allows variance summary cleanup to consume legacy detail metadata once", () => {
+    const sheet = createFakeSheet("报废差异汇总");
+    sheet.rangeValues.set("CB1:CC1", [["legacy_detail", "A1:S6"]]);
+
+    clearPreviousToolOutput(sheet, "variance_summary", ["legacy_detail"]);
+
+    expect(sheet.clears).toEqual(["A1:S6"]);
+  });
+
+  it("does not clear legacy detail metadata unless the caller explicitly accepts it", () => {
+    const sheet = createFakeSheet("报废差异汇总");
+    sheet.rangeValues.set("CB1:CC1", [["legacy_detail", "A1:S6"]]);
+
+    clearPreviousToolOutput(sheet, "variance_summary");
+
+    expect(sheet.clears).toEqual([]);
+  });
+
+  it("rejects active output kinds as compatible cleanup metadata", () => {
+    const sheet = createFakeSheet("报废差异汇总");
+
+    // @ts-expect-error compatible kinds are restricted to legacy metadata only.
+    clearPreviousToolOutput(sheet, "variance_summary", ["oa_doc_compare"]);
   });
 
   it("does not clear when metadata is missing or for another output kind", () => {

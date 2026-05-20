@@ -86,7 +86,9 @@ export interface PanelQueryInput {
 }
 
 export type DocCompareRowType = "汇总" | "物料";
-export type OutputSheetKind = "legacy_detail" | "oa_doc_compare" | "erp_doc_compare";
+export type OutputSheetKind = "variance_summary" | "oa_doc_compare" | "erp_doc_compare";
+export type LegacyOutputSheetKind = "legacy_detail";
+export type OutputMetadataKind = OutputSheetKind | LegacyOutputSheetKind;
 
 // 弹窗和功能区共享同一份查询状态，避免三张输出页各自维护不兼容的输入格式。
 export interface RibbonQueryState {
