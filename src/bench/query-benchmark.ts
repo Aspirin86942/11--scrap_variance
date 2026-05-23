@@ -3,6 +3,7 @@
 import { execSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { DEFAULT_QUERY_DIRECTION } from "../core/query-direction";
 import {
   runOutputSheetQueryCore,
   type OutputQueryRowCounts,
@@ -122,7 +123,7 @@ export function buildBenchReport(scales: number[], options: Pick<BenchCliOptions
         kind,
         oaRows: data.oaRows,
         erpRows: data.erpRows,
-        queryState: { ...data.filters, queryDirection: "OA金蝶单号查ERP" },
+        queryState: { ...data.filters, queryDirection: DEFAULT_QUERY_DIRECTION },
         metrics
       });
 

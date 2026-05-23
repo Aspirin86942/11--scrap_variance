@@ -217,6 +217,10 @@ describe("current sheet query macro", () => {
     expect(output).toContain("OA-001");
     expect(output).toContain("ERP-778");
     expect(output).not.toContain("查询方向不正确：请填写 OA金蝶单号查ERP 或 ERP源单查OA");
+    expect(oaCompareSheet.writes).toContainEqual({
+      address: "CB2:CG2",
+      value: [["数控", "生产", "仓储", "2026-05-01", "2026-05-31", QUERY_DIRECTIONS.oaKingdeeToErp]]
+    });
     expect(detailSheet.writes).toEqual([]);
     expect(erpCompareSheet.writes).toEqual([]);
   });
@@ -460,6 +464,10 @@ describe("current sheet query macro", () => {
     expect(output).toContain("ERP-778");
     expect(output).toContain("OA-001");
     expect(output).not.toContain("查询方向不正确：请填写 OA金蝶单号查ERP 或 ERP源单查OA");
+    expect(erpCompareSheet.writes).toContainEqual({
+      address: "CB2:CG2",
+      value: [["数控", "生产", "仓储", "2026-05-01", "2026-05-31", QUERY_DIRECTIONS.oaKingdeeToErp]]
+    });
     expect(detailSheet.writes).toEqual([]);
     expect(oaCompareSheet.writes).toEqual([]);
   });
