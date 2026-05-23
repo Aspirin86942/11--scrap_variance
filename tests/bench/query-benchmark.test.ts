@@ -56,15 +56,27 @@ describe("query benchmark CLI helpers", () => {
       dataset?.outputs.map((output) => [output.kind, output.stages.map((stage) => stage.name)])
     );
     expect(stageNamesByOutput.get("variance_summary")).toEqual([
-      "build_variance_summary_rows",
+      "build_primary_doc_groups",
+      "build_counterpart_doc_groups",
+      "build_doc_compare_summary_rows",
+      "build_doc_compare_material_rows",
+      "build_summary_document_set",
+      "classify_summary_rows",
+      "build_summary_group_rows",
       "build_variance_summary_matrix"
     ]);
     expect(stageNamesByOutput.get("oa_doc_compare")).toEqual([
-      "build_oa_doc_compare_rows",
+      "build_primary_doc_groups",
+      "build_counterpart_doc_groups",
+      "build_doc_compare_summary_rows",
+      "build_doc_compare_material_rows",
       "build_oa_doc_compare_matrix"
     ]);
     expect(stageNamesByOutput.get("erp_doc_compare")).toEqual([
-      "build_erp_doc_compare_rows",
+      "build_primary_doc_groups",
+      "build_counterpart_doc_groups",
+      "build_doc_compare_summary_rows",
+      "build_doc_compare_material_rows",
       "build_erp_doc_compare_matrix"
     ]);
 
@@ -88,9 +100,11 @@ describe("query benchmark CLI helpers", () => {
     expect(table).toContain("variance_summary");
     expect(table).toContain("oa_doc_compare");
     expect(table).toContain("erp_doc_compare");
-    expect(table).toContain("build_variance_summary_rows");
-    expect(table).toContain("build_oa_doc_compare_rows");
-    expect(table).toContain("build_erp_doc_compare_rows");
+    expect(table).toContain("build_primary_doc_groups");
+    expect(table).toContain("build_counterpart_doc_groups");
+    expect(table).toContain("build_doc_compare_summary_rows");
+    expect(table).toContain("build_summary_document_set");
+    expect(table).toContain("build_summary_group_rows");
     expect(table).not.toContain("generate_data");
     expect(table).toContain("total");
   });

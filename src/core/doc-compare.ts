@@ -1,5 +1,6 @@
 import type Decimal from "decimal.js-light";
 import { ERP_DOC_COMPARE_HEADERS, OA_DOC_COMPARE_HEADERS } from "../constants";
+import type { MetricsRecorder } from "../perf/metrics";
 import type {
   DocCompareResult,
   DocCompareRow,
@@ -17,6 +18,27 @@ import { isDateInRange, matchesOrgFilters, parseFilters } from "./build-oa-rows"
 
 type DocCompareKind = Extract<OutputSheetKind, "oa_doc_compare" | "erp_doc_compare">;
 type FilterInput = Partial<QueryFilters> | Record<string, unknown> | null | undefined;
+
+interface RowBuildingMetricsOptions {
+  metrics?: MetricsRecorder;
+  note?: string;
+}
+
+function measureStage<T>(
+  options: RowBuildingMetricsOptions | undefined,
+  name: string,
+  inputRows: number,
+  outputRows: number | ((value: T) => number),
+  action: () => T
+): T {
+  if (!options?.metrics) {
+    return action();
+  }
+  if (options.note === undefined) {
+    return options.metrics.measure(name, { inputRows, outputRows }, action);
+  }
+  return options.metrics.measure(name, { inputRows, outputRows, note: options.note }, action);
+}
 
 interface MaterialAccumulator {
   itemCode: string;
@@ -43,6 +65,14 @@ interface MatchedCounterpart {
   quantity: Decimal;
   amount: Decimal;
   materials: Map<string, MaterialAccumulator>;
+}
+
+interface PendingDocCompareSummaryItem {
+  primary: DocAccumulator;
+  counterpart: MatchedCounterpart;
+  summaryRow: DocCompareRow;
+  summaryKey: string;
+  meta: DocCompareSummaryMeta;
 }
 
 function createDocAccumulator(docNumber: string): DocAccumulator {
@@ -392,30 +422,59 @@ function buildSummaryMeta(primary: DocAccumulator, counterpart: Pick<MatchedCoun
 function buildDocCompareResult(
   kind: DocCompareKind,
   primaryGroups: Map<string, DocAccumulator>,
-  counterpartGroups: Map<string, DocAccumulator>
+  counterpartGroups: Map<string, DocAccumulator>,
+  options?: RowBuildingMetricsOptions
 ): DocCompareResult {
   const summaryRows: DocCompareRow[] = [];
   const materialRowsBySummaryKey = new Map<string, DocCompareRow[]>();
   const summaryItems: DocCompareSummaryItem[] = [];
 
   // 汇总行和物料行分开返回，宏层可以只写汇总，再按用户展开动作插入物料行。
-  for (const primary of primaryGroups.values()) {
-    const counterpart = buildMatchedCounterpart(primary, counterpartGroups);
-    const summaryRow = buildDocCompareRow("汇总", primary, counterpart);
-    const summaryKey = makeSummaryKey(kind, summaryRow);
-    const materialRows = buildMaterialRows(primary, counterpart.materials);
-    const meta = buildSummaryMeta(primary, counterpart);
-    meta.hasMaterialShapeMismatch = hasMaterialShapeMismatch(materialRows);
+  const pendingItems = measureStage(
+    options,
+    "build_doc_compare_summary_rows",
+    primaryGroups.size,
+    (items: PendingDocCompareSummaryItem[]) => items.length,
+    () => {
+      const items: PendingDocCompareSummaryItem[] = [];
 
-    summaryRows.push(summaryRow);
-    materialRowsBySummaryKey.set(summaryKey, materialRows);
-    summaryItems.push({
-      summaryKey,
-      row: copyDocCompareRow(summaryRow),
-      materialRows: materialRows.map(copyDocCompareRow),
-      meta
-    });
-  }
+      for (const primary of primaryGroups.values()) {
+        const counterpart = buildMatchedCounterpart(primary, counterpartGroups);
+        const summaryRow = buildDocCompareRow("汇总", primary, counterpart);
+        items.push({
+          primary,
+          counterpart,
+          summaryRow,
+          summaryKey: makeSummaryKey(kind, summaryRow),
+          meta: buildSummaryMeta(primary, counterpart)
+        });
+      }
+
+      return items;
+    }
+  );
+
+  measureStage(
+    options,
+    "build_doc_compare_material_rows",
+    pendingItems.length,
+    (items: DocCompareSummaryItem[]) => items.reduce((total, item) => total + item.materialRows.length, 0),
+    () => {
+      for (const item of pendingItems) {
+        const materialRows = buildMaterialRows(item.primary, item.counterpart.materials);
+        item.meta.hasMaterialShapeMismatch = hasMaterialShapeMismatch(materialRows);
+        summaryRows.push(item.summaryRow);
+        materialRowsBySummaryKey.set(item.summaryKey, materialRows);
+        summaryItems.push({
+          summaryKey: item.summaryKey,
+          row: copyDocCompareRow(item.summaryRow),
+          materialRows: materialRows.map(copyDocCompareRow),
+          meta: item.meta
+        });
+      }
+      return summaryItems;
+    }
+  );
 
   return {
     kind,
@@ -428,19 +487,49 @@ function buildDocCompareResult(
 export function buildOaDocCompare(
   oaRows: RawRow[] | null | undefined,
   erpRows: RawRow[] | null | undefined,
-  filters?: FilterInput
+  filters?: FilterInput,
+  options?: RowBuildingMetricsOptions
 ): DocCompareResult {
   const activeFilters = parseFilters(filters);
-  return buildDocCompareResult("oa_doc_compare", buildOaDocGroups(oaRows, activeFilters), buildAllErpDocGroups(erpRows));
+  const primaryGroups = measureStage(
+    options,
+    "build_primary_doc_groups",
+    oaRows?.length ?? 0,
+    (groups: Map<string, DocAccumulator>) => groups.size,
+    () => buildOaDocGroups(oaRows, activeFilters)
+  );
+  const counterpartGroups = measureStage(
+    options,
+    "build_counterpart_doc_groups",
+    erpRows?.length ?? 0,
+    (groups: Map<string, DocAccumulator>) => groups.size,
+    () => buildAllErpDocGroups(erpRows)
+  );
+  return buildDocCompareResult("oa_doc_compare", primaryGroups, counterpartGroups, options);
 }
 
 export function buildErpDocCompare(
   oaRows: RawRow[] | null | undefined,
   erpRows: RawRow[] | null | undefined,
-  filters?: FilterInput
+  filters?: FilterInput,
+  options?: RowBuildingMetricsOptions
 ): DocCompareResult {
   const activeFilters = parseFilters(filters);
-  return buildDocCompareResult("erp_doc_compare", buildErpDocGroups(erpRows, activeFilters), buildAllOaDocGroups(oaRows));
+  const primaryGroups = measureStage(
+    options,
+    "build_primary_doc_groups",
+    erpRows?.length ?? 0,
+    (groups: Map<string, DocAccumulator>) => groups.size,
+    () => buildErpDocGroups(erpRows, activeFilters)
+  );
+  const counterpartGroups = measureStage(
+    options,
+    "build_counterpart_doc_groups",
+    oaRows?.length ?? 0,
+    (groups: Map<string, DocAccumulator>) => groups.size,
+    () => buildAllOaDocGroups(oaRows)
+  );
+  return buildDocCompareResult("erp_doc_compare", primaryGroups, counterpartGroups, options);
 }
 
 export function buildMaterialRowsForDocSummary(

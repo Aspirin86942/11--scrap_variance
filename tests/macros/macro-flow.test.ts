@@ -365,11 +365,12 @@ describe("TypeScript macro orchestration", () => {
     expect(output).toContain("oa_used_range");
     expect(output).toContain("erp_read_strategy");
     expect(output.some((value) => value.startsWith("grouped_ranges；列组="))).toBe(true);
-    expect(output).toContain("build_variance_summary_rows");
+    expect(output).toContain("build_primary_doc_groups");
+    expect(output).toContain("build_doc_compare_summary_rows");
+    expect(output).toContain("build_summary_document_set");
+    expect(output).toContain("build_summary_group_rows");
     expect(output).toContain("build_variance_summary_matrix");
-    expect(output).toContain("build_oa_doc_compare_rows");
     expect(output).toContain("build_oa_doc_compare_matrix");
-    expect(output).toContain("build_erp_doc_compare_rows");
     expect(output).toContain("build_erp_doc_compare_matrix");
     expect(output).not.toContain("build_output_matrix");
     expect(output).toContain("write_diagnostics_sheet");
@@ -514,11 +515,12 @@ describe("TypeScript macro orchestration", () => {
     const initialRows = initialWrite.value as OutputMatrix;
     const readFiltersRow = initialRows.find((row) => row[0] === "阶段耗时" && row[1] === "read_filters");
 
-    expect(output).toContain("build_variance_summary_rows");
+    expect(output).toContain("build_primary_doc_groups");
+    expect(output).toContain("build_doc_compare_summary_rows");
+    expect(output).toContain("build_summary_document_set");
+    expect(output).toContain("build_summary_group_rows");
     expect(output).toContain("build_variance_summary_matrix");
-    expect(output).toContain("build_oa_doc_compare_rows");
     expect(output).toContain("build_oa_doc_compare_matrix");
-    expect(output).toContain("build_erp_doc_compare_rows");
     expect(output).toContain("build_erp_doc_compare_matrix");
     expect(output).not.toContain("build_erp_rows_by_erp_filters");
     expect(output).not.toContain("build_erp_rows_for_oa");

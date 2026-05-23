@@ -67,11 +67,7 @@ export function runOutputSheetQueryCore(input: OutputQueryRunnerInput): OutputQu
 
   if (kind === "variance_summary") {
     const queryDirection = parseQueryDirection(queryState.queryDirection);
-    const summaryRows = metrics.measure(
-      "build_variance_summary_rows",
-      { inputRows: sourceRows, outputRows: (rows) => rows.length, note },
-      () => buildDepartmentVarianceSummaryRows(oaRows, erpRows, filters, queryDirection)
-    );
+    const summaryRows = buildDepartmentVarianceSummaryRows(oaRows, erpRows, filters, queryDirection, { metrics, note });
     const values = metrics.measure(
       "build_variance_summary_matrix",
       { inputRows: summaryRows.length, outputRows: outputRowsFor, note },
@@ -92,11 +88,7 @@ export function runOutputSheetQueryCore(input: OutputQueryRunnerInput): OutputQu
   }
 
   if (kind === "oa_doc_compare") {
-    const compareResult = metrics.measure(
-      "build_oa_doc_compare_rows",
-      { inputRows: sourceRows, outputRows: (result) => result.summaryRows.length, note },
-      () => buildOaDocCompare(oaRows, erpRows, filters)
-    );
+    const compareResult = buildOaDocCompare(oaRows, erpRows, filters, { metrics, note });
     const materialRows = countMaterialRows(compareResult);
     const values = metrics.measure(
       "build_oa_doc_compare_matrix",
@@ -118,11 +110,7 @@ export function runOutputSheetQueryCore(input: OutputQueryRunnerInput): OutputQu
   }
 
   if (kind === "erp_doc_compare") {
-    const compareResult = metrics.measure(
-      "build_erp_doc_compare_rows",
-      { inputRows: sourceRows, outputRows: (result) => result.summaryRows.length, note },
-      () => buildErpDocCompare(oaRows, erpRows, filters)
-    );
+    const compareResult = buildErpDocCompare(oaRows, erpRows, filters, { metrics, note });
     const materialRows = countMaterialRows(compareResult);
     const values = metrics.measure(
       "build_erp_doc_compare_matrix",

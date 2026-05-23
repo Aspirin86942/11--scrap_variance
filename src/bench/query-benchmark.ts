@@ -163,17 +163,16 @@ export function buildBenchReport(scales: number[], options: Pick<BenchCliOptions
 }
 
 export function renderBenchTable(report: BenchReport): string {
-  const lines = ["dataset     output           stage                         input_rows time_ms   heap_delta_mb_or_max"];
+  const lines = ["dataset     output           stage                              input_rows time_ms   heap_delta_mb_or_max"];
   for (const dataset of report.datasets) {
     for (const output of dataset.outputs) {
       for (const stage of output.stages) {
         lines.push(
-          `${dataset.name.padEnd(11)} ${output.kind.padEnd(16)} ${stage.name.padEnd(29)} ${String(stage.inputRows).padEnd(9)} ${String(stage.timeMs).padEnd(9)} ${String(stage.heapDeltaMb)}`
+          `${dataset.name.padEnd(11)} ${output.kind.padEnd(16)} ${stage.name.padEnd(34)} ${String(stage.inputRows).padEnd(9)} ${String(stage.timeMs).padEnd(9)} ${String(stage.heapDeltaMb)}`
         );
       }
-      // 汇总行使用该输出页看到的源数据总行数，便于和各阶段性能结果快速对齐。
       lines.push(
-        `${dataset.name.padEnd(11)} ${output.kind.padEnd(16)} ${output.total.name.padEnd(29)} ${String(output.resultRows.sourceRows).padEnd(9)} ${String(output.total.timeMs).padEnd(9)} ${String(output.total.maxStageHeapDeltaMb)}`
+        `${dataset.name.padEnd(11)} ${output.kind.padEnd(16)} ${output.total.name.padEnd(34)} ${String(output.resultRows.sourceRows).padEnd(9)} ${String(output.total.timeMs).padEnd(9)} ${String(output.total.maxStageHeapDeltaMb)}`
       );
     }
   }

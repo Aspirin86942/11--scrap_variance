@@ -1,4 +1,5 @@
 import { DEPARTMENT_VARIANCE_SUMMARY_HEADERS, DIFFERENCE_TYPE_PRIORITY } from "../constants";
+import type { MetricsRecorder } from "../perf/metrics";
 import type { DocCompareResult, DocCompareRow, DocCompareSummaryItem, OutputMatrix, QueryFilters, RawRow } from "../types/scrap";
 import { addDecimal, decimalToNumber2, subtractDecimal, zeroDecimal } from "../utils/decimal";
 import { normalizeText } from "../utils/text";
@@ -7,6 +8,27 @@ import { QUERY_DIRECTIONS, type QueryDirection } from "./query-direction";
 
 type DepartmentVariancePerspective = "OA视角" | "ERP视角";
 type DifferenceType = (typeof DIFFERENCE_TYPE_PRIORITY)[number];
+
+interface RowBuildingMetricsOptions {
+  metrics?: MetricsRecorder;
+  note?: string;
+}
+
+function measureStage<T>(
+  options: RowBuildingMetricsOptions | undefined,
+  name: string,
+  inputRows: number,
+  outputRows: number | ((value: T) => number),
+  action: () => T
+): T {
+  if (!options?.metrics) {
+    return action();
+  }
+  if (options.note === undefined) {
+    return options.metrics.measure(name, { inputRows, outputRows }, action);
+  }
+  return options.metrics.measure(name, { inputRows, outputRows, note: options.note }, action);
+}
 
 export interface DepartmentVarianceSummaryRow {
   company: string;
@@ -169,57 +191,78 @@ function addSummaryItem(
 function buildRowsFromDocCompare(
   result: DocCompareResult,
   perspective: DepartmentVariancePerspective,
-  counterpartDocNumbers: Set<string>
+  counterpartDocNumbers: Set<string>,
+  options?: RowBuildingMetricsOptions
 ): DepartmentVarianceSummaryRow[] {
   const grouped = new Map<string, SummaryAccumulator>();
 
-  for (const item of result.summaryItems) {
-    addSummaryItem(grouped, item, perspective, counterpartDocNumbers);
-  }
-
-  return [...grouped.values()].map((summary) => {
-    const quantityDiff = subtractDecimal(summary.oaQuantity, summary.erpQuantity);
-    const amountDiff = subtractDecimal(summary.oaAmount, summary.erpCost);
-
-    return {
-      company: summary.company,
-      dept1: summary.dept1,
-      dept2: summary.dept2,
-      perspective: summary.perspective,
-      primaryDocCount: summary.primaryDocCount,
-      matchedDocCount: summary.matchedDocCount,
-      unmatchedDocCount: summary.unmatchedDocCount,
-      differentDocCount: summary.differentDocCount,
-      oaQuantity: decimalToNumber2(summary.oaQuantity),
-      erpQuantity: decimalToNumber2(summary.erpQuantity),
-      quantityDiff: decimalToNumber2(quantityDiff),
-      oaAmount: decimalToNumber2(summary.oaAmount),
-      erpCost: decimalToNumber2(summary.erpCost),
-      amountDiff: decimalToNumber2(amountDiff),
-      differenceSummary: DIFFERENCE_TYPE_PRIORITY.filter((type) => summary.differenceTypes.has(type)).join("、")
-    };
+  measureStage(options, "classify_summary_rows", result.summaryItems.length, result.summaryItems.length, () => {
+    for (const item of result.summaryItems) {
+      addSummaryItem(grouped, item, perspective, counterpartDocNumbers);
+    }
+    return result.summaryItems.length;
   });
+
+  return measureStage(
+    options,
+    "build_summary_group_rows",
+    grouped.size,
+    (rows: DepartmentVarianceSummaryRow[]) => rows.length,
+    () =>
+      [...grouped.values()].map((summary) => {
+        const quantityDiff = subtractDecimal(summary.oaQuantity, summary.erpQuantity);
+        const amountDiff = subtractDecimal(summary.oaAmount, summary.erpCost);
+
+        return {
+          company: summary.company,
+          dept1: summary.dept1,
+          dept2: summary.dept2,
+          perspective: summary.perspective,
+          primaryDocCount: summary.primaryDocCount,
+          matchedDocCount: summary.matchedDocCount,
+          unmatchedDocCount: summary.unmatchedDocCount,
+          differentDocCount: summary.differentDocCount,
+          oaQuantity: decimalToNumber2(summary.oaQuantity),
+          erpQuantity: decimalToNumber2(summary.erpQuantity),
+          quantityDiff: decimalToNumber2(quantityDiff),
+          oaAmount: decimalToNumber2(summary.oaAmount),
+          erpCost: decimalToNumber2(summary.erpCost),
+          amountDiff: decimalToNumber2(amountDiff),
+          differenceSummary: DIFFERENCE_TYPE_PRIORITY.filter((type) => summary.differenceTypes.has(type)).join("、")
+        };
+      })
+  );
 }
 
 export function buildDepartmentVarianceSummaryRows(
   oaRows: RawRow[] | null | undefined,
   erpRows: RawRow[] | null | undefined,
   filters: Partial<QueryFilters> | Record<string, unknown> | null | undefined,
-  queryDirection: QueryDirection
+  queryDirection: QueryDirection,
+  options?: RowBuildingMetricsOptions
 ): DepartmentVarianceSummaryRow[] {
   if (queryDirection === QUERY_DIRECTIONS.oaKingdeeToErp) {
-    return buildRowsFromDocCompare(
-      buildOaDocCompare(oaRows, erpRows, filters),
-      "OA视角",
-      buildDocumentNumberSet(erpRows, "单据编号")
+    const result = buildOaDocCompare(oaRows, erpRows, filters, options);
+    const counterpartDocNumbers = measureStage(
+      options,
+      "build_summary_document_set",
+      erpRows?.length ?? 0,
+      (docNumbers: Set<string>) => docNumbers.size,
+      () => buildDocumentNumberSet(erpRows, "单据编号")
     );
+
+    return buildRowsFromDocCompare(result, "OA视角", counterpartDocNumbers, options);
   }
 
-  return buildRowsFromDocCompare(
-    buildErpDocCompare(oaRows, erpRows, filters),
-    "ERP视角",
-    buildDocumentNumberSet(oaRows, "表单编号")
+  const result = buildErpDocCompare(oaRows, erpRows, filters, options);
+  const counterpartDocNumbers = measureStage(
+    options,
+    "build_summary_document_set",
+    oaRows?.length ?? 0,
+    (docNumbers: Set<string>) => docNumbers.size,
+    () => buildDocumentNumberSet(oaRows, "表单编号")
   );
+  return buildRowsFromDocCompare(result, "ERP视角", counterpartDocNumbers, options);
 }
 
 export function departmentVarianceSummaryRowsToValues(

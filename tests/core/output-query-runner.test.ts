@@ -50,13 +50,16 @@ describe("output query runner", () => {
     expect(result.rowCounts.summaryRows).toBeGreaterThan(0);
     expect(result.rowCounts.outputRows).toBe(result.values?.length);
     expect(metrics.stages.map((stage) => stage.name)).toEqual([
-      "build_variance_summary_rows",
+      "build_primary_doc_groups",
+      "build_counterpart_doc_groups",
+      "build_doc_compare_summary_rows",
+      "build_doc_compare_material_rows",
+      "build_summary_document_set",
+      "classify_summary_rows",
+      "build_summary_group_rows",
       "build_variance_summary_matrix"
     ]);
-    expect(metrics.stages.map((stage) => stage.note)).toEqual([
-      "output=variance_summary",
-      "output=variance_summary"
-    ]);
+    expect(metrics.stages.every((stage) => stage.note === "output=variance_summary")).toBe(true);
   });
 
   it("builds OA document compare output and counts material rows for diagnostics", () => {
@@ -78,7 +81,10 @@ describe("output query runner", () => {
     expect(result.rowCounts.summaryRows).toBeGreaterThan(0);
     expect(result.rowCounts.materialRows).toBeGreaterThan(0);
     expect(metrics.stages.map((stage) => stage.name)).toEqual([
-      "build_oa_doc_compare_rows",
+      "build_primary_doc_groups",
+      "build_counterpart_doc_groups",
+      "build_doc_compare_summary_rows",
+      "build_doc_compare_material_rows",
       "build_oa_doc_compare_matrix"
     ]);
     expect(metrics.stages.every((stage) => stage.note === "output=oa_doc_compare")).toBe(true);
@@ -100,7 +106,10 @@ describe("output query runner", () => {
     expect(result.noResultMessage).toBeNull();
     expect(result.rowCounts.summaryRows).toBeGreaterThan(0);
     expect(metrics.stages.map((stage) => stage.name)).toEqual([
-      "build_oa_doc_compare_rows",
+      "build_primary_doc_groups",
+      "build_counterpart_doc_groups",
+      "build_doc_compare_summary_rows",
+      "build_doc_compare_material_rows",
       "build_oa_doc_compare_matrix"
     ]);
   });
@@ -124,7 +133,10 @@ describe("output query runner", () => {
     expect(result.rowCounts.summaryRows).toBeGreaterThan(0);
     expect(result.rowCounts.materialRows).toBeGreaterThan(0);
     expect(metrics.stages.map((stage) => stage.name)).toEqual([
-      "build_erp_doc_compare_rows",
+      "build_primary_doc_groups",
+      "build_counterpart_doc_groups",
+      "build_doc_compare_summary_rows",
+      "build_doc_compare_material_rows",
       "build_erp_doc_compare_matrix"
     ]);
     expect(metrics.stages.every((stage) => stage.note === "output=erp_doc_compare")).toBe(true);
@@ -146,7 +158,10 @@ describe("output query runner", () => {
     expect(result.noResultMessage).toBeNull();
     expect(result.rowCounts.summaryRows).toBeGreaterThan(0);
     expect(metrics.stages.map((stage) => stage.name)).toEqual([
-      "build_erp_doc_compare_rows",
+      "build_primary_doc_groups",
+      "build_counterpart_doc_groups",
+      "build_doc_compare_summary_rows",
+      "build_doc_compare_material_rows",
       "build_erp_doc_compare_matrix"
     ]);
   });
