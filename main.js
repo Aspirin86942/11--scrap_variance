@@ -392,12 +392,12 @@ now()}return Date.now()}var USER_NOTIFIED_ERROR_KEY="__scrapVarianceUserNotified
 if(error&&(typeof error==="object"||typeof error==="function")){try{Object.defineProperty(error,USER_NOTIFIED_ERROR_KEY,{value:true,configurable:true})}catch(e){}}
 return error}function isUserNotifiedError(error){if(!error||typeof error!=="object"&&typeof error!=="function"){return false}return error[USER_NOTIFIED_ERROR_KEY]===
 true}function queryFeedbackErrorMessage(error){return error instanceof Error?error.message:String(error)}function formatElapsedMs(value){return Math.max(0,value).
-toFixed(2)}function showUserMessage(root2,message){var _a;const targetRoot=runtimeRoot(root2);if(typeof targetRoot.alert==="function"){targetRoot.alert(message);
-return}if(typeof((_a=targetRoot.console)==null?void 0:_a.error)==="function"){targetRoot.console.error(message)}}function queryStartedAt(root2){return nowMs(runtimeRoot(
-root2))}function notifyQueryCompleted(root2,label,outputSheetName,startedAt){const targetRoot=runtimeRoot(root2);const elapsed=nowMs(targetRoot)-startedAt;showUserMessage(
-targetRoot,`${label}\u5DF2\u5B8C\u6210
+toFixed(2)}function showUserMessage(root2,message,level="error"){var _a,_b;const targetRoot=runtimeRoot(root2);if(typeof targetRoot.alert==="function"){targetRoot.
+alert(message);return}if(level==="info"&&typeof((_a=targetRoot.console)==null?void 0:_a.log)==="function"){targetRoot.console.log(message);return}if(typeof((_b=
+targetRoot.console)==null?void 0:_b.error)==="function"){targetRoot.console.error(message)}}function queryStartedAt(root2){return nowMs(runtimeRoot(root2))}function notifyQueryCompleted(root2,label,outputSheetName,startedAt){
+const targetRoot=runtimeRoot(root2);const elapsed=nowMs(targetRoot)-startedAt;showUserMessage(targetRoot,`${label}\u5DF2\u5B8C\u6210
 \u8017\u65F6\uFF1A${formatElapsedMs(elapsed)} ms
-\u7ED3\u679C\u5DF2\u5199\u5165\uFF1A${outputSheetName}`)}function notifyQueryFailed(root2,label,error,startedAt){const targetRoot=runtimeRoot(root2);const elapsed=nowMs(
+\u7ED3\u679C\u5DF2\u5199\u5165\uFF1A${outputSheetName}`,"info")}function notifyQueryFailed(root2,label,error,startedAt){const targetRoot=runtimeRoot(root2);const elapsed=nowMs(
 targetRoot)-startedAt;showUserMessage(targetRoot,`${label}\u5DF2\u5931\u8D25
 \u8017\u65F6\uFF1A${formatElapsedMs(elapsed)} ms
 \u9519\u8BEF\uFF1A${queryFeedbackErrorMessage(error)}`)}function errorMessage4(error){return error instanceof Error?error.message:String(error)}function matrixWidth3(values){return values.reduce((width,row)=>Math.max(

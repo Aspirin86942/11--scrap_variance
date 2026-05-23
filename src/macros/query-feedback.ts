@@ -36,10 +36,19 @@ export function formatElapsedMs(value: number): string {
   return Math.max(0, value).toFixed(2);
 }
 
-export function showUserMessage(root: ScrapVarianceGlobal | undefined, message: string): void {
+export function showUserMessage(
+  root: ScrapVarianceGlobal | undefined,
+  message: string,
+  level: "info" | "error" = "error"
+): void {
   const targetRoot = runtimeRoot(root);
   if (typeof targetRoot.alert === "function") {
     targetRoot.alert(message);
+    return;
+  }
+
+  if (level === "info" && typeof targetRoot.console?.log === "function") {
+    targetRoot.console.log(message);
     return;
   }
 
@@ -60,7 +69,7 @@ export function notifyQueryCompleted(
 ): void {
   const targetRoot = runtimeRoot(root);
   const elapsed = nowMs(targetRoot) - startedAt;
-  showUserMessage(targetRoot, `${label}已完成\n耗时：${formatElapsedMs(elapsed)} ms\n结果已写入：${outputSheetName}`);
+  showUserMessage(targetRoot, `${label}已完成\n耗时：${formatElapsedMs(elapsed)} ms\n结果已写入：${outputSheetName}`, "info");
 }
 
 export function notifyQueryFailed(

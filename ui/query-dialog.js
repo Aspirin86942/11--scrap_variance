@@ -116,11 +116,23 @@
     return payload && payload.state ? payload.state : null;
   }
 
+  function normalizeSearchText(value) {
+    if (value == null) {
+      return "";
+    }
+    return String(value).trim();
+  }
+
+  function hasOwn(object, key) {
+    return Object.prototype.hasOwnProperty.call(object, key);
+  }
+
   function normalizeSuggestions(input) {
     var normalized = [];
     var seen = {};
     var index;
     var value;
+    var key;
 
     if (candidateSearch && typeof candidateSearch.normalizeStringValues === "function") {
       return candidateSearch.normalizeStringValues(input);
@@ -131,12 +143,13 @@
     }
 
     for (index = 0; index < input.length; index += 1) {
-      if (input[index] == null) {
+      value = normalizeSearchText(input[index]);
+      if (!value) {
         continue;
       }
-      value = String(input[index]).trim();
-      if (value && !seen[value]) {
-        seen[value] = true;
+      key = value.toLowerCase();
+      if (!hasOwn(seen, key)) {
+        seen[key] = true;
         normalized.push(value);
       }
     }
@@ -170,7 +183,7 @@
   }
 
   function getMatchedOptionsFromSource(value, source) {
-    var query = String(value || "").trim();
+    var query = normalizeSearchText(value).toLowerCase();
     var options = source && source.options && typeof source.options.length === "number" ? source.options : [];
     var matched = [];
     var index;
@@ -185,7 +198,7 @@
     }
 
     for (index = 0; index < options.length; index += 1) {
-      if (!query || options[index].indexOf(query) !== -1) {
+      if (!query || normalizeSearchText(options[index]).toLowerCase().indexOf(query) !== -1) {
         matched.push(options[index]);
       }
       if (matched.length >= MAX_VISIBLE_OPTIONS) {

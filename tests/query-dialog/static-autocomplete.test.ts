@@ -393,6 +393,13 @@ describe("static query dialog autocomplete", () => {
     expect(dropdown.children.map((child) => child.textContent)).toEqual(suggestions.slice(0, 30));
   });
 
+  it("keeps local fallback case-insensitive when the shared candidate helper is unavailable", () => {
+    const { hooks } = loadQueryDialog(undefined, { loadCandidateSearch: false });
+
+    expect(hooks.normalizeSuggestions([" ERP单号 ", "erp单号", "OA单号"])).toEqual(["ERP单号", "OA单号"]);
+    expect(hooks.getMatchedOptions("erp", ["ERP单号", "OA单号"])).toEqual(["ERP单号"]);
+  });
+
   it("builds one indexed autocomplete source per attached input and preserves candidate order", () => {
     let buildIndexCalls = 0;
     const candidateSearch: CandidateSearchStub = {
