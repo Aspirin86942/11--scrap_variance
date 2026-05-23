@@ -388,11 +388,14 @@ sheet.Name)===sheetName){return sheet}}return null}function getSheetByName(sheet
 `\u627E\u4E0D\u5230\u5DE5\u4F5C\u8868\uFF1A${sheetName}`)}return sheet}function ensureSheet(sheetName,root2){const existingSheet=findSheetByName(sheetName,root2);
 if(existingSheet){return existingSheet}const sheets=getSheets(getApplication(root2));if(typeof sheets.Add!=="function"){throw new Error("\u5F53\u524D\u5DE5\u4F5C\u7C3F\u4E0D\u652F\u6301\u65B0\u589E\u5DE5\u4F5C\u8868\u3002")}
 const sheet=sheets.Add();sheet.Name=sheetName;return sheet}function nowMs(root2=globalThis){var _a;const timerRoot=root2;if(typeof((_a=timerRoot.performance)==null?void 0:_a.now)==="function"){return timerRoot.performance.
-now()}return Date.now()}function runtimeRoot(root2){return root2!=null?root2:globalThis}function queryFeedbackErrorMessage(error){return error instanceof Error?error.message:String(error)}
-function formatElapsedMs(value){return Math.max(0,value).toFixed(2)}function showUserMessage(root2,message){var _a;const targetRoot=runtimeRoot(root2);if(typeof targetRoot.
-alert==="function"){targetRoot.alert(message);return}if(typeof((_a=targetRoot.console)==null?void 0:_a.error)==="function"){targetRoot.console.error(message)}}function queryStartedAt(root2){
-return nowMs(runtimeRoot(root2))}function notifyQueryCompleted(root2,label,outputSheetName,startedAt){const targetRoot=runtimeRoot(root2);const elapsed=nowMs(targetRoot)-
-startedAt;showUserMessage(targetRoot,`${label}\u5DF2\u5B8C\u6210
+now()}return Date.now()}var USER_NOTIFIED_ERROR_KEY="__scrapVarianceUserNotified";function runtimeRoot(root2){return root2!=null?root2:globalThis}function markUserNotifiedError(error){
+if(error&&(typeof error==="object"||typeof error==="function")){try{Object.defineProperty(error,USER_NOTIFIED_ERROR_KEY,{value:true,configurable:true})}catch(e){}}
+return error}function isUserNotifiedError(error){if(!error||typeof error!=="object"&&typeof error!=="function"){return false}return error[USER_NOTIFIED_ERROR_KEY]===
+true}function queryFeedbackErrorMessage(error){return error instanceof Error?error.message:String(error)}function formatElapsedMs(value){return Math.max(0,value).
+toFixed(2)}function showUserMessage(root2,message){var _a;const targetRoot=runtimeRoot(root2);if(typeof targetRoot.alert==="function"){targetRoot.alert(message);
+return}if(typeof((_a=targetRoot.console)==null?void 0:_a.error)==="function"){targetRoot.console.error(message)}}function queryStartedAt(root2){return nowMs(runtimeRoot(
+root2))}function notifyQueryCompleted(root2,label,outputSheetName,startedAt){const targetRoot=runtimeRoot(root2);const elapsed=nowMs(targetRoot)-startedAt;showUserMessage(
+targetRoot,`${label}\u5DF2\u5B8C\u6210
 \u8017\u65F6\uFF1A${formatElapsedMs(elapsed)} ms
 \u7ED3\u679C\u5DF2\u5199\u5165\uFF1A${outputSheetName}`)}function notifyQueryFailed(root2,label,error,startedAt){const targetRoot=runtimeRoot(root2);const elapsed=nowMs(
 targetRoot)-startedAt;showUserMessage(targetRoot,`${label}\u5DF2\u5931\u8D25
@@ -410,7 +413,7 @@ const startedAt=queryStartedAt(root2);try{const{oaRows,erpRows}=readSourceRows(r
 docNumber,oaRows,erpRows});const sheet=ensureSheet(SHEET_NAMES.documentLookup,root2);const values=result.ok?documentLookupRowsToValues(result.rows,lookupTypeForSelection(
 selection)):[["\u63D0\u793A",result.message]];clearPreviousToolOutput(sheet,"document_lookup");writeOutputWithMetadata(sheet,values);notifyQueryCompleted(root2,
 "\u5355\u53F7\u67E5\u8BE2",SHEET_NAMES.documentLookup,startedAt)}catch(error){try{safeWriteLookupError(root2,error)}catch(writeError){notifyQueryFailed(root2,"\u5355\
-\u53F7\u67E5\u8BE2",writeError,startedAt);throw writeError}notifyQueryFailed(root2,"\u5355\u53F7\u67E5\u8BE2",error,startedAt)}}function startDocumentLookup(root2,reportError,runLookup){
+\u53F7\u67E5\u8BE2",writeError,startedAt);throw markUserNotifiedError(writeError)}notifyQueryFailed(root2,"\u5355\u53F7\u67E5\u8BE2",error,startedAt)}}function startDocumentLookup(root2,reportError,runLookup){
 let suggestions;try{const{oaRows,erpRows}=readSourceRows(root2);suggestions=buildDocumentLookupSuggestions(oaRows,erpRows)}catch(error){safeWriteLookupError(root2,
 error);throw error}const lookupRunner=runLookup!=null?runLookup:(selection=>runDocumentLookupWithSelection(root2,selection));openDocumentLookupDialogAndRun(root2,
 suggestions,lookupRunner,reportError)}function parseFilters(input={}){const source=input!=null?input:{};const filters={company:normalizeText(source.company),dept1:normalizeText(source.dept1),dept2:normalizeText(
@@ -640,8 +643,8 @@ const result=runOutputSheetQueryCore({kind,oaRows,erpRows,queryState,metrics:cre
 kind,kind==="variance_summary"?["legacy_detail"]:[]);writeOutputWithMetadata2(activeSheet,kind,(_b=result.values)!=null?_b:[[(_a=result.noResultMessage)!=null?_a:
 "\u67E5\u8BE2\u6761\u4EF6\u6CA1\u6709\u5339\u914D\u5230\u6570\u636E\u3002"]],queryState);notifyQueryCompleted(root2,"\u67E5\u8BE2",activeSheet.Name,startedAt)}catch(error){
 try{safeWriteCurrentSheetError(activeSheet,kind,errorMessage8(error),queryState)}catch(writeError){notifyQueryFailed(root2,"\u67E5\u8BE2",writeError,startedAt);
-throw writeError}notifyQueryFailed(root2,"\u67E5\u8BE2",error,startedAt)}}function readOutputFilters(sheet){const savedState=readOutputQueryState(sheet);if(!savedState){
-throw new Error("\u5F53\u524D\u8F93\u51FA\u8868\u7F3A\u5C11\u67E5\u8BE2\u6761\u4EF6\u8BB0\u5F55\uFF0C\u8BF7\u5148\u5728\u5F53\u524D\u9875\u91CD\u65B0\u6267\u884C\u67E5\u8BE2\u3002")}
+throw markUserNotifiedError(writeError)}notifyQueryFailed(root2,"\u67E5\u8BE2",error,startedAt)}}function readOutputFilters(sheet){const savedState=readOutputQueryState(
+sheet);if(!savedState){throw new Error("\u5F53\u524D\u8F93\u51FA\u8868\u7F3A\u5C11\u67E5\u8BE2\u6761\u4EF6\u8BB0\u5F55\uFF0C\u8BF7\u5148\u5728\u5F53\u524D\u9875\u91CD\u65B0\u6267\u884C\u67E5\u8BE2\u3002")}
 return parseFilters(savedState)}function readCellText(sheet,row,column){var _a,_b;const range=sheet.Range(`${column}${row}`);const matrix=normalizeMatrix((_a=range.
 Value2)!=null?_a:range.Value);return normalizeText((_b=matrix[0])==null?void 0:_b[0])}function countMaterialRowsBelow(sheet,summaryRowNumber){let count=0;for(let row=summaryRowNumber+
 1;row<summaryRowNumber+1e5;row+=1){if(readCellText(sheet,row,"A")!=="\u7269\u6599"){break}count+=1}return count}function readOutputRangeValues(sheet,startRow,rowCount,columnCount){
@@ -766,10 +769,10 @@ clearInterval(timer);clearDialogResult(root2);clearDialogInitialState(root2,toke
 ct"&&value!==null}function getControlId(control){var _a,_b;if(!isRecord2(control)){return""}return normalizeText((_b=(_a=control.Id)!=null?_a:control.id)!=null?
 _b:control.ID)}function createRibbonHandlers(dependencies){var _a;const root2=(_a=dependencies.root)!=null?_a:globalThis;return{OnAddinLoad(ribbonUi){root2.ScrapVarianceRibbonUi=
 ribbonUi},OnAction(control){try{const controlId=getControlId(control);const result=getButtonAction(dependencies.buttonActions,controlId).run();if(isPromiseLike(
-result)){void result.then(void 0,dependencies.reportError)}}catch(error){dependencies.reportError(error)}}}}function reportRuntimeError(error){var _a;const root2=globalThis;const message=error instanceof Error?error.message:String(error);if(typeof root2.alert==="funct\
-ion"){root2.alert(message);return}if(typeof((_a=root2.console)==null?void 0:_a.error)==="function"){root2.console.error(message)}}function createDefaultButtonActions(root2){
-return createButtonActions({runPrecheck:()=>runScrapVariancePrecheck(root2),setupOutputSheets:()=>setupOutputSheets(root2),queryCurrentSheet:()=>openQueryDialogAndRun(
-root2,state=>runCurrentSheetQueryWithState(root2,state),reportRuntimeError),lookupDocument:()=>startDocumentLookup(root2,reportRuntimeError),toggleMaterialRows:()=>toggleMaterialRows(
-root2),runDiagnostics:()=>runPerformanceDiagnostics(root2)})}function createWpsRibbon(root2,buttonActions2){return createRibbonHandlers({root:root2,buttonActions:buttonActions2,
-reportError:reportRuntimeError})}var root=globalThis;var buttonActions=createDefaultButtonActions(root);root.buttonActions=buttonActions;root.ribbon=createWpsRibbon(root,buttonActions);root.__WPS_RUN_ALL_BUTTON_TESTS__=
+result)){void result.then(void 0,dependencies.reportError)}}catch(error){dependencies.reportError(error)}}}}function reportRuntimeError(error){var _a;if(isUserNotifiedError(error)){return}const root2=globalThis;const message=error instanceof Error?error.message:String(
+error);if(typeof root2.alert==="function"){root2.alert(message);return}if(typeof((_a=root2.console)==null?void 0:_a.error)==="function"){root2.console.error(message)}}
+function createDefaultButtonActions(root2){return createButtonActions({runPrecheck:()=>runScrapVariancePrecheck(root2),setupOutputSheets:()=>setupOutputSheets(root2),
+queryCurrentSheet:()=>openQueryDialogAndRun(root2,state=>runCurrentSheetQueryWithState(root2,state),reportRuntimeError),lookupDocument:()=>startDocumentLookup(root2,
+reportRuntimeError),toggleMaterialRows:()=>toggleMaterialRows(root2),runDiagnostics:()=>runPerformanceDiagnostics(root2)})}function createWpsRibbon(root2,buttonActions2){
+return createRibbonHandlers({root:root2,buttonActions:buttonActions2,reportError:reportRuntimeError})}var root=globalThis;var buttonActions=createDefaultButtonActions(root);root.buttonActions=buttonActions;root.ribbon=createWpsRibbon(root,buttonActions);root.__WPS_RUN_ALL_BUTTON_TESTS__=
 ()=>runAllButtonActionTests(buttonActions);})();

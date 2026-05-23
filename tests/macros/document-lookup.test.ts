@@ -291,6 +291,29 @@ describe("document lookup macro", () => {
     );
   });
 
+  it("alerts once and rethrows when writing the document lookup error row fails", () => {
+    const resultSheet = createFakeSheet(SHEET_NAMES.documentLookup);
+    resultSheet.rangeValues.set("CB1:CC1", [["document_lookup", "A1:Z9"]]);
+    resultSheet.failWriteAddresses.add("A1:B1");
+    const root = makeTimedRoot(
+      [
+        makeOaSheet([["OA-001", "ERP-778", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", "坏数量", 100]]),
+        makeErpSheet(),
+        resultSheet
+      ],
+      [10, 32.35]
+    );
+
+    expect(() => runDocumentLookupWithSelection(root, { mode: "oa_form_number", docNumber: "OA-001" })).toThrow(
+      /单号查询失败：.*数量数值格式不正确.*错误信息写入也失败/
+    );
+
+    expect(root.alert).toHaveBeenCalledTimes(1);
+    expect(root.alert).toHaveBeenCalledWith(
+      expect.stringMatching(/^单号查询已失败\n耗时：22\.35 ms\n错误：单号查询失败：.*错误信息写入也失败/)
+    );
+  });
+
   it("opens the dialog with source-derived suggestions", () => {
     vi.useFakeTimers();
     const root = makeRoot([makeOaSheet(), makeErpSheet()]);

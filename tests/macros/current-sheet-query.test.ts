@@ -343,6 +343,51 @@ describe("current sheet query macro", () => {
     );
   });
 
+  it("runCurrentSheetQueryWithState alerts once and rethrows when writing the error row fails", () => {
+    const erpSheet = makeErpSheet();
+    const summarySheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeTimedRoot([erpSheet, summarySheet, oaCompareSheet, erpCompareSheet], [10, 32.35]);
+    oaCompareSheet.failWriteAddresses.add("A1:B1");
+    setActiveSheet(root, oaCompareSheet);
+
+    expect(() =>
+      runCurrentSheetQueryWithState(root, {
+        company: "数控",
+        dept1: "生产",
+        dept2: "仓储",
+        startDate: "2026/5/1",
+        endDate: "2026/5/31",
+        queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+      })
+    ).toThrow(/查询执行失败：找不到工作表：.*错误信息写入也失败/);
+
+    expect(root.alert).toHaveBeenCalledTimes(1);
+    expect(root.alert).toHaveBeenCalledWith(
+      expect.stringMatching(/^查询已失败\n耗时：22\.35 ms\n错误：查询执行失败：.*错误信息写入也失败/)
+    );
+  });
+
+  it("runCurrentSheetQuery legacy entry rethrows a notified write error instead of writing it again", () => {
+    const erpSheet = makeErpSheet();
+    const summarySheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeTimedRoot([erpSheet, summarySheet, oaCompareSheet, erpCompareSheet], [10, 32.35]);
+    oaCompareSheet.failWriteAddresses.add("A1:B1");
+    root.alert.mockImplementation(() => {
+      // 模拟第一次错误行写入失败后，第二次如果旧入口重试会成功，从而暴露吞错问题。
+      oaCompareSheet.failWriteAddresses.delete("A1:B1");
+    });
+    setActiveSheet(root, oaCompareSheet);
+
+    expect(() => runCurrentSheetQuery(root)).toThrow(/查询执行失败：找不到工作表：.*错误信息写入也失败/);
+
+    expect(root.alert).toHaveBeenCalledTimes(1);
+    expect(visibleWrites(oaCompareSheet)).toEqual([]);
+  });
+
   it("runCurrentSheetQueryWithState writes OA perspective variance summary for the active summary sheet", () => {
     const oaSheet = makeOaSheet([
       validOaRow(),

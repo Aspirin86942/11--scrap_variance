@@ -35,7 +35,13 @@ import { rangeAddress, writeMatrixBulkOrChunks } from "../wps-api/write-results"
 import { normalizeMatrix } from "../utils/matrix";
 import { normalizeText } from "../utils/text";
 import { setupOutputSheets } from "./output-sheets";
-import { notifyQueryCompleted, notifyQueryFailed, queryStartedAt } from "./query-feedback";
+import {
+  isUserNotifiedError,
+  markUserNotifiedError,
+  notifyQueryCompleted,
+  notifyQueryFailed,
+  queryStartedAt
+} from "./query-feedback";
 
 interface SourceRows {
   oaRows: RawRow[];
@@ -133,6 +139,9 @@ export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
     // 旧入口没有显式传状态时，仍从功能区全局状态读取，保持兼容。
     runCurrentSheetQueryWithState(root, queryStateFromRibbonForOutputKind(root, kind));
   } catch (error) {
+    if (isUserNotifiedError(error)) {
+      throw error;
+    }
     safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error));
   }
 }
@@ -166,7 +175,7 @@ export function runCurrentSheetQueryWithState(root: ScrapVarianceGlobal | undefi
       safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error), queryState);
     } catch (writeError) {
       notifyQueryFailed(root, "查询", writeError, startedAt);
-      throw writeError;
+      throw markUserNotifiedError(writeError);
     }
     notifyQueryFailed(root, "查询", error, startedAt);
   }

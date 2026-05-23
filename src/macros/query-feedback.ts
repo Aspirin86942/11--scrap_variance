@@ -1,8 +1,31 @@
 import { nowMs } from "../perf/timer";
 import type { ScrapVarianceGlobal } from "../types/wps";
 
+const USER_NOTIFIED_ERROR_KEY = "__scrapVarianceUserNotified";
+
 function runtimeRoot(root: ScrapVarianceGlobal | undefined): ScrapVarianceGlobal {
   return root ?? (globalThis as unknown as ScrapVarianceGlobal);
+}
+
+export function markUserNotifiedError(error: unknown): unknown {
+  if (error && (typeof error === "object" || typeof error === "function")) {
+    try {
+      Object.defineProperty(error, USER_NOTIFIED_ERROR_KEY, {
+        value: true,
+        configurable: true
+      });
+    } catch {
+      // 标记失败不能影响原始错误传播，外层最多按普通错误再提示一次。
+    }
+  }
+  return error;
+}
+
+export function isUserNotifiedError(error: unknown): boolean {
+  if (!error || (typeof error !== "object" && typeof error !== "function")) {
+    return false;
+  }
+  return (error as Record<string, unknown>)[USER_NOTIFIED_ERROR_KEY] === true;
 }
 
 export function queryFeedbackErrorMessage(error: unknown): string {

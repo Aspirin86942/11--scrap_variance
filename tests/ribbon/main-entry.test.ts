@@ -199,6 +199,23 @@ describe("WPS ribbon entrypoint", () => {
     expect(root.console.error).not.toHaveBeenCalled();
   });
 
+  it("reportRuntimeError skips errors that already notified the user", () => {
+    const alert = vi.fn();
+    const consoleError = vi.fn();
+    const error = new Error("already notified");
+    Object.defineProperty(error, "__scrapVarianceUserNotified", {
+      value: true,
+      configurable: true
+    });
+    root.alert = alert;
+    root.console = { error: consoleError, log: vi.fn() };
+
+    reportRuntimeError(error);
+
+    expect(alert).not.toHaveBeenCalled();
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
   it("reportRuntimeError falls back to console.error when alert is absent or not callable", () => {
     const consoleError = vi.fn();
     (root as { alert: unknown }).alert = "not callable";

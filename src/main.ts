@@ -3,12 +3,17 @@ import { startDocumentLookup } from "./macros/document-lookup";
 import { runPerformanceDiagnostics } from "./macros/performance-diagnostics";
 import { runCurrentSheetQueryWithState, toggleMaterialRows } from "./macros/current-sheet-query";
 import { setupOutputSheets } from "./macros/output-sheets";
+import { isUserNotifiedError } from "./macros/query-feedback";
 import { runScrapVariancePrecheck } from "./macros/scrap-variance-precheck";
 import { openQueryDialogAndRun } from "./query-dialog/open-query-dialog";
 import { createRibbonHandlers } from "./ribbon/handlers";
 import type { ScrapVarianceGlobal } from "./types/wps";
 
 export function reportRuntimeError(error: unknown): void {
+  if (isUserNotifiedError(error)) {
+    return;
+  }
+
   const root = globalThis as ScrapVarianceGlobal;
   const message = error instanceof Error ? error.message : String(error);
 
