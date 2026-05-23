@@ -1,5 +1,5 @@
 import { parseQueryDirection } from "../core/query-direction";
-import type { LegacyOutputSheetKind, OutputMetadataKind, OutputSheetKind, RibbonQueryState } from "../types/scrap";
+import type { LegacyOutputSheetKind, OutputMetadataKind, RibbonQueryState } from "../types/scrap";
 import type { WpsCellValue, WpsSheet } from "../types/wps";
 import { normalizeDateKey } from "../utils/date";
 import { normalizeMatrix } from "../utils/matrix";
@@ -15,7 +15,8 @@ const VALID_OUTPUT_KINDS = new Set<OutputMetadataKind>([
   "variance_summary",
   "legacy_detail",
   "oa_doc_compare",
-  "erp_doc_compare"
+  "erp_doc_compare",
+  "document_lookup"
 ]);
 const A1_RECTANGLE_ADDRESS_PATTERN = /^([A-Z]+)([1-9]\d*):([A-Z]+)([1-9]\d*)$/i;
 
@@ -136,7 +137,7 @@ export function readOutputQueryState(sheet: WpsSheet): RibbonQueryState | null {
 
 export function clearPreviousToolOutput(
   sheet: WpsSheet,
-  expectedKind: OutputSheetKind,
+  expectedKind: OutputMetadataKind,
   compatibleLegacyKinds: LegacyOutputSheetKind[] = []
 ): void {
   const metadata = readOutputMetadata(sheet);

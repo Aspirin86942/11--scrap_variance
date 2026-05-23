@@ -27,6 +27,23 @@ describe("output metadata", () => {
     expect(readOutputMetadata(sheet)).toEqual({ kind: "variance_summary", rangeAddress: "A1:O3" });
   });
 
+  it("stores and reads document lookup metadata", () => {
+    const sheet = createFakeSheet("单号查询结果");
+
+    saveOutputMetadata(sheet, { kind: "document_lookup", rangeAddress: "A1:Z4" });
+
+    expect(readOutputMetadata(sheet)).toEqual({ kind: "document_lookup", rangeAddress: "A1:Z4" });
+  });
+
+  it("clears document lookup output by metadata range", () => {
+    const sheet = createFakeSheet("单号查询结果");
+    saveOutputMetadata(sheet, { kind: "document_lookup", rangeAddress: "A1:Z4" });
+
+    clearPreviousToolOutput(sheet, "document_lookup");
+
+    expect(sheet.clears).toEqual(["A1:Z4"]);
+  });
+
   it("clears only the metadata range", () => {
     const sheet = createFakeSheet("OA视角单据对比");
     saveOutputMetadata(sheet, { kind: "oa_doc_compare", rangeAddress: "A1:P3" });

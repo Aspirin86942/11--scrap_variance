@@ -18,6 +18,7 @@ describe("output sheet detection", () => {
     expect(detectOutputSheetKind(SHEET_NAMES.erp)).toBeNull();
     expect(detectOutputSheetKind(SHEET_NAMES.performanceDiagnostics)).toBeNull();
     expect(detectOutputSheetKind(SHEET_NAMES.legacyDetailOutput)).toBeNull();
+    expect(detectOutputSheetKind(SHEET_NAMES.documentLookup)).toBeNull();
     expect(detectOutputSheetKind("Sheet1")).toBeNull();
   });
 

@@ -6,6 +6,7 @@ export const SHEET_NAMES = {
   legacyDetailOutput: "报废差异明细",
   oaDocCompare: "OA视角单据对比",
   erpDocCompare: "ERP视角单据对比",
+  documentLookup: "单号查询结果",
   precheckResult: "预验证结果",
   performanceDiagnostics: "性能诊断结果"
 } as const;
@@ -129,6 +130,35 @@ export const ERP_DOC_COMPARE_HEADERS = [
   "金额差额",
   "物料编码",
   "物料名称",
+  "备注"
+] as const;
+
+export const DOCUMENT_LOOKUP_HEADERS = [
+  "行类型",
+  "查询类型",
+  "命中单号",
+  "OA表单编号",
+  "OA记录的ERP单号",
+  "OA申请日期",
+  "OA公司简称",
+  "OA一级部门",
+  "OA二级部门",
+  "OA物料编码",
+  "OA物料名称",
+  "OA数量",
+  "OA金额",
+  "ERP单据编号",
+  "ERP记录的OA单号",
+  "ERP日期",
+  "ERP公司简称",
+  "ERP一级部门",
+  "ERP二级部门",
+  "ERP物料编码",
+  "ERP物料名称",
+  "ERP数量",
+  "ERP金额",
+  "数量差额",
+  "金额差额",
   "备注"
 ] as const;
 
