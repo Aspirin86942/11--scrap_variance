@@ -75,6 +75,13 @@
     }
   }
 
+  function normalizeSearchText(value) {
+    if (value === null || value === undefined) {
+      return "";
+    }
+    return String(value).replace(/^\s+|\s+$/g, "").toLowerCase();
+  }
+
   function normalizeSuggestion(item) {
     var label;
     var docNumber;
@@ -173,11 +180,12 @@
   }
 
   function getMatchedSuggestionsFromSource(value, source) {
-    var query = String(value || "").trim();
+    var query = normalizeSearchText(value);
     var options = source && source.options && typeof source.options.length === "number" ? source.options : [];
     var matched = [];
     var index;
     var suggestion;
+    var docNumber;
 
     if (
       source &&
@@ -190,9 +198,10 @@
 
     for (index = 0; index < options.length; index += 1) {
       suggestion = options[index];
+      docNumber = normalizeSearchText(suggestion.docNumber);
       if (
         !query ||
-        suggestion.docNumber.indexOf(query) !== -1
+        docNumber.indexOf(query) !== -1
       ) {
         matched.push(suggestion);
       }

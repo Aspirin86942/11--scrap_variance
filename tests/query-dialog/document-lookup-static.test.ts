@@ -310,6 +310,18 @@ describe("static document lookup dialog", () => {
     expect(hooks.getMatchedSuggestions("ERP-002", oaSuggestions)).toEqual([]);
   });
 
+  it("matches doc numbers case-insensitively through the shared search helper without matching labels", () => {
+    const { hooks } = loadDocumentLookupDialog();
+    const oaSuggestions = [
+      { label: "辅助信息里包含 oa-001", docNumber: "ERP-999" },
+      { label: "OA 报废申请", docNumber: "OA-001" }
+    ];
+
+    expect(hooks.getMatchedSuggestions("oa-001", oaSuggestions)).toEqual([
+      { label: "OA 报废申请", docNumber: "OA-001" }
+    ]);
+  });
+
   it("falls back to docNumber-only matching when the shared search helper is unavailable", () => {
     const { hooks } = loadDocumentLookupDialog(undefined, { loadCandidateSearch: false });
     const oaSuggestions = [
@@ -321,6 +333,18 @@ describe("static document lookup dialog", () => {
     expect(hooks.getMatchedSuggestions("2026-05-01", oaSuggestions)).toEqual([]);
     expect(hooks.getMatchedSuggestions("数控", oaSuggestions)).toEqual([]);
     expect(hooks.getMatchedSuggestions("ERP-002", oaSuggestions)).toEqual([]);
+  });
+
+  it("matches doc numbers case-insensitively in fallback without matching labels", () => {
+    const { hooks } = loadDocumentLookupDialog(undefined, { loadCandidateSearch: false });
+    const oaSuggestions = [
+      { label: "辅助信息里包含 oa-001", docNumber: "ERP-999" },
+      { label: "OA 报废申请", docNumber: "OA-001" }
+    ];
+
+    expect(hooks.getMatchedSuggestions("oa-001", oaSuggestions)).toEqual([
+      { label: "OA 报废申请", docNumber: "OA-001" }
+    ]);
   });
 
   it("keeps the original candidate order and caps empty-query results at 30", () => {
