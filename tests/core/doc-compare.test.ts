@@ -214,6 +214,33 @@ describe("document compare core", () => {
     ]);
   });
 
+  it("keeps summary item row copies isolated from visible compare output rows", () => {
+    const filters = parseFilters({
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026-05-01",
+      endDate: "2026-05-31"
+    });
+
+    const result = buildOaDocCompare(sampleOaRows(), sampleErpRows(), filters);
+    const summaryRow = result.summaryRows[0];
+    const item = result.summaryItems[0];
+    if (!summaryRow || !item) {
+      throw new Error("missing summary item");
+    }
+    const summaryBefore = { ...summaryRow };
+    const materialRowsBefore = buildMaterialRowsForDocSummary(result, summaryRow).map((row) => ({ ...row }));
+
+    item.row.primaryQuantity = 999;
+    item.row.remark = "mutated";
+    item.materialRows[0].primaryQuantity = 888;
+    item.materialRows.splice(0, 1);
+
+    expect(result.summaryRows[0]).toEqual(summaryBefore);
+    expect(buildMaterialRowsForDocSummary(result, result.summaryRows[0])).toEqual(materialRowsBefore);
+  });
+
   it("rounds metadata diffs after subtracting raw totals to match displayed compare rows", () => {
     const oaRows: RawRow[] = [
       {

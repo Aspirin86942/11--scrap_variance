@@ -367,6 +367,10 @@ function hasMaterialShapeMismatch(materialRows: DocCompareRow[]): boolean {
   );
 }
 
+function copyDocCompareRow(row: DocCompareRow): DocCompareRow {
+  return { ...row };
+}
+
 function buildSummaryMeta(primary: DocAccumulator, counterpart: Pick<MatchedCounterpart, "quantity" | "amount">): DocCompareSummaryMeta {
   const primaryQuantity = decimalToDecimal2(primary.quantity);
   const primaryAmount = decimalToDecimal2(primary.amount);
@@ -407,8 +411,8 @@ function buildDocCompareResult(
     materialRowsBySummaryKey.set(summaryKey, materialRows);
     summaryItems.push({
       summaryKey,
-      row: summaryRow,
-      materialRows,
+      row: copyDocCompareRow(summaryRow),
+      materialRows: materialRows.map(copyDocCompareRow),
       meta
     });
   }
