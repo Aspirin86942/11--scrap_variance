@@ -9,18 +9,27 @@ import {
   SHEET_NAMES,
   WRITE_CHUNK_ROWS
 } from "../constants";
-import { runQueryCorePipeline } from "../core/query-pipeline";
+import {
+  runOutputSheetQueryCore,
+  type OutputQueryRunnerResult,
+  type RunnableOutputSheetKind
+} from "../core/output-query-runner";
 import { parseTableFromMatrix } from "../core/table-parser";
 import { createMetricsRecorder, type StageMetric } from "../perf/metrics";
 import { probeRuntimeCapabilities, type RuntimeCapability } from "../perf/runtime-probe";
 import { getRibbonState, readRibbonFilters } from "../ribbon/state";
-import type { OutputMatrix } from "../types/scrap";
+import type { OutputMatrix, QueryFilters, RibbonQueryState } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
 import { readSheetMatrixOptimized, type SheetReadDiagnostics } from "../wps-api/read-sheet-data";
 import { ensureSheet, getSheetByName } from "../wps-api/workbook";
 import { clearDiagnosticsOutput, writeMatrixBulkOrChunks } from "../wps-api/write-results";
 
 const MAX_DIAGNOSTICS_NOTE_LENGTH = 200;
+const DIAGNOSTIC_OUTPUT_KINDS: RunnableOutputSheetKind[] = [
+  "variance_summary",
+  "oa_doc_compare",
+  "erp_doc_compare"
+];
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -106,6 +115,42 @@ function readDiagnosticsRows(source: "oa" | "erp", diagnostics: SheetReadDiagnos
   ];
 }
 
+function resultRowNote(result: OutputQueryRunnerResult): string {
+  const counts = result.rowCounts;
+  const parts = [
+    `output=${result.kind}`,
+    `sourceRows=${counts.sourceRows}`,
+    `summaryRows=${counts.summaryRows}`
+  ];
+  if (result.kind !== "variance_summary") {
+    parts.push(`materialRows=${counts.materialRows}`);
+  }
+  parts.push(`outputRows=${counts.outputRows}`);
+  return parts.join("；");
+}
+
+function outputResultRows(results: OutputQueryRunnerResult[]): OutputMatrix {
+  return results.map((result) => [
+    "结果规模",
+    "result_rows",
+    result.rowCounts.sourceRows,
+    result.rowCounts.outputRows,
+    NOT_APPLICABLE,
+    NOT_APPLICABLE,
+    resultRowNote(result)
+  ]);
+}
+
+function queryStateFromDiagnosticsInput(
+  filters: QueryFilters,
+  queryDirection: RibbonQueryState["queryDirection"]
+): RibbonQueryState {
+  return {
+    ...filters,
+    queryDirection
+  };
+}
+
 function writeDiagnosticsRows(sheet: WpsSheet, rows: OutputMatrix): void {
   clearDiagnosticsOutput(sheet);
   writeMatrixBulkOrChunks(sheet, 1, 1, rows, WRITE_CHUNK_ROWS);
@@ -136,7 +181,7 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
     const oaSheet = getSheetByName(SHEET_NAMES.oa, root);
     const erpSheet = getSheetByName(SHEET_NAMES.erp, root);
 
-    // 诊断流程复用正式查询的读表和核心 pipeline，输出的耗时才和真实查询路径一致。
+    // 诊断只读取和解析一次源表，然后分别跑三张输出页的纯查询路径，不写业务输出页。
     const queryInput = metrics.measure("read_filters", { inputRows: 6, outputRows: 6 }, () => ({
       filters: readRibbonFilters(root),
       queryDirection: getRibbonState(root).queryDirection
@@ -168,12 +213,15 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
         })
     );
 
-    const result = runQueryCorePipeline(
-      oaTable.rows,
-      erpTable.rows,
-      queryInput.filters,
-      metrics,
-      queryInput.queryDirection
+    const queryState = queryStateFromDiagnosticsInput(queryInput.filters, queryInput.queryDirection);
+    const outputResults = DIAGNOSTIC_OUTPUT_KINDS.map((kind) =>
+      runOutputSheetQueryCore({
+        kind,
+        oaRows: oaTable.rows,
+        erpRows: erpTable.rows,
+        queryState,
+        metrics
+      })
     );
     const rows: OutputMatrix = [
       [...DIAGNOSTICS_HEADERS],
@@ -181,15 +229,7 @@ export function runPerformanceDiagnostics(root?: ScrapVarianceGlobal): void {
       ...readDiagnosticsRows("oa", oaSource.diagnostics),
       ...readDiagnosticsRows("erp", erpSource.diagnostics),
       ...metricRows(metrics.stages),
-      [
-        "结果规模",
-        "result_rows",
-        oaTable.rows.length + erpTable.rows.length,
-        result.detailRows.length + result.summaryRows.length,
-        NOT_APPLICABLE,
-        NOT_APPLICABLE,
-        `OA聚合=${result.oaGroupedRows.size}；ERP匹配聚合=${result.erpRowsForOa.size}；ERP-only聚合=${result.erpOnlyRows.size}`
-      ]
+      ...outputResultRows(outputResults)
     ];
 
     const writeStageRow = rows.length + 1;

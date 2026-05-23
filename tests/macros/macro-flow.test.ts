@@ -54,6 +54,10 @@ function flattenWrites(sheet: FakeSheet): string[] {
   );
 }
 
+function diagnosticsResultRows(rows: OutputMatrix): OutputMatrix {
+  return rows.filter((row) => row[0] === "结果规模" && row[1] === "result_rows");
+}
+
 function precheckIssueRows(sheet: FakeSheet): OutputMatrix {
   const issueWrite = sheet.writes.find((write) => write.address === "A4:H5");
   if (!issueWrite || !Array.isArray(issueWrite.value)) {
@@ -350,7 +354,13 @@ describe("TypeScript macro orchestration", () => {
     expect(output).toContain("oa_used_range");
     expect(output).toContain("erp_read_strategy");
     expect(output.some((value) => value.startsWith("grouped_ranges；列组="))).toBe(true);
-    expect(output).toContain("build_output_matrix");
+    expect(output).toContain("build_variance_summary_rows");
+    expect(output).toContain("build_variance_summary_matrix");
+    expect(output).toContain("build_oa_doc_compare_rows");
+    expect(output).toContain("build_oa_doc_compare_matrix");
+    expect(output).toContain("build_erp_doc_compare_rows");
+    expect(output).toContain("build_erp_doc_compare_matrix");
+    expect(output).not.toContain("build_output_matrix");
     expect(output).toContain("write_diagnostics_sheet");
     expect(output).toContain("performance.now");
 
@@ -371,14 +381,17 @@ describe("TypeScript macro orchestration", () => {
       "支持"
     ]);
     expect(initialRows.some((row) => row[0] === "运行时能力" && row[1] === "memory_api")).toBe(true);
-    expect(initialRows).toContainEqual([
-      "结果规模",
-      "result_rows",
-      2,
-      2,
-      "不适用",
-      "不适用",
-      "OA聚合=1；ERP匹配聚合=1；ERP-only聚合=0"
+    const resultRows = diagnosticsResultRows(initialRows);
+    expect(resultRows).toHaveLength(3);
+    expect(resultRows.map((row) => row.slice(2, 6))).toEqual([
+      [2, 2, "不适用", "不适用"],
+      [2, 2, "不适用", "不适用"],
+      [2, 2, "不适用", "不适用"]
+    ]);
+    expect(resultRows.map((row) => row[6])).toEqual([
+      "output=variance_summary；sourceRows=2；summaryRows=1；outputRows=2",
+      "output=oa_doc_compare；sourceRows=2；summaryRows=1；materialRows=1；outputRows=2",
+      "output=erp_doc_compare；sourceRows=2；summaryRows=1；materialRows=1；outputRows=2"
     ]);
     const initialRowCount = (initialWrite.value as OutputMatrix).length;
     expect(initialWrite.address).toBe(`A1:G${initialRowCount}`);
@@ -490,20 +503,24 @@ describe("TypeScript macro orchestration", () => {
     const initialRows = initialWrite.value as OutputMatrix;
     const readFiltersRow = initialRows.find((row) => row[0] === "阶段耗时" && row[1] === "read_filters");
 
-    expect(output).toContain("build_erp_rows_by_erp_filters");
+    expect(output).toContain("build_variance_summary_rows");
+    expect(output).toContain("build_variance_summary_matrix");
+    expect(output).toContain("build_oa_doc_compare_rows");
+    expect(output).toContain("build_oa_doc_compare_matrix");
+    expect(output).toContain("build_erp_doc_compare_rows");
+    expect(output).toContain("build_erp_doc_compare_matrix");
+    expect(output).not.toContain("build_erp_rows_by_erp_filters");
     expect(output).not.toContain("build_erp_rows_for_oa");
     expect(output).toContain("read_oa_source_table");
     expect(output).toContain("read_erp_source_table");
     expect(readFiltersRow?.[2]).toBe(6);
     expect(readFiltersRow?.[3]).toBe(6);
-    expect(initialRows).toContainEqual([
-      "结果规模",
-      "result_rows",
-      2,
-      2,
-      "不适用",
-      "不适用",
-      "OA聚合=1；ERP匹配聚合=1；ERP-only聚合=0"
+    const resultRows = diagnosticsResultRows(initialRows);
+    expect(resultRows).toHaveLength(3);
+    expect(resultRows.map((row) => row[6])).toEqual([
+      "output=variance_summary；sourceRows=2；summaryRows=1；outputRows=2",
+      "output=oa_doc_compare；sourceRows=2；summaryRows=0；materialRows=0；outputRows=1",
+      "output=erp_doc_compare；sourceRows=2；summaryRows=1；materialRows=1；outputRows=2"
     ]);
   });
 
