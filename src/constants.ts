@@ -133,7 +133,7 @@ export const ERP_DOC_COMPARE_HEADERS = [
   "备注"
 ] as const;
 
-export const DOCUMENT_LOOKUP_HEADERS = [
+export const DOCUMENT_LOOKUP_OA_LEFT_HEADERS = [
   "行类型",
   "查询类型",
   "命中单号",
@@ -161,6 +161,37 @@ export const DOCUMENT_LOOKUP_HEADERS = [
   "金额差额",
   "备注"
 ] as const;
+
+export const DOCUMENT_LOOKUP_ERP_LEFT_HEADERS = [
+  "行类型",
+  "查询类型",
+  "命中单号",
+  "ERP单据编号",
+  "ERP记录的OA单号",
+  "ERP日期",
+  "ERP公司简称",
+  "ERP一级部门",
+  "ERP二级部门",
+  "ERP物料编码",
+  "ERP物料名称",
+  "ERP数量",
+  "ERP金额",
+  "OA表单编号",
+  "OA记录的ERP单号",
+  "OA申请日期",
+  "OA公司简称",
+  "OA一级部门",
+  "OA二级部门",
+  "OA物料编码",
+  "OA物料名称",
+  "OA数量",
+  "OA金额",
+  "数量差额",
+  "金额差额",
+  "备注"
+] as const;
+
+export const DOCUMENT_LOOKUP_HEADERS = DOCUMENT_LOOKUP_OA_LEFT_HEADERS;
 
 // 预验证输出给业务用户直接修数据，所以字段要包含定位、原因和处理建议。
 export const PRECHECK_HEADERS = [

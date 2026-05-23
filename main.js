@@ -16,11 +16,16 @@ var ERP_REQUIRED_HEADERS=["\u5355\u636E\u7F16\u53F7","\u65E5\u671F","\u6E90\u535
 OA\u5355\u636E\u53F7","OA\u6570\u91CF","OA\u91D1\u989D","ERP\u5355\u636E\u53F7","ERP\u6570\u91CF","ERP\u91D1\u989D","\u6570\u91CF\u5DEE\u989D","\u91D1\u989D\u5DEE\u989D",
 "\u7269\u6599\u7F16\u7801","\u7269\u6599\u540D\u79F0","\u5907\u6CE8"];var ERP_DOC_COMPARE_HEADERS=["\u884C\u7C7B\u578B","\u516C\u53F8\u7B80\u79F0","\u4E00\u7EA7\u90E8\u95E8",
 "\u4E8C\u7EA7\u90E8\u95E8","ERP\u65E5\u671F","ERP\u5355\u636E\u53F7","ERP\u6570\u91CF","ERP\u91D1\u989D","OA\u5355\u636E\u53F7","OA\u6570\u91CF","OA\u91D1\u989D",
-"\u6570\u91CF\u5DEE\u989D","\u91D1\u989D\u5DEE\u989D","\u7269\u6599\u7F16\u7801","\u7269\u6599\u540D\u79F0","\u5907\u6CE8"];var DOCUMENT_LOOKUP_HEADERS=["\u884C\u7C7B\u578B",
-"\u67E5\u8BE2\u7C7B\u578B","\u547D\u4E2D\u5355\u53F7","OA\u8868\u5355\u7F16\u53F7","OA\u8BB0\u5F55\u7684ERP\u5355\u53F7","OA\u7533\u8BF7\u65E5\u671F","OA\u516C\u53F8\u7B80\u79F0",
-"OA\u4E00\u7EA7\u90E8\u95E8","OA\u4E8C\u7EA7\u90E8\u95E8","OA\u7269\u6599\u7F16\u7801","OA\u7269\u6599\u540D\u79F0","OA\u6570\u91CF","OA\u91D1\u989D","ERP\u5355\u636E\u7F16\u53F7",
-"ERP\u8BB0\u5F55\u7684OA\u5355\u53F7","ERP\u65E5\u671F","ERP\u516C\u53F8\u7B80\u79F0","ERP\u4E00\u7EA7\u90E8\u95E8","ERP\u4E8C\u7EA7\u90E8\u95E8","ERP\u7269\u6599\u7F16\u7801",
-"ERP\u7269\u6599\u540D\u79F0","ERP\u6570\u91CF","ERP\u91D1\u989D","\u6570\u91CF\u5DEE\u989D","\u91D1\u989D\u5DEE\u989D","\u5907\u6CE8"];var DIAGNOSTICS_HEADERS=["\u7C7B\u522B","\u9636\u6BB5","\u8F93\u5165\u884C\u6570","\u8F93\u51FA\u884C\u6570","\u8017\u65F6ms","\u5185\u5B58MB","\u8BF4\u660E"];var NOT_APPLICABLE="\
+"\u6570\u91CF\u5DEE\u989D","\u91D1\u989D\u5DEE\u989D","\u7269\u6599\u7F16\u7801","\u7269\u6599\u540D\u79F0","\u5907\u6CE8"];var DOCUMENT_LOOKUP_OA_LEFT_HEADERS=[
+"\u884C\u7C7B\u578B","\u67E5\u8BE2\u7C7B\u578B","\u547D\u4E2D\u5355\u53F7","OA\u8868\u5355\u7F16\u53F7","OA\u8BB0\u5F55\u7684ERP\u5355\u53F7","OA\u7533\u8BF7\u65E5\u671F",
+"OA\u516C\u53F8\u7B80\u79F0","OA\u4E00\u7EA7\u90E8\u95E8","OA\u4E8C\u7EA7\u90E8\u95E8","OA\u7269\u6599\u7F16\u7801","OA\u7269\u6599\u540D\u79F0","OA\u6570\u91CF",
+"OA\u91D1\u989D","ERP\u5355\u636E\u7F16\u53F7","ERP\u8BB0\u5F55\u7684OA\u5355\u53F7","ERP\u65E5\u671F","ERP\u516C\u53F8\u7B80\u79F0","ERP\u4E00\u7EA7\u90E8\u95E8",
+"ERP\u4E8C\u7EA7\u90E8\u95E8","ERP\u7269\u6599\u7F16\u7801","ERP\u7269\u6599\u540D\u79F0","ERP\u6570\u91CF","ERP\u91D1\u989D","\u6570\u91CF\u5DEE\u989D","\u91D1\u989D\u5DEE\u989D",
+"\u5907\u6CE8"];var DOCUMENT_LOOKUP_ERP_LEFT_HEADERS=["\u884C\u7C7B\u578B","\u67E5\u8BE2\u7C7B\u578B","\u547D\u4E2D\u5355\u53F7","ERP\u5355\u636E\u7F16\u53F7","\
+ERP\u8BB0\u5F55\u7684OA\u5355\u53F7","ERP\u65E5\u671F","ERP\u516C\u53F8\u7B80\u79F0","ERP\u4E00\u7EA7\u90E8\u95E8","ERP\u4E8C\u7EA7\u90E8\u95E8","ERP\u7269\u6599\u7F16\u7801",
+"ERP\u7269\u6599\u540D\u79F0","ERP\u6570\u91CF","ERP\u91D1\u989D","OA\u8868\u5355\u7F16\u53F7","OA\u8BB0\u5F55\u7684ERP\u5355\u53F7","OA\u7533\u8BF7\u65E5\u671F",
+"OA\u516C\u53F8\u7B80\u79F0","OA\u4E00\u7EA7\u90E8\u95E8","OA\u4E8C\u7EA7\u90E8\u95E8","OA\u7269\u6599\u7F16\u7801","OA\u7269\u6599\u540D\u79F0","OA\u6570\u91CF",
+"OA\u91D1\u989D","\u6570\u91CF\u5DEE\u989D","\u91D1\u989D\u5DEE\u989D","\u5907\u6CE8"];var DIAGNOSTICS_HEADERS=["\u7C7B\u522B","\u9636\u6BB5","\u8F93\u5165\u884C\u6570","\u8F93\u51FA\u884C\u6570","\u8017\u65F6ms","\u5185\u5B58MB","\u8BF4\u660E"];var NOT_APPLICABLE="\
 \u4E0D\u9002\u7528";var DIFFERENCE_TYPE_PRIORITY=["OA\u6709\u7533\u8BF7\uFF0CERP\u65E0\u51FA\u5E93","ERP\u51FA\u5E93\u5BF9\u5E94OA\u672A\u5728\u5F53\u524DOA\u6570\u636E\u4E2D\u627E\u5230",
 "OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u7269\u6599\u660E\u7EC6\u4E0D\u4E00\u81F4","OA\u548CERP\u90FD\u6709\uFF0C\u4F46\u6570\u91CF\u4E0D\u540C","OA\u548CERP\u90FD\u6709\uFF0C\u6570\u91CF\u4E00\u81F4"];
 var MAX_HEADER_SCAN_ROWS=20;var MIN_OA_HEADER_MATCH_COUNT=5;var MIN_ERP_HEADER_MATCH_COUNT=5;var MAX_PRECHECK_CLEAR_ROW=2e5;var MAX_DIAGNOSTICS_CLEAR_ROW=2e5;var WRITE_CHUNK_ROWS=1e3;function normalizeText(value){if(value===null||value===void 0){return""}return String(value).trim()}function appendUniqueJoinedText(currentText,nextText,delimiter="\
@@ -214,10 +219,15 @@ const existingOaFormNumbers=collectUniqueText((_a=input.oaRows)!=null?_a:[],"\u8
 erpRows,"\u6E90\u5355\u5355\u53F7",existingOaFormNumbers);const oaFormNumbers=collectUniqueText(existingCounterpartRows,"\u6E90\u5355\u5355\u53F7");const oaRows=collectRowsByAnyText(
 input.oaRows,"\u8868\u5355\u7F16\u53F7",oaFormNumbers);return{ok:true,rows:[...buildRows("\u67E5ERP\u5355\u636E\u7F16\u53F7",input.docNumber,oaRows,existingCounterpartRows,
 "\u672A\u627E\u5230\u5BF9\u5E94OA\u5355\u636E"),...buildRows("\u67E5ERP\u5355\u636E\u7F16\u53F7",input.docNumber,[],missingCounterpartRows,"\u672A\u627E\u5230\u5BF9\u5E94OA\u5355\u636E")]}}
-function buildDocumentLookupResult(input){return input.mode==="oa_form_number"?buildOaLookup(input):buildErpLookup(input)}function documentLookupRowsToValues(rows){
-return[[...DOCUMENT_LOOKUP_HEADERS],...(rows!=null?rows:[]).map(row=>[row.rowType,row.lookupType,row.matchedDocNumber,row.oaFormNumber,row.oaRecordedErpDocNumber,
-row.oaDate,row.oaCompany,row.oaDept1,row.oaDept2,row.oaItemCode,row.oaItemName,row.oaQuantity,row.oaAmount,row.erpDocNumber,row.erpRecordedOaFormNumber,row.erpDate,
-row.erpCompany,row.erpDept1,row.erpDept2,row.erpItemCode,row.erpItemName,row.erpQuantity,row.erpAmount,row.quantityDiff,row.amountDiff,row.remark])]}var DOCUMENT_LOOKUP_DIALOG_RESULT_KEY="ScrapVarianceDocumentLookupDialogResult";var DOCUMENT_LOOKUP_INITIAL_STATE_KEY_PREFIX="ScrapVarianceDocumentLookupInitial\
+function buildDocumentLookupResult(input){return input.mode==="oa_form_number"?buildOaLookup(input):buildErpLookup(input)}function oaSideValues(row){return[row.
+oaFormNumber,row.oaRecordedErpDocNumber,row.oaDate,row.oaCompany,row.oaDept1,row.oaDept2,row.oaItemCode,row.oaItemName,row.oaQuantity,row.oaAmount]}function erpSideValues(row){
+return[row.erpDocNumber,row.erpRecordedOaFormNumber,row.erpDate,row.erpCompany,row.erpDept1,row.erpDept2,row.erpItemCode,row.erpItemName,row.erpQuantity,row.erpAmount]}
+function leftMinusRight(left,right,leftFieldName,rightFieldName){return decimalToNumber2(subtractDecimal(parseDecimal2(left,leftFieldName),parseDecimal2(right,rightFieldName)))}
+function documentLookupRowsToValues(rows){var _a;const outputRows=rows!=null?rows:[];const erpLeft=((_a=outputRows[0])==null?void 0:_a.lookupType)==="\u67E5ERP\u5355\u636E\u7F16\u53F7";
+const headers=erpLeft?DOCUMENT_LOOKUP_ERP_LEFT_HEADERS:DOCUMENT_LOOKUP_OA_LEFT_HEADERS;return[[...headers],...outputRows.map(row=>{const leftSide=erpLeft?erpSideValues(
+row):oaSideValues(row);const rightSide=erpLeft?oaSideValues(row):erpSideValues(row);const quantityDiff=erpLeft?leftMinusRight(row.erpQuantity,row.oaQuantity,"ER\
+P\u6570\u91CF","OA\u6570\u91CF"):row.quantityDiff;const amountDiff=erpLeft?leftMinusRight(row.erpAmount,row.oaAmount,"ERP\u91D1\u989D","OA\u91D1\u989D"):row.amountDiff;
+return[row.rowType,row.lookupType,row.matchedDocNumber,...leftSide,...rightSide,quantityDiff,amountDiff,row.remark]})]}var DOCUMENT_LOOKUP_DIALOG_RESULT_KEY="ScrapVarianceDocumentLookupDialogResult";var DOCUMENT_LOOKUP_INITIAL_STATE_KEY_PREFIX="ScrapVarianceDocumentLookupInitial\
 State:";var DOCUMENT_LOOKUP_DIALOG_TIMEOUT_MS=5*60*1e3;var DOCUMENT_LOOKUP_DIALOG_POLL_MS=250;function isRecord(value){return typeof value==="object"&&value!==null}
 function isDocumentLookupMode(value){return value==="oa_form_number"||value==="erp_doc_number"}function getStorage(root2){var _a;const storage=(_a=root2.Application)==
 null?void 0:_a.PluginStorage;if(!storage){throw new Error("\u5F53\u524D WPS \u73AF\u5883\u4E0D\u652F\u6301 PluginStorage\uFF0C\u65E0\u6CD5\u6253\u5F00\u5355\u53F7\u67E5\u8BE2\u5F39\u7A97\u3002")}

@@ -358,7 +358,7 @@ describe("document lookup core", () => {
     expect(suggestions.erp[0].label).not.toContain("OA:");
   });
 
-  it("converts lookup rows to the fixed worksheet header order", () => {
+  it("converts OA lookup rows to the OA-left worksheet header order", () => {
     const result = buildDocumentLookupResult({
       mode: "oa_form_number",
       docNumber: "OA-001",
@@ -396,6 +396,75 @@ describe("document lookup core", () => {
         "金额差额",
         "备注"
       ]);
+    }
+  });
+
+  it("converts ERP lookup rows to the ERP-left worksheet order with left-minus-right differences", () => {
+    const result = buildDocumentLookupResult({
+      mode: "erp_doc_number",
+      docNumber: "ERP-001",
+      oaRows: [oaRow({ 数量: 1, 实际预算金额mx: 10 })],
+      erpRows: [erpRow({ 实发数量: 4, 总成本: 40 })]
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      const values = documentLookupRowsToValues(result.rows);
+
+      expect(values[0]).toEqual([
+        "行类型",
+        "查询类型",
+        "命中单号",
+        "ERP单据编号",
+        "ERP记录的OA单号",
+        "ERP日期",
+        "ERP公司简称",
+        "ERP一级部门",
+        "ERP二级部门",
+        "ERP物料编码",
+        "ERP物料名称",
+        "ERP数量",
+        "ERP金额",
+        "OA表单编号",
+        "OA记录的ERP单号",
+        "OA申请日期",
+        "OA公司简称",
+        "OA一级部门",
+        "OA二级部门",
+        "OA物料编码",
+        "OA物料名称",
+        "OA数量",
+        "OA金额",
+        "数量差额",
+        "金额差额",
+        "备注"
+      ]);
+      expect(values[1]?.slice(0, 3)).toEqual(["物料", "查ERP单据编号", "ERP-001"]);
+      expect(values[1]?.slice(3, 13)).toEqual([
+        "ERP-001",
+        "OA-001",
+        "2026-05-02",
+        "数控",
+        "生产",
+        "仓储",
+        "MAT-A",
+        "物料A",
+        4,
+        40
+      ]);
+      expect(values[1]?.slice(13, 23)).toEqual([
+        "OA-001",
+        "ERP-001",
+        "2026-05-01",
+        "数控",
+        "生产",
+        "仓储",
+        "MAT-A",
+        "物料A",
+        1,
+        10
+      ]);
+      expect(values[1]?.slice(23, 26)).toEqual([3, 30, "数量不同"]);
     }
   });
 });

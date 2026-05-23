@@ -144,9 +144,30 @@ describe("document lookup macro", () => {
     expect(sheetNames(root).filter((name) => name === SHEET_NAMES.documentLookup)).toHaveLength(1);
     expect(resultSheet.clears).toEqual(["A1:Z9"]);
     expect(visibleWrites(resultSheet).map((write) => write.address)).toEqual(["A1:Z2"]);
-    expect(outputMatrix(resultSheet)[1]).toEqual(
-      expect.arrayContaining(["物料", "查ERP单据编号", "ERP-778", "OA-001", "ERP-778"])
-    );
+    expect(outputMatrix(resultSheet)[0]?.slice(3, 13)).toEqual([
+      "ERP单据编号",
+      "ERP记录的OA单号",
+      "ERP日期",
+      "ERP公司简称",
+      "ERP一级部门",
+      "ERP二级部门",
+      "ERP物料编码",
+      "ERP物料名称",
+      "ERP数量",
+      "ERP金额"
+    ]);
+    expect(outputMatrix(resultSheet)[1]?.slice(3, 13)).toEqual([
+      "ERP-778",
+      "OA-001",
+      "2026-05-02",
+      "数控",
+      "生产",
+      "仓储",
+      "MAT-A",
+      "物料A",
+      9,
+      91
+    ]);
     expect(resultSheet.writes).toContainEqual({
       address: "CB1:CC1",
       value: [["document_lookup", "A1:Z2"]]

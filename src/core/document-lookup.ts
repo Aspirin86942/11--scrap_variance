@@ -1,5 +1,5 @@
 import type Decimal from "decimal.js-light";
-import { DOCUMENT_LOOKUP_HEADERS } from "../constants";
+import { DOCUMENT_LOOKUP_ERP_LEFT_HEADERS, DOCUMENT_LOOKUP_OA_LEFT_HEADERS } from "../constants";
 import type { OutputMatrix, RawRow } from "../types/scrap";
 import { normalizeDateKey } from "../utils/date";
 import { addDecimal, decimalToNumber2, parseDecimal, subtractDecimal, zeroDecimal } from "../utils/decimal";
@@ -449,36 +449,69 @@ export function buildDocumentLookupResult(input: DocumentLookupInput): DocumentL
   return input.mode === "oa_form_number" ? buildOaLookup(input) : buildErpLookup(input);
 }
 
-export function documentLookupRowsToValues(rows: DocumentLookupRow[] | null | undefined): OutputMatrix {
+function oaSideValues(row: DocumentLookupRow): OutputMatrix[number] {
   return [
-    [...DOCUMENT_LOOKUP_HEADERS],
-    ...(rows ?? []).map((row) => [
-      row.rowType,
-      row.lookupType,
-      row.matchedDocNumber,
-      row.oaFormNumber,
-      row.oaRecordedErpDocNumber,
-      row.oaDate,
-      row.oaCompany,
-      row.oaDept1,
-      row.oaDept2,
-      row.oaItemCode,
-      row.oaItemName,
-      row.oaQuantity,
-      row.oaAmount,
-      row.erpDocNumber,
-      row.erpRecordedOaFormNumber,
-      row.erpDate,
-      row.erpCompany,
-      row.erpDept1,
-      row.erpDept2,
-      row.erpItemCode,
-      row.erpItemName,
-      row.erpQuantity,
-      row.erpAmount,
-      row.quantityDiff,
-      row.amountDiff,
-      row.remark
-    ])
+    row.oaFormNumber,
+    row.oaRecordedErpDocNumber,
+    row.oaDate,
+    row.oaCompany,
+    row.oaDept1,
+    row.oaDept2,
+    row.oaItemCode,
+    row.oaItemName,
+    row.oaQuantity,
+    row.oaAmount
+  ];
+}
+
+function erpSideValues(row: DocumentLookupRow): OutputMatrix[number] {
+  return [
+    row.erpDocNumber,
+    row.erpRecordedOaFormNumber,
+    row.erpDate,
+    row.erpCompany,
+    row.erpDept1,
+    row.erpDept2,
+    row.erpItemCode,
+    row.erpItemName,
+    row.erpQuantity,
+    row.erpAmount
+  ];
+}
+
+function leftMinusRight(left: number, right: number, leftFieldName: string, rightFieldName: string): number {
+  return decimalToNumber2(
+    subtractDecimal(parseDecimal(left, leftFieldName), parseDecimal(right, rightFieldName))
+  );
+}
+
+export function documentLookupRowsToValues(rows: DocumentLookupRow[] | null | undefined): OutputMatrix {
+  const outputRows = rows ?? [];
+  const erpLeft = outputRows[0]?.lookupType === "查ERP单据编号";
+  const headers = erpLeft ? DOCUMENT_LOOKUP_ERP_LEFT_HEADERS : DOCUMENT_LOOKUP_OA_LEFT_HEADERS;
+
+  return [
+    [...headers],
+    ...outputRows.map((row) => {
+      const leftSide = erpLeft ? erpSideValues(row) : oaSideValues(row);
+      const rightSide = erpLeft ? oaSideValues(row) : erpSideValues(row);
+      const quantityDiff = erpLeft
+        ? leftMinusRight(row.erpQuantity, row.oaQuantity, "ERP数量", "OA数量")
+        : row.quantityDiff;
+      const amountDiff = erpLeft
+        ? leftMinusRight(row.erpAmount, row.oaAmount, "ERP金额", "OA金额")
+        : row.amountDiff;
+
+      return [
+        row.rowType,
+        row.lookupType,
+        row.matchedDocNumber,
+        ...leftSide,
+        ...rightSide,
+        quantityDiff,
+        amountDiff,
+        row.remark
+      ];
+    })
   ];
 }
