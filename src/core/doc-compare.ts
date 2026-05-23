@@ -380,8 +380,8 @@ function buildSummaryMeta(primary: DocAccumulator, counterpart: Pick<MatchedCoun
     primaryAmount,
     counterpartQuantity,
     counterpartAmount,
-    quantityDiff: subtractDecimal(primaryQuantity, counterpartQuantity),
-    amountDiff: subtractDecimal(primaryAmount, counterpartAmount)
+    quantityDiff: decimalToDecimal2(subtractDecimal(primary.quantity, counterpart.quantity)),
+    amountDiff: decimalToDecimal2(subtractDecimal(primary.amount, counterpart.amount))
   };
 }
 

@@ -214,6 +214,49 @@ describe("document compare core", () => {
     ]);
   });
 
+  it("rounds metadata diffs after subtracting raw totals to match displayed compare rows", () => {
+    const oaRows: RawRow[] = [
+      {
+        表单编号: "OA-ROUND",
+        金蝶云单据编号: "ERP-ROUND",
+        申请日期: "2026/5/3",
+        公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料代码: "MAT-ROUND",
+        物料名称: "边界物料",
+        数量: "1.005",
+        实际预算金额mx: "1.005"
+      }
+    ];
+    const erpRows: RawRow[] = [
+      {
+        单据编号: "ERP-ROUND",
+        日期: "2026/5/4",
+        源单单号: "OA-ROUND",
+        区分公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料编码: "MAT-ROUND",
+        物料名称: "边界物料",
+        实发数量: "0.004",
+        总成本: "0.004"
+      }
+    ];
+
+    const result = buildOaDocCompare(oaRows, erpRows, parseFilters());
+    const row = result.summaryRows[0];
+    const item = result.summaryItems[0];
+    if (!row || !item) {
+      throw new Error("missing summary row");
+    }
+
+    expect(row.quantityDiff).toBe(1);
+    expect(row.amountDiff).toBe(1);
+    expect(decimalToNumber2(item.meta.quantityDiff)).toBe(row.quantityDiff);
+    expect(decimalToNumber2(item.meta.amountDiff)).toBe(row.amountDiff);
+  });
+
   it("uses stable summary keys when one OA document maps to multiple ERP documents", () => {
     const oaRows: RawRow[] = [
       {
