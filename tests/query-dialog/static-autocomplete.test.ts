@@ -144,6 +144,18 @@ interface QueryDialogHooks {
   attachAutocomplete(inputId: string, suggestions: string[]): void;
 }
 
+interface CandidateSearchStub {
+  normalizeStringValues(input: unknown): string[];
+  buildIndex(values: string[], getSearchText: (value: string) => string): unknown;
+  searchIndex(index: unknown, query: string, limit: number): string[];
+}
+
+interface LoadQueryDialogOptions {
+  outputKind?: string;
+  loadCandidateSearch?: boolean;
+  candidateSearch?: CandidateSearchStub;
+}
+
 function checkedDirection(document: FakeDocument): string {
   return document.querySelectorAll('input[name="queryDirection"]').find((input) => input.checked)?.value ?? "";
 }
@@ -155,12 +167,15 @@ function submittedState(storage: Map<string, string>): Record<string, unknown> {
   return result.state ?? {};
 }
 
-function loadQueryDialog(initialPayload?: unknown, outputKind = ""): {
+function loadQueryDialog(initialPayload?: unknown, optionsOrOutputKind: LoadQueryDialogOptions | string = ""): {
   document: FakeDocument;
   hooks: QueryDialogHooks;
   storage: Map<string, string>;
   runTimeouts(): void;
 } {
+  const options: LoadQueryDialogOptions =
+    typeof optionsOrOutputKind === "string" ? { outputKind: optionsOrOutputKind } : optionsOrOutputKind;
+  const outputKind = options.outputKind ?? "";
   const document = new FakeDocument();
   const storage = new Map<string, string>();
   const hooks = {} as QueryDialogHooks;
@@ -189,7 +204,8 @@ function loadQueryDialog(initialPayload?: unknown, outputKind = ""): {
     setTimeout(callback: () => void): number {
       timeoutCallbacks.push(callback);
       return timeoutCallbacks.length;
-    }
+    },
+    __SCRAP_VARIANCE_CANDIDATE_SEARCH__: options.candidateSearch
   };
   const context = vm.createContext({
     alert() {},
@@ -197,7 +213,9 @@ function loadQueryDialog(initialPayload?: unknown, outputKind = ""): {
     window: windowObject
   });
 
-  vm.runInContext(readFileSync(resolve(repoRoot, "ui/candidate-search.js"), "utf-8"), context);
+  if (options.loadCandidateSearch !== false) {
+    vm.runInContext(readFileSync(resolve(repoRoot, "ui/candidate-search.js"), "utf-8"), context);
+  }
   vm.runInContext(readFileSync(resolve(repoRoot, "ui/query-dialog.js"), "utf-8"), context);
 
   return {
@@ -352,6 +370,73 @@ describe("static query dialog autocomplete", () => {
 
     expect(hooks.getMatchedOptions("产部", suggestions)).toEqual(["生产部门1", "生产部门2"]);
     expect(hooks.getMatchedOptions("量中", suggestions)).toEqual(["质量中心"]);
+  });
+
+  it("keeps local contains fallback when the shared candidate helper is unavailable", () => {
+    const { document, hooks } = loadQueryDialog(undefined, { loadCandidateSearch: false });
+    const input = document.getElementById("company");
+    const suggestions = Array.from({ length: 35 }, (_, index) => `生产部门${index + 1}`);
+    if (!input) {
+      throw new Error("expected company input");
+    }
+
+    expect(hooks.getMatchedOptions("部门", suggestions)).toEqual(suggestions.slice(0, 30));
+    expect(hooks.getMatchedOptions("无匹配", suggestions)).toEqual([]);
+    expect(hooks.getMatchedOptions("部门", [])).toEqual([]);
+
+    hooks.attachAutocomplete("company", suggestions);
+    input.value = "部门";
+    input.dispatchEvent("focus");
+
+    const dropdown = document.getLastDropdown();
+    expect(dropdown.style.display).toBe("block");
+    expect(dropdown.children.map((child) => child.textContent)).toEqual(suggestions.slice(0, 30));
+  });
+
+  it("builds one indexed autocomplete source per attached input and preserves candidate order", () => {
+    let buildIndexCalls = 0;
+    const candidateSearch: CandidateSearchStub = {
+      normalizeStringValues(input) {
+        return Array.isArray(input) ? input.map((value) => String(value).trim()).filter(Boolean) : [];
+      },
+      buildIndex(values, getSearchText) {
+        buildIndexCalls += 1;
+        return values.map((value) => ({
+          value,
+          searchText: getSearchText(value)
+        }));
+      },
+      searchIndex(index, query, limit) {
+        const records = index as Array<{ value: string; searchText: string }>;
+        const normalizedQuery = String(query || "").trim();
+        return records
+          .filter((record) => !normalizedQuery || record.searchText.indexOf(normalizedQuery) !== -1)
+          .slice(0, limit)
+          .map((record) => record.value);
+      }
+    };
+    const { document, hooks } = loadQueryDialog(undefined, {
+      loadCandidateSearch: false,
+      candidateSearch
+    });
+    const input = document.getElementById("company");
+    const initialBuildIndexCalls = buildIndexCalls;
+    if (!input) {
+      throw new Error("expected company input");
+    }
+
+    hooks.attachAutocomplete("company", ["生产部门1", "质量中心", "生产部门2", "售后服务"]);
+    expect(buildIndexCalls).toBe(initialBuildIndexCalls + 1);
+
+    input.value = "部门";
+    input.dispatchEvent("focus");
+    input.dispatchEvent("input");
+    input.value = "产";
+    input.dispatchEvent("input");
+
+    const dropdown = document.getLastDropdown();
+    expect(buildIndexCalls).toBe(initialBuildIndexCalls + 1);
+    expect(dropdown.children.map((child) => child.textContent)).toEqual(["生产部门1", "生产部门2"]);
   });
 
   it("fills the input when a suggestion is clicked while preserving free text behavior", () => {
