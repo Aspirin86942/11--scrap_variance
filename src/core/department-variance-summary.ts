@@ -242,7 +242,11 @@ export function buildDepartmentVarianceSummaryRows(
   options?: RowBuildingMetricsOptions
 ): DepartmentVarianceSummaryRow[] {
   if (queryDirection === QUERY_DIRECTIONS.oaKingdeeToErp) {
-    const result = buildOaDocCompare(oaRows, erpRows, filters, options);
+    const result = buildOaDocCompare(oaRows, erpRows, filters, {
+      ...options,
+      includeMaterialRows: false,
+      includeSummaryItems: true
+    });
     const counterpartDocNumbers = measureStage(
       options,
       "build_summary_document_set",
@@ -254,7 +258,11 @@ export function buildDepartmentVarianceSummaryRows(
     return buildRowsFromDocCompare(result, "OA视角", counterpartDocNumbers, options);
   }
 
-  const result = buildErpDocCompare(oaRows, erpRows, filters, options);
+  const result = buildErpDocCompare(oaRows, erpRows, filters, {
+    ...options,
+    includeMaterialRows: false,
+    includeSummaryItems: true
+  });
   const counterpartDocNumbers = measureStage(
     options,
     "build_summary_document_set",

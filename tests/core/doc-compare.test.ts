@@ -7,8 +7,16 @@ import {
   buildOaDocCompare,
   docCompareRowsToValues
 } from "../../src/core/doc-compare";
+import { UNKNOWN_MEMORY } from "../../src/perf/memory";
+import { createMetricsRecorder, type MetricsRecorder, type StageMetric } from "../../src/perf/metrics";
 import type { RawRow } from "../../src/types/scrap";
 import { decimalToNumber2 } from "../../src/utils/decimal";
+
+const UNKNOWN_MEMORY_SAMPLE = {
+  available: false,
+  heapUsedMb: UNKNOWN_MEMORY,
+  rssMb: UNKNOWN_MEMORY
+} as const;
 
 function sampleOaRows(): RawRow[] {
   return [
@@ -443,6 +451,133 @@ describe("document compare core", () => {
     ])).toEqual([
       ["MAT-OA", 2, 0],
       ["MAT-ERP", 0, 2]
+    ]);
+  });
+
+  it("can skip summary metadata for compare-only paths while keeping material rows", () => {
+    const result = buildOaDocCompare(sampleOaRows(), sampleErpRows(), parseFilters(), {
+      includeSummaryItems: false
+    });
+    const summary = result.summaryRows[0];
+    if (!summary) {
+      throw new Error("missing summary row");
+    }
+
+    expect(result.summaryItems).toEqual([]);
+    expect(buildMaterialRowsForDocSummary(result, summary)).toHaveLength(2);
+  });
+
+  it("can skip material row arrays for summary-only paths while preserving material mismatch metadata", () => {
+    const oaRows: RawRow[] = [
+      {
+        表单编号: "OA-META-MAT",
+        金蝶云单据编号: "ERP-META-MAT",
+        申请日期: "2026/5/3",
+        公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料代码: "MAT-OA",
+        物料名称: "OA物料",
+        数量: 2,
+        实际预算金额mx: 20
+      }
+    ];
+    const erpRows: RawRow[] = [
+      {
+        单据编号: "ERP-META-MAT",
+        日期: "2026/5/4",
+        源单单号: "OA-META-MAT",
+        区分公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料编码: "MAT-ERP",
+        物料名称: "ERP物料",
+        实发数量: 2,
+        总成本: 20
+      }
+    ];
+
+    const result = buildOaDocCompare(oaRows, erpRows, parseFilters(), {
+      includeMaterialRows: false
+    });
+    const summary = result.summaryRows[0];
+    if (!summary) {
+      throw new Error("missing summary row");
+    }
+
+    expect(buildMaterialRowsForDocSummary(result, summary)).toEqual([]);
+    expect(result.summaryItems[0]?.materialRows).toEqual([]);
+    expect(result.summaryItems[0]?.meta.hasMaterialShapeMismatch).toBe(true);
+  });
+
+  it("marks interleaved doc compare stage heap deltas as unknown", () => {
+    let currentTime = 0;
+    let currentHeap = 5 * 1024 * 1024;
+    const metrics = createMetricsRecorder({
+      performance: {
+        now: () => {
+          currentTime += 10;
+          return currentTime;
+        }
+      },
+      process: {
+        memoryUsage: () => {
+          currentHeap += 2 * 1024 * 1024;
+          return {
+            heapUsed: currentHeap,
+            rss: currentHeap
+          };
+        }
+      }
+    });
+
+    buildOaDocCompare(sampleOaRows(), sampleErpRows(), parseFilters(), { metrics });
+
+    const summaryStage = metrics.stages.find((stage) => stage.name === "build_doc_compare_summary_rows");
+    const materialStage = metrics.stages.find((stage) => stage.name === "build_doc_compare_material_rows");
+    expect(summaryStage?.heapDeltaMb).toBe(UNKNOWN_MEMORY);
+    expect(materialStage?.heapDeltaMb).toBe(UNKNOWN_MEMORY);
+  });
+
+  it("records the active doc compare stage before rethrowing hot-loop failures", () => {
+    let nowCalls = 0;
+    const stages: StageMetric[] = [];
+    const metrics: MetricsRecorder = {
+      stages,
+      measure: (_name, _options, action) => action(),
+      now: () => {
+        nowCalls += 1;
+        if (nowCalls === 2) {
+          throw new Error("timer failed");
+        }
+        return nowCalls;
+      },
+      sampleMemory: () => UNKNOWN_MEMORY_SAMPLE,
+      record: (name, options) => {
+        stages.push({
+          name,
+          inputRows: options.inputRows ?? 0,
+          outputRows: options.outputRows ?? 0,
+          timeMs: options.timeMs,
+          memoryBefore: options.memoryBefore,
+          memoryAfter: options.memoryAfter,
+          heapDeltaMb: UNKNOWN_MEMORY,
+          note: options.note ?? ""
+        });
+      }
+    };
+
+    expect(() => {
+      buildOaDocCompare(sampleOaRows(), sampleErpRows(), parseFilters(), { metrics });
+    }).toThrow("timer failed");
+
+    expect(stages).toEqual([
+      expect.objectContaining({
+        name: "build_doc_compare_summary_rows",
+        inputRows: 1,
+        outputRows: 0,
+        note: "timer failed"
+      })
     ]);
   });
 });

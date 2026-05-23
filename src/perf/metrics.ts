@@ -18,9 +18,21 @@ export interface MeasureOptions<T> {
   note?: string;
 }
 
+export interface RecordStageOptions {
+  inputRows?: number;
+  outputRows?: number;
+  timeMs: number;
+  memoryBefore: MemorySample;
+  memoryAfter: MemorySample;
+  note?: string;
+}
+
 export interface MetricsRecorder {
   readonly stages: StageMetric[];
   measure<T>(name: string, options: MeasureOptions<T>, action: () => T): T;
+  record(name: string, options: RecordStageOptions): void;
+  now(): number;
+  sampleMemory(): MemorySample;
 }
 
 interface OutputRowsResult {
@@ -54,11 +66,53 @@ function roundMs(value: number): number {
   return Number(value.toFixed(2));
 }
 
+function makeStageMetric(
+  name: string,
+  inputRows: number | undefined,
+  outputRows: number,
+  timeMs: number,
+  memoryBefore: MemorySample,
+  memoryAfter: MemorySample,
+  note: string
+): StageMetric {
+  return {
+    name,
+    inputRows: inputRows ?? 0,
+    outputRows,
+    timeMs: roundMs(timeMs),
+    memoryBefore,
+    memoryAfter,
+    heapDeltaMb: memoryDeltaMb(memoryBefore, memoryAfter),
+    note
+  };
+}
+
+function pushStage(stages: StageMetric[], stage: StageMetric): void {
+  stages.push(stage);
+}
+
 export function createMetricsRecorder(root: unknown = globalThis): MetricsRecorder {
   const stages: StageMetric[] = [];
 
   return {
     stages,
+    now(): number {
+      return nowMs(root);
+    },
+    sampleMemory(): MemorySample {
+      return getMemorySample(root);
+    },
+    record(name: string, options: RecordStageOptions): void {
+      pushStage(stages, makeStageMetric(
+        name,
+        options.inputRows,
+        options.outputRows ?? 0,
+        options.timeMs,
+        options.memoryBefore,
+        options.memoryAfter,
+        options.note ?? ""
+      ));
+    },
     measure<T>(name: string, options: MeasureOptions<T>, action: () => T): T {
       // 每个阶段都记录执行前后时间和内存采样；内存不可用时由 memory 模块返回“无确切信息”。
       const memoryBefore = getMemorySample(root);
@@ -68,31 +122,29 @@ export function createMetricsRecorder(root: unknown = globalThis): MetricsRecord
         const endedAt = nowMs(root);
         const memoryAfter = getMemorySample(root);
         const outputRowsResult = resolveOutputRows(value, options.outputRows);
-        stages.push({
+        pushStage(stages, makeStageMetric(
           name,
-          inputRows: options.inputRows ?? 0,
-          outputRows: outputRowsResult.outputRows,
-          timeMs: roundMs(endedAt - startedAt),
+          options.inputRows,
+          outputRowsResult.outputRows,
+          endedAt - startedAt,
           memoryBefore,
           memoryAfter,
-          heapDeltaMb: memoryDeltaMb(memoryBefore, memoryAfter),
-          note: outputRowsResult.note ?? options.note ?? ""
-        });
+          outputRowsResult.note ?? options.note ?? ""
+        ));
         return value;
       } catch (error) {
         // 阶段失败也记录耗时和错误说明，诊断表才能显示失败发生在哪一步。
         const endedAt = nowMs(root);
         const memoryAfter = getMemorySample(root);
-        stages.push({
+        pushStage(stages, makeStageMetric(
           name,
-          inputRows: options.inputRows ?? 0,
-          outputRows: 0,
-          timeMs: roundMs(endedAt - startedAt),
+          options.inputRows,
+          0,
+          endedAt - startedAt,
           memoryBefore,
           memoryAfter,
-          heapDeltaMb: memoryDeltaMb(memoryBefore, memoryAfter),
-          note: errorMessage(error)
-        });
+          errorMessage(error)
+        ));
         throw error;
       }
     }

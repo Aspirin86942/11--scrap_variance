@@ -1,5 +1,6 @@
 import type Decimal from "decimal.js-light";
 import { ERP_DOC_COMPARE_HEADERS, OA_DOC_COMPARE_HEADERS } from "../constants";
+import { UNKNOWN_MEMORY, type MemorySample } from "../perf/memory";
 import type { MetricsRecorder } from "../perf/metrics";
 import type {
   DocCompareResult,
@@ -18,10 +19,19 @@ import { isDateInRange, matchesOrgFilters, parseFilters } from "./build-oa-rows"
 
 type DocCompareKind = Extract<OutputSheetKind, "oa_doc_compare" | "erp_doc_compare">;
 type FilterInput = Partial<QueryFilters> | Record<string, unknown> | null | undefined;
+type TimedDocCompareStage = "summary" | "material";
+
+const INTERLEAVED_STAGE_MEMORY_SAMPLE: MemorySample = {
+  available: false,
+  heapUsedMb: UNKNOWN_MEMORY,
+  rssMb: UNKNOWN_MEMORY
+};
 
 interface RowBuildingMetricsOptions {
   metrics?: MetricsRecorder;
   note?: string;
+  includeMaterialRows?: boolean;
+  includeSummaryItems?: boolean;
 }
 
 function measureStage<T>(
@@ -72,7 +82,7 @@ interface PendingDocCompareSummaryItem {
   counterpart: MatchedCounterpart;
   summaryRow: DocCompareRow;
   summaryKey: string;
-  meta: DocCompareSummaryMeta;
+  meta: DocCompareSummaryMeta | null;
 }
 
 function createDocAccumulator(docNumber: string): DocAccumulator {
@@ -397,6 +407,37 @@ function hasMaterialShapeMismatch(materialRows: DocCompareRow[]): boolean {
   );
 }
 
+function hasMaterialShapeMismatchFromMaterials(
+  primaryMaterials: Map<string, MaterialAccumulator>,
+  counterpartMaterials: Map<string, MaterialAccumulator>
+): boolean {
+  const processedItemCodes = new Set<string>();
+
+  for (const material of primaryMaterials.values()) {
+    const counterpart = counterpartMaterials.get(material.itemCode);
+    const primaryQuantity = decimalToNumber2(material.quantity);
+    const counterpartQuantity = counterpart ? decimalToNumber2(counterpart.quantity) : 0;
+    if (
+      (primaryQuantity === 0 && counterpartQuantity !== 0) ||
+      (primaryQuantity !== 0 && counterpartQuantity === 0)
+    ) {
+      return true;
+    }
+    processedItemCodes.add(material.itemCode);
+  }
+
+  for (const counterpart of counterpartMaterials.values()) {
+    if (processedItemCodes.has(counterpart.itemCode)) {
+      continue;
+    }
+    if (decimalToNumber2(counterpart.quantity) !== 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function copyDocCompareRow(row: DocCompareRow): DocCompareRow {
   return { ...row };
 }
@@ -419,62 +460,187 @@ function buildSummaryMeta(primary: DocAccumulator, counterpart: Pick<MatchedCoun
   };
 }
 
+function buildPendingSummaryItem(
+  kind: DocCompareKind,
+  primary: DocAccumulator,
+  counterpartGroups: Map<string, DocAccumulator>,
+  includeSummaryItems: boolean
+): PendingDocCompareSummaryItem {
+  const counterpart = buildMatchedCounterpart(primary, counterpartGroups);
+  const summaryRow = buildDocCompareRow("汇总", primary, counterpart);
+  return {
+    primary,
+    counterpart,
+    summaryRow,
+    summaryKey: makeSummaryKey(kind, summaryRow),
+    meta: includeSummaryItems ? buildSummaryMeta(primary, counterpart) : null
+  };
+}
+
+function appendPendingSummaryItem(
+  item: PendingDocCompareSummaryItem,
+  summaryRows: DocCompareRow[],
+  materialRowsBySummaryKey: Map<string, DocCompareRow[]>,
+  summaryItems: DocCompareSummaryItem[],
+  includeMaterialRows: boolean,
+  includeSummaryItems: boolean
+): number {
+  const materialRows = includeMaterialRows ? buildMaterialRows(item.primary, item.counterpart.materials) : [];
+  summaryRows.push(item.summaryRow);
+  if (includeMaterialRows) {
+    materialRowsBySummaryKey.set(item.summaryKey, materialRows);
+  }
+
+  if (includeSummaryItems && item.meta) {
+    item.meta.hasMaterialShapeMismatch = includeMaterialRows
+      ? hasMaterialShapeMismatch(materialRows)
+      : hasMaterialShapeMismatchFromMaterials(item.primary.materials, item.counterpart.materials);
+    summaryItems.push({
+      summaryKey: item.summaryKey,
+      row: copyDocCompareRow(item.summaryRow),
+      materialRows: materialRows.map(copyDocCompareRow),
+      meta: item.meta
+    });
+  }
+
+  return materialRows.length;
+}
+
+function recordDocCompareStage(
+  metrics: MetricsRecorder,
+  name: string,
+  inputRows: number,
+  outputRows: number,
+  timeMs: number,
+  note: string | undefined
+): void {
+  const options = {
+    inputRows,
+    outputRows,
+    timeMs,
+    memoryBefore: INTERLEAVED_STAGE_MEMORY_SAMPLE,
+    memoryAfter: INTERLEAVED_STAGE_MEMORY_SAMPLE
+  };
+  if (note === undefined) {
+    metrics.record(name, options);
+    return;
+  }
+  metrics.record(name, { ...options, note });
+}
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+function elapsedSince(metrics: MetricsRecorder, startedAt: number): number {
+  try {
+    return Math.max(0, metrics.now() - startedAt);
+  } catch {
+    return 0;
+  }
+}
+
 function buildDocCompareResult(
   kind: DocCompareKind,
   primaryGroups: Map<string, DocAccumulator>,
   counterpartGroups: Map<string, DocAccumulator>,
   options?: RowBuildingMetricsOptions
 ): DocCompareResult {
+  const includeMaterialRows = options?.includeMaterialRows ?? true;
+  const includeSummaryItems = options?.includeSummaryItems ?? true;
   const summaryRows: DocCompareRow[] = [];
   const materialRowsBySummaryKey = new Map<string, DocCompareRow[]>();
   const summaryItems: DocCompareSummaryItem[] = [];
+  let materialRowCount = 0;
 
   // 汇总行和物料行分开返回，宏层可以只写汇总，再按用户展开动作插入物料行。
-  const pendingItems = measureStage(
-    options,
-    "build_doc_compare_summary_rows",
-    primaryGroups.size,
-    (items: PendingDocCompareSummaryItem[]) => items.length,
-    () => {
-      const items: PendingDocCompareSummaryItem[] = [];
+  const metrics = options?.metrics;
+  if (!metrics) {
+    for (const primary of primaryGroups.values()) {
+      const item = buildPendingSummaryItem(kind, primary, counterpartGroups, includeSummaryItems);
+      materialRowCount += appendPendingSummaryItem(
+        item,
+        summaryRows,
+        materialRowsBySummaryKey,
+        summaryItems,
+        includeMaterialRows,
+        includeSummaryItems
+      );
+    }
+  } else {
+    let summaryTimeMs = 0;
+    let materialTimeMs = 0;
+    let activeStage: TimedDocCompareStage = "summary";
+    let activeStageStartedAt = 0;
 
+    try {
       for (const primary of primaryGroups.values()) {
-        const counterpart = buildMatchedCounterpart(primary, counterpartGroups);
-        const summaryRow = buildDocCompareRow("汇总", primary, counterpart);
-        items.push({
-          primary,
-          counterpart,
-          summaryRow,
-          summaryKey: makeSummaryKey(kind, summaryRow),
-          meta: buildSummaryMeta(primary, counterpart)
-        });
-      }
+        activeStage = "summary";
+        activeStageStartedAt = metrics.now();
+        const item = buildPendingSummaryItem(kind, primary, counterpartGroups, includeSummaryItems);
+        summaryTimeMs += metrics.now() - activeStageStartedAt;
 
-      return items;
-    }
-  );
-
-  measureStage(
-    options,
-    "build_doc_compare_material_rows",
-    pendingItems.length,
-    (items: DocCompareSummaryItem[]) => items.reduce((total, item) => total + item.materialRows.length, 0),
-    () => {
-      for (const item of pendingItems) {
-        const materialRows = buildMaterialRows(item.primary, item.counterpart.materials);
-        item.meta.hasMaterialShapeMismatch = hasMaterialShapeMismatch(materialRows);
-        summaryRows.push(item.summaryRow);
-        materialRowsBySummaryKey.set(item.summaryKey, materialRows);
-        summaryItems.push({
-          summaryKey: item.summaryKey,
-          row: copyDocCompareRow(item.summaryRow),
-          materialRows: materialRows.map(copyDocCompareRow),
-          meta: item.meta
-        });
+        activeStage = "material";
+        activeStageStartedAt = metrics.now();
+        materialRowCount += appendPendingSummaryItem(
+          item,
+          summaryRows,
+          materialRowsBySummaryKey,
+          summaryItems,
+          includeMaterialRows,
+          includeSummaryItems
+        );
+        materialTimeMs += metrics.now() - activeStageStartedAt;
       }
-      return summaryItems;
+    } catch (error) {
+      const note = errorMessage(error);
+      if (activeStage === "material") {
+        recordDocCompareStage(
+          metrics,
+          "build_doc_compare_summary_rows",
+          primaryGroups.size,
+          summaryRows.length,
+          summaryTimeMs,
+          options.note
+        );
+        recordDocCompareStage(
+          metrics,
+          "build_doc_compare_material_rows",
+          summaryRows.length,
+          materialRowCount,
+          materialTimeMs + elapsedSince(metrics, activeStageStartedAt),
+          note
+        );
+      } else {
+        recordDocCompareStage(
+          metrics,
+          "build_doc_compare_summary_rows",
+          primaryGroups.size,
+          summaryRows.length,
+          summaryTimeMs + elapsedSince(metrics, activeStageStartedAt),
+          note
+        );
+      }
+      throw error;
     }
-  );
+
+    recordDocCompareStage(
+      metrics,
+      "build_doc_compare_summary_rows",
+      primaryGroups.size,
+      summaryRows.length,
+      summaryTimeMs,
+      options.note
+    );
+    recordDocCompareStage(
+      metrics,
+      "build_doc_compare_material_rows",
+      summaryRows.length,
+      materialRowCount,
+      materialTimeMs,
+      options.note
+    );
+  }
 
   return {
     kind,

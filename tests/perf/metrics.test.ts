@@ -291,6 +291,52 @@ describe("metrics recorder", () => {
     );
   });
 
+  it("records an externally measured stage for hot loops", () => {
+    const metrics = createMetricsRecorder();
+
+    metrics.record("hot_loop_stage", {
+      inputRows: 3,
+      outputRows: 5,
+      timeMs: 12.345,
+      memoryBefore: {
+        available: true,
+        source: "process.memoryUsage",
+        heapUsedMb: 10,
+        rssMb: 20
+      },
+      memoryAfter: {
+        available: true,
+        source: "process.memoryUsage",
+        heapUsedMb: 12.5,
+        rssMb: 22.5
+      },
+      note: "output=oa_doc_compare"
+    });
+
+    expect(metrics.stages).toEqual([
+      {
+        name: "hot_loop_stage",
+        inputRows: 3,
+        outputRows: 5,
+        timeMs: 12.35,
+        memoryBefore: {
+          available: true,
+          source: "process.memoryUsage",
+          heapUsedMb: 10,
+          rssMb: 20
+        },
+        memoryAfter: {
+          available: true,
+          source: "process.memoryUsage",
+          heapUsedMb: 12.5,
+          rssMb: 22.5
+        },
+        heapDeltaMb: 2.5,
+        note: "output=oa_doc_compare"
+      }
+    ]);
+  });
+
   it("records unknown heap delta when memory samples switch sources", () => {
     let currentTime = 100;
     let processMemoryCalls = 0;

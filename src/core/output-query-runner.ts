@@ -88,7 +88,7 @@ export function runOutputSheetQueryCore(input: OutputQueryRunnerInput): OutputQu
   }
 
   if (kind === "oa_doc_compare") {
-    const compareResult = buildOaDocCompare(oaRows, erpRows, filters, { metrics, note });
+    const compareResult = buildOaDocCompare(oaRows, erpRows, filters, { metrics, note, includeSummaryItems: false });
     const materialRows = countMaterialRows(compareResult);
     const values = metrics.measure(
       "build_oa_doc_compare_matrix",
@@ -110,7 +110,7 @@ export function runOutputSheetQueryCore(input: OutputQueryRunnerInput): OutputQu
   }
 
   if (kind === "erp_doc_compare") {
-    const compareResult = buildErpDocCompare(oaRows, erpRows, filters, { metrics, note });
+    const compareResult = buildErpDocCompare(oaRows, erpRows, filters, { metrics, note, includeSummaryItems: false });
     const materialRows = countMaterialRows(compareResult);
     const values = metrics.measure(
       "build_erp_doc_compare_matrix",
