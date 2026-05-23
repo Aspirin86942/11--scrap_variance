@@ -134,6 +134,60 @@ describe("document lookup core", () => {
     }
   });
 
+  it("uses displayed two-decimal quantity difference when deciding equality remark", () => {
+    const result = buildDocumentLookupResult({
+      mode: "oa_form_number",
+      docNumber: "OA-001",
+      oaRows: [oaRow({ 数量: "1.004" })],
+      erpRows: [erpRow({ 实发数量: "1.003" })]
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.rows[0]).toMatchObject({
+        oaQuantity: 1,
+        erpQuantity: 1,
+        quantityDiff: 0,
+        remark: "数量一致"
+      });
+    }
+  });
+
+  it("keeps missing item-code rows visible as auditable unpaired rows", () => {
+    const result = buildDocumentLookupResult({
+      mode: "oa_form_number",
+      docNumber: "OA-001",
+      oaRows: [oaRow({ 物料代码: "", 物料名称: "OA无编码物料", 数量: 2, 实际预算金额mx: 20 })],
+      erpRows: [erpRow({ 物料编码: "", 物料名称: "ERP无编码物料", 实发数量: 3, 总成本: 30 })]
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.rows).toEqual([
+        expect.objectContaining({
+          oaItemCode: "",
+          oaItemName: "OA无编码物料",
+          oaQuantity: 2,
+          oaAmount: 20,
+          erpItemCode: "",
+          erpQuantity: 0,
+          erpAmount: 0,
+          remark: "OA物料编码为空，无法配对"
+        }),
+        expect.objectContaining({
+          oaItemCode: "",
+          oaQuantity: 0,
+          oaAmount: 0,
+          erpItemCode: "",
+          erpItemName: "ERP无编码物料",
+          erpQuantity: 3,
+          erpAmount: 30,
+          remark: "ERP物料编码为空，无法配对"
+        })
+      ]);
+    }
+  });
+
   it("keeps main OA materials when linked ERP document is missing", () => {
     const result = buildDocumentLookupResult({
       mode: "oa_form_number",
@@ -171,6 +225,18 @@ describe("document lookup core", () => {
         erpRows: [erpRow()]
       })
     ).toEqual({ ok: false, message: "未找到ERP单据编号：ERP-MISSING" });
+  });
+
+  it("omits empty counterpart prefixes from suggestion labels", () => {
+    const suggestions = buildDocumentLookupSuggestions(
+      [oaRow({ 金蝶云单据编号: "" })],
+      [erpRow({ 源单单号: "" })]
+    );
+
+    expect(suggestions.oa[0].label).toBe("OA-001 | 2026-05-01 | 数控 | 生产/仓储");
+    expect(suggestions.oa[0].label).not.toContain("ERP:");
+    expect(suggestions.erp[0].label).toBe("ERP-001 | 2026-05-02 | 数控 | 生产/仓储");
+    expect(suggestions.erp[0].label).not.toContain("OA:");
   });
 
   it("converts lookup rows to the fixed worksheet header order", () => {

@@ -78,6 +78,14 @@ interface MaterialAccumulator {
   itemName: string;
   quantity: Decimal;
   amount: Decimal;
+  missingItemCodeRemark?: string;
+}
+
+const OA_MISSING_ITEM_CODE_KEY = "missing-item-code:oa";
+const ERP_MISSING_ITEM_CODE_KEY = "missing-item-code:erp";
+
+function materialPairKey(itemCode: string): string {
+  return `item-code:${itemCode}`;
 }
 
 function appendText(current: string, value: unknown, separator = ","): string {
@@ -112,6 +120,10 @@ function getOrCreateSuggestion(groups: Map<string, SuggestionAccumulator>, docNu
 
 function buildSuggestionLabel(parts: string[]): string {
   return parts.filter((part) => part.trim()).join(" | ");
+}
+
+function counterpartLabel(prefix: string, docNumbers: string): string {
+  return docNumbers ? `${prefix}: ${docNumbers}` : "";
 }
 
 export function buildDocumentLookupSuggestions(
@@ -153,7 +165,7 @@ export function buildDocumentLookupSuggestions(
         group.dates,
         group.companies,
         group.deptPairs,
-        `ERP: ${group.counterpartDocNumbers}`
+        counterpartLabel("ERP", group.counterpartDocNumbers)
       ])
     })),
     erp: [...erpGroups.values()].map((group) => ({
@@ -164,7 +176,7 @@ export function buildDocumentLookupSuggestions(
         group.dates,
         group.companies,
         group.deptPairs,
-        `OA: ${group.counterpartDocNumbers}`
+        counterpartLabel("OA", group.counterpartDocNumbers)
       ])
     }))
   };
@@ -194,8 +206,12 @@ function collectUniqueText(rows: RawRow[], fieldName: string): Set<string> {
   return result;
 }
 
-function getOrCreateMaterial(groups: Map<string, MaterialAccumulator>, itemCode: string): MaterialAccumulator {
-  const existing = groups.get(itemCode);
+function getOrCreateMaterial(
+  groups: Map<string, MaterialAccumulator>,
+  groupKey: string,
+  itemCode: string
+): MaterialAccumulator {
+  const existing = groups.get(groupKey);
   if (existing) {
     return existing;
   }
@@ -211,7 +227,7 @@ function getOrCreateMaterial(groups: Map<string, MaterialAccumulator>, itemCode:
     quantity: zeroDecimal(),
     amount: zeroDecimal()
   };
-  groups.set(itemCode, created);
+  groups.set(groupKey, created);
   return created;
 }
 
@@ -219,10 +235,14 @@ function aggregateOaMaterials(rows: RawRow[]): Map<string, MaterialAccumulator> 
   const result = new Map<string, MaterialAccumulator>();
   for (const row of rows) {
     const itemCode = normalizeText(row["物料代码"]);
+    const target = getOrCreateMaterial(
+      result,
+      itemCode ? materialPairKey(itemCode) : OA_MISSING_ITEM_CODE_KEY,
+      itemCode
+    );
     if (!itemCode) {
-      continue;
+      target.missingItemCodeRemark = "OA物料编码为空，无法配对";
     }
-    const target = getOrCreateMaterial(result, itemCode);
     target.formNumbers = appendText(target.formNumbers, row["表单编号"]);
     target.recordedCounterpartDocNumbers = appendText(target.recordedCounterpartDocNumbers, row["金蝶云单据编号"]);
     target.dates = appendText(target.dates, normalizeDateKey(row["申请日期"]));
@@ -242,10 +262,14 @@ function aggregateErpMaterials(rows: RawRow[]): Map<string, MaterialAccumulator>
   const result = new Map<string, MaterialAccumulator>();
   for (const row of rows) {
     const itemCode = normalizeText(row["物料编码"]);
+    const target = getOrCreateMaterial(
+      result,
+      itemCode ? materialPairKey(itemCode) : ERP_MISSING_ITEM_CODE_KEY,
+      itemCode
+    );
     if (!itemCode) {
-      continue;
+      target.missingItemCodeRemark = "ERP物料编码为空，无法配对";
     }
-    const target = getOrCreateMaterial(result, itemCode);
     target.formNumbers = appendText(target.formNumbers, row["单据编号"]);
     target.recordedCounterpartDocNumbers = appendText(target.recordedCounterpartDocNumbers, row["源单单号"]);
     target.dates = appendText(target.dates, normalizeDateKey(row["日期"]));
@@ -267,8 +291,15 @@ function unionMaterialCodes(left: Map<string, MaterialAccumulator>, right: Map<s
 
 function remarkFor(
   oa: MaterialAccumulator | undefined,
-  erp: MaterialAccumulator | undefined
+  erp: MaterialAccumulator | undefined,
+  displayedQuantityDiff: number
 ): string {
+  if (oa?.missingItemCodeRemark) {
+    return oa.missingItemCodeRemark;
+  }
+  if (erp?.missingItemCodeRemark) {
+    return erp.missingItemCodeRemark;
+  }
   if (oa && !erp) {
     return "ERP缺少该物料";
   }
@@ -278,7 +309,7 @@ function remarkFor(
   if (!oa || !erp) {
     return "";
   }
-  return subtractDecimal(oa.quantity, erp.quantity).isZero() ? "数量一致" : "数量不同";
+  return displayedQuantityDiff === 0 ? "数量一致" : "数量不同";
 }
 
 function buildRows(
@@ -297,7 +328,10 @@ function buildRows(
     const erp = erpMaterials.get(itemCode);
     const quantityDiff = subtractDecimal(oa?.quantity ?? zeroDecimal(), erp?.quantity ?? zeroDecimal());
     const amountDiff = subtractDecimal(oa?.amount ?? zeroDecimal(), erp?.amount ?? zeroDecimal());
-    const rowMissingRemark = counterpartMissing ? missingCounterpartRemark : remarkFor(oa, erp);
+    const displayedQuantityDiff = decimalToNumber2(quantityDiff);
+    const materialRemark = remarkFor(oa, erp, displayedQuantityDiff);
+    const hasMissingItemCode = Boolean(oa?.missingItemCodeRemark || erp?.missingItemCodeRemark);
+    const rowMissingRemark = counterpartMissing && !hasMissingItemCode ? missingCounterpartRemark : materialRemark;
 
     return {
       rowType: "物料",
@@ -323,7 +357,7 @@ function buildRows(
       erpItemName: erp?.itemName ?? "",
       erpQuantity: decimalToNumber2(erp?.quantity ?? zeroDecimal()),
       erpAmount: decimalToNumber2(erp?.amount ?? zeroDecimal()),
-      quantityDiff: decimalToNumber2(quantityDiff),
+      quantityDiff: displayedQuantityDiff,
       amountDiff: decimalToNumber2(amountDiff),
       remark: rowMissingRemark
     };
