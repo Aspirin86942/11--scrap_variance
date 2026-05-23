@@ -342,10 +342,21 @@ describe("TypeScript macro orchestration", () => {
     runPerformanceDiagnostics(root);
 
     const diagnosticsSheet = getFakeSheetByName(root, SHEET_NAMES.performanceDiagnostics);
+    const outputSheets = [
+      getFakeSheetByName(root, SHEET_NAMES.varianceSummary),
+      getFakeSheetByName(root, SHEET_NAMES.oaDocCompare),
+      getFakeSheetByName(root, SHEET_NAMES.erpDocCompare)
+    ];
     const output = flattenWrites(diagnosticsSheet);
     expect(diagnosticsSheet.Name).toBe(SHEET_NAMES.performanceDiagnostics);
     expect(panelSheet.Name).toBe(SHEET_NAMES.varianceSummary);
     expect(panelSheet.clears).toEqual([]);
+    for (const outputSheet of outputSheets) {
+      expect(outputSheet.writes).toEqual([]);
+      expect(outputSheet.clears).toEqual([]);
+    }
+    expect(oaSheet.rangeReads.length + oaSheet.usedRangeValue2ReadCount).toBeLessThanOrEqual(2);
+    expect(erpSheet.rangeReads.length + erpSheet.usedRangeValue2ReadCount).toBeLessThanOrEqual(2);
     expect(output).toContain("类别");
     expect(output).toContain("read_oa_source_table");
     expect(output).toContain("read_erp_source_table");
