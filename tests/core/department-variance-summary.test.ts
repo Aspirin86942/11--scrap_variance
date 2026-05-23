@@ -1,12 +1,99 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEPARTMENT_VARIANCE_SUMMARY_HEADERS } from "../../src/constants";
 import { QUERY_DIRECTIONS } from "../../src/core/query-direction";
 import {
   buildDepartmentVarianceSummaryRows,
   departmentVarianceSummaryRowsToValues
 } from "../../src/core/department-variance-summary";
+import type { DocCompareResult, DocCompareRow } from "../../src/types/scrap";
+import { parseDecimal, zeroDecimal } from "../../src/utils/decimal";
 
 describe("department variance summary", () => {
+  it("summarizes from doc compare metadata without reading material rows", async () => {
+    const summaryRow: DocCompareRow = {
+      rowType: "汇总",
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      date: "2026-05-01",
+      primaryDocNumber: "OA-META",
+      primaryQuantity: 10,
+      primaryAmount: 100,
+      counterpartDocNumber: "ERP-META",
+      counterpartQuantity: 10,
+      counterpartAmount: 100,
+      quantityDiff: 0,
+      amountDiff: 0,
+      itemCode: "",
+      itemName: "",
+      remark: ""
+    };
+    const mockedResult: DocCompareResult = {
+      kind: "oa_doc_compare",
+      summaryRows: [summaryRow],
+      materialRowsBySummaryKey: new Map(),
+      summaryItems: [
+        {
+          summaryKey: "meta-key",
+          row: { ...summaryRow },
+          materialRows: [],
+          meta: {
+            counterpartDocNumbers: ["ERP-META"],
+            hasMaterialShapeMismatch: false,
+            primaryQuantity: parseDecimal("10", "主视角数量"),
+            primaryAmount: parseDecimal("100", "主视角金额"),
+            counterpartQuantity: parseDecimal("10", "对方视角数量"),
+            counterpartAmount: parseDecimal("100", "对方视角金额"),
+            quantityDiff: zeroDecimal(),
+            amountDiff: zeroDecimal()
+          }
+        }
+      ]
+    };
+
+    vi.resetModules();
+    vi.doMock("../../src/core/doc-compare", () => ({
+      buildOaDocCompare: vi.fn(() => mockedResult),
+      buildErpDocCompare: vi.fn(() => mockedResult),
+      buildMaterialRowsForDocSummary: vi.fn(() => {
+        throw new Error("summary should use metadata instead of material row lookup");
+      })
+    }));
+
+    try {
+      const { buildDepartmentVarianceSummaryRows } = await import("../../src/core/department-variance-summary");
+      const rows = buildDepartmentVarianceSummaryRows(
+        [],
+        [{ 单据编号: "ERP-META" }],
+        {},
+        QUERY_DIRECTIONS.oaKingdeeToErp
+      );
+
+      expect(rows).toEqual([
+        {
+          company: "数控",
+          dept1: "生产",
+          dept2: "仓储",
+          perspective: "OA视角",
+          primaryDocCount: 1,
+          matchedDocCount: 1,
+          unmatchedDocCount: 0,
+          differentDocCount: 0,
+          oaQuantity: 10,
+          erpQuantity: 10,
+          quantityDiff: 0,
+          oaAmount: 100,
+          erpCost: 100,
+          amountDiff: 0,
+          differenceSummary: "OA和ERP都有，数量一致"
+        }
+      ]);
+    } finally {
+      vi.doUnmock("../../src/core/doc-compare");
+      vi.resetModules();
+    }
+  });
+
   it("builds OA perspective department summary rows with document counts and ordered difference summary", () => {
     const rows = buildDepartmentVarianceSummaryRows(
       [
@@ -230,6 +317,127 @@ describe("department variance summary", () => {
         erpCost: 0,
         amountDiff: 0,
         differenceSummary: "OA和ERP都有，数量一致"
+      }
+    ]);
+  });
+
+  it("classifies matched documents with material shape mismatch from compare metadata", () => {
+    const rows = buildDepartmentVarianceSummaryRows(
+      [
+        {
+          表单编号: "OA-MAT",
+          金蝶云单据编号: "ERP-MAT",
+          申请日期: "2026/5/3",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-OA",
+          物料名称: "OA物料",
+          数量: 2,
+          实际预算金额mx: 20
+        }
+      ],
+      [
+        {
+          单据编号: "ERP-MAT",
+          日期: "2026/5/4",
+          源单单号: "OA-MAT",
+          区分公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料编码: "MAT-ERP",
+          物料名称: "ERP物料",
+          实发数量: 2,
+          总成本: 20
+        }
+      ],
+      {
+        company: "数控",
+        dept1: "生产",
+        dept2: "仓储",
+        startDate: "2026/5/1",
+        endDate: "2026/5/31"
+      },
+      QUERY_DIRECTIONS.oaKingdeeToErp
+    );
+
+    expect(rows).toEqual([
+      {
+        company: "数控",
+        dept1: "生产",
+        dept2: "仓储",
+        perspective: "OA视角",
+        primaryDocCount: 1,
+        matchedDocCount: 1,
+        unmatchedDocCount: 0,
+        differentDocCount: 1,
+        oaQuantity: 2,
+        erpQuantity: 2,
+        quantityDiff: 0,
+        oaAmount: 20,
+        erpCost: 20,
+        amountDiff: 0,
+        differenceSummary: "OA和ERP都有，但物料明细不一致"
+      }
+    ]);
+  });
+
+  it("keeps department totals aligned with rounded compare summary values", () => {
+    const rows = buildDepartmentVarianceSummaryRows(
+      [
+        {
+          表单编号: "OA-ROUND-1",
+          金蝶云单据编号: "ERP-MISSING-1",
+          申请日期: "2026/5/3",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-A",
+          物料名称: "物料A",
+          数量: "1.005",
+          实际预算金额mx: 0
+        },
+        {
+          表单编号: "OA-ROUND-2",
+          金蝶云单据编号: "ERP-MISSING-2",
+          申请日期: "2026/5/4",
+          公司简称: "数控",
+          一级部门: "生产",
+          二级部门: "仓储",
+          物料代码: "MAT-B",
+          物料名称: "物料B",
+          数量: "1.005",
+          实际预算金额mx: 0
+        }
+      ],
+      [],
+      {
+        company: "数控",
+        dept1: "生产",
+        dept2: "仓储",
+        startDate: "2026/5/1",
+        endDate: "2026/5/31"
+      },
+      QUERY_DIRECTIONS.oaKingdeeToErp
+    );
+
+    expect(rows).toEqual([
+      {
+        company: "数控",
+        dept1: "生产",
+        dept2: "仓储",
+        perspective: "OA视角",
+        primaryDocCount: 2,
+        matchedDocCount: 0,
+        unmatchedDocCount: 2,
+        differentDocCount: 0,
+        oaQuantity: 2.02,
+        erpQuantity: 0,
+        quantityDiff: 2.02,
+        oaAmount: 0,
+        erpCost: 0,
+        amountDiff: 0,
+        differenceSummary: "OA有申请，ERP无出库"
       }
     ]);
   });

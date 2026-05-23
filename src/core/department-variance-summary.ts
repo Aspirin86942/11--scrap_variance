@@ -1,8 +1,8 @@
 import { DEPARTMENT_VARIANCE_SUMMARY_HEADERS, DIFFERENCE_TYPE_PRIORITY } from "../constants";
-import type { DocCompareResult, DocCompareRow, OutputMatrix, QueryFilters, RawRow } from "../types/scrap";
-import { addDecimal, decimalToNumber2, parseDecimal, subtractDecimal, zeroDecimal } from "../utils/decimal";
+import type { DocCompareResult, DocCompareRow, DocCompareSummaryItem, OutputMatrix, QueryFilters, RawRow } from "../types/scrap";
+import { addDecimal, decimalToNumber2, subtractDecimal, zeroDecimal } from "../utils/decimal";
 import { normalizeText } from "../utils/text";
-import { buildErpDocCompare, buildMaterialRowsForDocSummary, buildOaDocCompare } from "./doc-compare";
+import { buildErpDocCompare, buildOaDocCompare } from "./doc-compare";
 import { QUERY_DIRECTIONS, type QueryDirection } from "./query-direction";
 
 type DepartmentVariancePerspective = "OA视角" | "ERP视角";
@@ -64,24 +64,23 @@ function createAccumulator(row: DocCompareRow, perspective: DepartmentVariancePe
   };
 }
 
-function addDocTotals(summary: SummaryAccumulator, row: DocCompareRow, perspective: DepartmentVariancePerspective): void {
-  const primaryQuantity = parseDecimal(row.primaryQuantity, "主视角数量");
-  const counterpartQuantity = parseDecimal(row.counterpartQuantity, "对方视角数量");
-  const primaryAmount = parseDecimal(row.primaryAmount, "主视角金额");
-  const counterpartAmount = parseDecimal(row.counterpartAmount, "对方视角金额");
-
+function addDocTotalsFromMeta(
+  summary: SummaryAccumulator,
+  item: DocCompareSummaryItem,
+  perspective: DepartmentVariancePerspective
+): void {
   if (perspective === "OA视角") {
-    summary.oaQuantity = addDecimal(summary.oaQuantity, primaryQuantity);
-    summary.erpQuantity = addDecimal(summary.erpQuantity, counterpartQuantity);
-    summary.oaAmount = addDecimal(summary.oaAmount, primaryAmount);
-    summary.erpCost = addDecimal(summary.erpCost, counterpartAmount);
+    summary.oaQuantity = addDecimal(summary.oaQuantity, item.meta.primaryQuantity);
+    summary.erpQuantity = addDecimal(summary.erpQuantity, item.meta.counterpartQuantity);
+    summary.oaAmount = addDecimal(summary.oaAmount, item.meta.primaryAmount);
+    summary.erpCost = addDecimal(summary.erpCost, item.meta.counterpartAmount);
     return;
   }
 
-  summary.oaQuantity = addDecimal(summary.oaQuantity, counterpartQuantity);
-  summary.erpQuantity = addDecimal(summary.erpQuantity, primaryQuantity);
-  summary.oaAmount = addDecimal(summary.oaAmount, counterpartAmount);
-  summary.erpCost = addDecimal(summary.erpCost, primaryAmount);
+  summary.oaQuantity = addDecimal(summary.oaQuantity, item.meta.counterpartQuantity);
+  summary.erpQuantity = addDecimal(summary.erpQuantity, item.meta.primaryQuantity);
+  summary.oaAmount = addDecimal(summary.oaAmount, item.meta.counterpartAmount);
+  summary.erpCost = addDecimal(summary.erpCost, item.meta.primaryAmount);
 }
 
 function buildDocumentNumberSet(rows: RawRow[] | null | undefined, fieldName: string): Set<string> {
@@ -97,23 +96,12 @@ function buildDocumentNumberSet(rows: RawRow[] | null | undefined, fieldName: st
   return result;
 }
 
-function hasMatchedCounterpartDoc(row: DocCompareRow, counterpartDocNumbers: Set<string>): boolean {
-  return normalizeText(row.counterpartDocNumber)
-    .split(",")
-    .some((docNumber) => counterpartDocNumbers.has(normalizeText(docNumber)));
-}
-
-function hasMaterialShapeMismatch(materialRows: DocCompareRow[]): boolean {
-  return materialRows.some(
-    (row) =>
-      (row.primaryQuantity === 0 && row.counterpartQuantity !== 0) ||
-      (row.primaryQuantity !== 0 && row.counterpartQuantity === 0)
-  );
+function hasMatchedCounterpartDoc(item: DocCompareSummaryItem, counterpartDocNumbers: Set<string>): boolean {
+  return item.meta.counterpartDocNumbers.some((docNumber) => counterpartDocNumbers.has(docNumber));
 }
 
 function classifyDifference(
-  row: DocCompareRow,
-  materialRows: DocCompareRow[],
+  item: DocCompareSummaryItem,
   perspective: DepartmentVariancePerspective,
   matched: boolean
 ): { differenceType: DifferenceType; matched: boolean; different: boolean } {
@@ -125,7 +113,7 @@ function classifyDifference(
     };
   }
 
-  if (hasMaterialShapeMismatch(materialRows)) {
+  if (item.meta.hasMaterialShapeMismatch) {
     return {
       differenceType: "OA和ERP都有，但物料明细不一致",
       matched: true,
@@ -133,7 +121,7 @@ function classifyDifference(
     };
   }
 
-  if (row.quantityDiff !== 0) {
+  if (item.row.quantityDiff !== 0) {
     return {
       differenceType: "OA和ERP都有，但数量不同",
       matched: true,
@@ -148,13 +136,13 @@ function classifyDifference(
   };
 }
 
-function addSummaryRow(
+function addSummaryItem(
   grouped: Map<string, SummaryAccumulator>,
-  result: DocCompareResult,
-  row: DocCompareRow,
+  item: DocCompareSummaryItem,
   perspective: DepartmentVariancePerspective,
   counterpartDocNumbers: Set<string>
 ): void {
+  const row = item.row;
   const key = makeGroupKey(row, perspective);
   let summary = grouped.get(key);
   if (!summary) {
@@ -162,13 +150,7 @@ function addSummaryRow(
     grouped.set(key, summary);
   }
 
-  const materialRows = buildMaterialRowsForDocSummary(result, row);
-  const classification = classifyDifference(
-    row,
-    materialRows,
-    perspective,
-    hasMatchedCounterpartDoc(row, counterpartDocNumbers)
-  );
+  const classification = classifyDifference(item, perspective, hasMatchedCounterpartDoc(item, counterpartDocNumbers));
 
   summary.primaryDocCount += 1;
   if (classification.matched) {
@@ -181,7 +163,7 @@ function addSummaryRow(
     summary.differentDocCount += 1;
   }
   summary.differenceTypes.add(classification.differenceType);
-  addDocTotals(summary, row, perspective);
+  addDocTotalsFromMeta(summary, item, perspective);
 }
 
 function buildRowsFromDocCompare(
@@ -191,8 +173,8 @@ function buildRowsFromDocCompare(
 ): DepartmentVarianceSummaryRow[] {
   const grouped = new Map<string, SummaryAccumulator>();
 
-  for (const row of result.summaryRows) {
-    addSummaryRow(grouped, result, row, perspective, counterpartDocNumbers);
+  for (const item of result.summaryItems) {
+    addSummaryItem(grouped, item, perspective, counterpartDocNumbers);
   }
 
   return [...grouped.values()].map((summary) => {
