@@ -58,11 +58,11 @@ function outputRowsFor(values: OutputMatrix | null): number {
 export function runOutputSheetQueryCore(input: OutputQueryRunnerInput): OutputQueryRunnerResult {
   const { kind, oaRows, erpRows, queryState, metrics } = input;
   const filters = parseFilters(queryState);
-  const queryDirection = parseQueryDirection(queryState.queryDirection);
   const sourceRows = countSourceRows(oaRows, erpRows);
   const note = `output=${kind}`;
 
   if (kind === "variance_summary") {
+    const queryDirection = parseQueryDirection(queryState.queryDirection);
     const summaryRows = metrics.measure(
       "build_variance_summary_rows",
       { inputRows: sourceRows, outputRows: (rows) => rows.length, note },

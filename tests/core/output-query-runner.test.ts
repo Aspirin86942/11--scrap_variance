@@ -84,6 +84,27 @@ describe("output query runner", () => {
     expect(metrics.stages.every((stage) => stage.note === "output=oa_doc_compare")).toBe(true);
   });
 
+  it("runs OA document compare output when query direction is stale", () => {
+    const data = generateBenchmarkData(30);
+    const metrics = makeMetrics();
+
+    const result = runOutputSheetQueryCore({
+      kind: "oa_doc_compare",
+      oaRows: data.oaRows,
+      erpRows: data.erpRows,
+      queryState: makeQueryState({ queryDirection: "坏方向" as RibbonQueryState["queryDirection"] }),
+      metrics
+    });
+
+    expect(result.kind).toBe("oa_doc_compare");
+    expect(result.noResultMessage).toBeNull();
+    expect(result.rowCounts.summaryRows).toBeGreaterThan(0);
+    expect(metrics.stages.map((stage) => stage.name)).toEqual([
+      "build_oa_doc_compare_rows",
+      "build_oa_doc_compare_matrix"
+    ]);
+  });
+
   it("builds ERP document compare output with ERP output labels", () => {
     const data = generateBenchmarkData(30);
     const metrics = makeMetrics();
@@ -107,6 +128,27 @@ describe("output query runner", () => {
       "build_erp_doc_compare_matrix"
     ]);
     expect(metrics.stages.every((stage) => stage.note === "output=erp_doc_compare")).toBe(true);
+  });
+
+  it("runs ERP document compare output when query direction is stale", () => {
+    const data = generateBenchmarkData(30);
+    const metrics = makeMetrics();
+
+    const result = runOutputSheetQueryCore({
+      kind: "erp_doc_compare",
+      oaRows: data.oaRows,
+      erpRows: data.erpRows,
+      queryState: makeQueryState({ queryDirection: "坏方向" as RibbonQueryState["queryDirection"] }),
+      metrics
+    });
+
+    expect(result.kind).toBe("erp_doc_compare");
+    expect(result.noResultMessage).toBeNull();
+    expect(result.rowCounts.summaryRows).toBeGreaterThan(0);
+    expect(metrics.stages.map((stage) => stage.name)).toEqual([
+      "build_erp_doc_compare_rows",
+      "build_erp_doc_compare_matrix"
+    ]);
   });
 
   it("returns output-specific no-result messages without treating them as errors", () => {
