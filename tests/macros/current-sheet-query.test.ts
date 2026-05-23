@@ -194,6 +194,33 @@ describe("current sheet query macro", () => {
     expect(output).not.toContain("查询条件没有匹配到 OA 数据。");
   });
 
+  it("runCurrentSheetQuery ignores a stale bad ribbon direction for the active OA compare sheet", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31",
+      queryDirection: "坏方向" as typeof QUERY_DIRECTIONS.oaKingdeeToErp
+    };
+    setActiveSheet(root, oaCompareSheet);
+
+    runCurrentSheetQuery(root);
+
+    const output = flattenWrites(oaCompareSheet);
+    expect(output).toContain("OA-001");
+    expect(output).toContain("ERP-778");
+    expect(output).not.toContain("查询方向不正确：请填写 OA金蝶单号查ERP 或 ERP源单查OA");
+    expect(detailSheet.writes).toEqual([]);
+    expect(erpCompareSheet.writes).toEqual([]);
+  });
+
   it("runCurrentSheetQueryWithState ignores stale global ribbon filters", () => {
     const oaSheet = makeOaSheet([
       validOaRow(),
@@ -408,6 +435,33 @@ describe("current sheet query macro", () => {
     expect(oaCompareSheet.writes).toEqual([]);
     expect(oaSheet.writes).toEqual([]);
     expect(erpSheet.writes).toEqual([]);
+  });
+
+  it("runCurrentSheetQuery ignores a stale bad ribbon direction for the active ERP compare sheet", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31",
+      queryDirection: "坏方向" as typeof QUERY_DIRECTIONS.oaKingdeeToErp
+    };
+    setActiveSheet(root, erpCompareSheet);
+
+    runCurrentSheetQuery(root);
+
+    const output = flattenWrites(erpCompareSheet);
+    expect(output).toContain("ERP-778");
+    expect(output).toContain("OA-001");
+    expect(output).not.toContain("查询方向不正确：请填写 OA金蝶单号查ERP 或 ERP源单查OA");
+    expect(detailSheet.writes).toEqual([]);
+    expect(oaCompareSheet.writes).toEqual([]);
   });
 
   it("runCurrentSheetQuery writes variance summary output for the active summary sheet and respects ribbon direction", () => {

@@ -14,6 +14,7 @@ import {
   docCompareRowsToValues
 } from "../core/doc-compare";
 import { parseFilters } from "../core/build-oa-rows";
+import { DEFAULT_QUERY_DIRECTION } from "../core/query-direction";
 import { runOutputSheetQueryCore } from "../core/output-query-runner";
 import { detectOutputSheetKind, unsupportedOutputSheetMessage } from "../core/output-sheets";
 import { createMetricsRecorder } from "../perf/metrics";
@@ -86,6 +87,29 @@ function readSourceRows(root?: ScrapVarianceGlobal): SourceRows {
   };
 }
 
+function queryStateFromRibbonForOutputKind(root: ScrapVarianceGlobal | undefined, kind: OutputSheetKind): RibbonQueryState {
+  try {
+    return getRibbonState(root);
+  } catch (error) {
+    if (kind === "variance_summary") {
+      throw error;
+    }
+    const state = (root ?? (globalThis as ScrapVarianceGlobal)).ScrapVarianceRibbonState ?? {};
+    const filters = parseFilters({
+      company: state.company,
+      dept1: state.dept1,
+      dept2: state.dept2,
+      startDate: state.startDate,
+      endDate: state.endDate
+    });
+    return {
+      ...filters,
+      // 单据对比页由当前工作表决定查询视角，旧状态里的方向脏值不应阻断查询。
+      queryDirection: DEFAULT_QUERY_DIRECTION
+    };
+  }
+}
+
 function safeWriteCurrentSheetError(
   sheet: WpsSheet,
   kind: OutputSheetKind,
@@ -112,7 +136,7 @@ export function runCurrentSheetQuery(root?: ScrapVarianceGlobal): void {
 
   try {
     // 旧入口没有显式传状态时，仍从功能区全局状态读取，保持兼容。
-    runCurrentSheetQueryWithState(root, getRibbonState(root));
+    runCurrentSheetQueryWithState(root, queryStateFromRibbonForOutputKind(root, kind));
   } catch (error) {
     safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error));
   }

@@ -223,4 +223,18 @@ describe("output query runner", () => {
       })
     ).toThrow("查询方向不正确：请填写 OA金蝶单号查ERP 或 ERP源单查OA");
   });
+
+  it("rejects unsupported output kinds instead of falling through to ERP compare", () => {
+    const data = generateBenchmarkData(30);
+
+    expect(() =>
+      runOutputSheetQueryCore({
+        kind: "unknown_output" as never,
+        oaRows: data.oaRows,
+        erpRows: data.erpRows,
+        queryState: makeQueryState(),
+        metrics: makeMetrics()
+      })
+    ).toThrow("不支持的输出页类型：unknown_output");
+  });
 });

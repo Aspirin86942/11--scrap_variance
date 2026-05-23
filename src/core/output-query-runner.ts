@@ -55,6 +55,10 @@ function outputRowsFor(values: OutputMatrix | null): number {
   return values?.length ?? 1;
 }
 
+function unsupportedOutputKind(kind: never): never {
+  throw new Error(`不支持的输出页类型：${String(kind)}`);
+}
+
 export function runOutputSheetQueryCore(input: OutputQueryRunnerInput): OutputQueryRunnerResult {
   const { kind, oaRows, erpRows, queryState, metrics } = input;
   const filters = parseFilters(queryState);
@@ -113,27 +117,31 @@ export function runOutputSheetQueryCore(input: OutputQueryRunnerInput): OutputQu
     };
   }
 
-  const compareResult = metrics.measure(
-    "build_erp_doc_compare_rows",
-    { inputRows: sourceRows, outputRows: (result) => result.summaryRows.length, note },
-    () => buildErpDocCompare(oaRows, erpRows, filters)
-  );
-  const materialRows = countMaterialRows(compareResult);
-  const values = metrics.measure(
-    "build_erp_doc_compare_matrix",
-    { inputRows: compareResult.summaryRows.length, outputRows: outputRowsFor, note },
-    () => compareResult.summaryRows.length === 0 ? null : docCompareRowsToValues("erp_doc_compare", compareResult.summaryRows)
-  );
+  if (kind === "erp_doc_compare") {
+    const compareResult = metrics.measure(
+      "build_erp_doc_compare_rows",
+      { inputRows: sourceRows, outputRows: (result) => result.summaryRows.length, note },
+      () => buildErpDocCompare(oaRows, erpRows, filters)
+    );
+    const materialRows = countMaterialRows(compareResult);
+    const values = metrics.measure(
+      "build_erp_doc_compare_matrix",
+      { inputRows: compareResult.summaryRows.length, outputRows: outputRowsFor, note },
+      () => compareResult.summaryRows.length === 0 ? null : docCompareRowsToValues("erp_doc_compare", compareResult.summaryRows)
+    );
 
-  return {
-    kind,
-    values,
-    noResultMessage: values === null ? "查询条件没有匹配到 ERP 数据。" : null,
-    rowCounts: {
-      sourceRows,
-      summaryRows: compareResult.summaryRows.length,
-      outputRows: outputRowsFor(values),
-      materialRows
-    }
-  };
+    return {
+      kind,
+      values,
+      noResultMessage: values === null ? "查询条件没有匹配到 ERP 数据。" : null,
+      rowCounts: {
+        sourceRows,
+        summaryRows: compareResult.summaryRows.length,
+        outputRows: outputRowsFor(values),
+        materialRows
+      }
+    };
+  }
+
+  return unsupportedOutputKind(kind);
 }
