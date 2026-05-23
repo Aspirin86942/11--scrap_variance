@@ -125,7 +125,11 @@
       return null;
     }
 
-    raw = storage.getItem(getInitialStateKey());
+    try {
+      raw = storage.getItem(getInitialStateKey());
+    } catch (error) {
+      return null;
+    }
     if (typeof raw !== "string" || !raw.trim()) {
       return null;
     }
@@ -282,6 +286,18 @@
     );
   }
 
+  function writeResult(storage, payload, showAlert) {
+    try {
+      storage.setItem(RESULT_KEY, JSON.stringify(payload));
+      return true;
+    } catch (error) {
+      if (showAlert !== false) {
+        alert("单号查询结果写入失败，请关闭后重试。");
+      }
+      return false;
+    }
+  }
+
   function closeDialog() {
     if (typeof window.close === "function") {
       window.close();
@@ -291,19 +307,25 @@
   function submitResult(action, selection) {
     var storage = getStorage();
     var token = getToken();
-    if (!storage || !token) {
+    if (!storage) {
+      return;
+    }
+    if (!token) {
       alert("查询弹窗缺少会话标识，请关闭后重新打开。");
       return;
     }
 
-    storage.setItem(
-      RESULT_KEY,
-      JSON.stringify({
+    if (!writeResult(
+      storage,
+      {
         token: token,
         action: action,
         selection: selection
-      })
-    );
+      },
+      true
+    )) {
+      return;
+    }
     hasSubmitted = true;
     closeDialog();
   }
@@ -321,14 +343,17 @@
       return;
     }
 
-    storage.setItem(
-      RESULT_KEY,
-      JSON.stringify({
+    if (!writeResult(
+      storage,
+      {
         token: token,
         action: "cancel",
         selection: null
-      })
-    );
+      },
+      false
+    )) {
+      return;
+    }
     hasSubmitted = true;
   }
 
