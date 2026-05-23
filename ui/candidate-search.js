@@ -105,9 +105,19 @@
     var recordIndex;
     var record;
 
-    if (normalizedQuery.length <= 1) {
+    if (!normalizedQuery) {
       for (recordIndex = 0; recordIndex < records.length && result.length < max; recordIndex += 1) {
         result.push(records[recordIndex].value);
+      }
+      return result;
+    }
+
+    if (normalizedQuery.length === 1) {
+      for (recordIndex = 0; recordIndex < records.length && result.length < max; recordIndex += 1) {
+        record = records[recordIndex];
+        if (record.searchText.indexOf(normalizedQuery) !== -1) {
+          result.push(record.value);
+        }
       }
       return result;
     }

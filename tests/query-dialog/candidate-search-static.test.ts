@@ -13,23 +13,35 @@ interface CandidateSearchApi {
   searchIndex<T>(index: unknown, query: string, limit: number): T[];
 }
 
-function loadCandidateSearch(): CandidateSearchApi {
+function loadCandidateSearch(): { api: CandidateSearchApi; publicApi: CandidateSearchApi } {
   const tests = {} as CandidateSearchApi;
   const windowObject = {
     __SCRAP_VARIANCE_CANDIDATE_SEARCH_TESTS__: tests
-  };
+  } as { __SCRAP_VARIANCE_CANDIDATE_SEARCH_TESTS__: CandidateSearchApi; __SCRAP_VARIANCE_CANDIDATE_SEARCH__?: CandidateSearchApi };
   const context = vm.createContext({
     window: windowObject
   });
 
   vm.runInContext(readFileSync(resolve(repoRoot, "ui/candidate-search.js"), "utf-8"), context);
 
-  return tests;
+  if (!windowObject.__SCRAP_VARIANCE_CANDIDATE_SEARCH__) {
+    throw new Error("expected public candidate search helper to be exposed");
+  }
+
+  return { api: tests, publicApi: windowObject.__SCRAP_VARIANCE_CANDIDATE_SEARCH__ };
 }
 
 describe("static candidate search helper", () => {
+  it("exposes the public candidate search helper on window", () => {
+    const { publicApi } = loadCandidateSearch();
+
+    expect(typeof publicApi.normalizeStringValues).toBe("function");
+    expect(typeof publicApi.buildIndex).toBe("function");
+    expect(typeof publicApi.searchIndex).toBe("function");
+  });
+
   it("normalizes strings by trimming blanks and preserving first occurrence order", () => {
-    const api = loadCandidateSearch();
+    const { api } = loadCandidateSearch();
 
     expect(api.normalizeStringValues([" 数控 ", "", "数控", null, "装备", "  ", "售后"])).toEqual([
       "数控",
@@ -39,7 +51,7 @@ describe("static candidate search helper", () => {
   });
 
   it("uses 2-gram search for middle substring matches while preserving original order", () => {
-    const api = loadCandidateSearch();
+    const { api } = loadCandidateSearch();
     const index = api.buildIndex(["生产部门1", "质量中心", "生产部门2", "售后服务"], (value) => value);
 
     expect(api.searchIndex<string>(index, "产部", 30)).toEqual(["生产部门1", "生产部门2"]);
@@ -47,7 +59,7 @@ describe("static candidate search helper", () => {
   });
 
   it("caps empty and single-character searches without ranking or reordering", () => {
-    const api = loadCandidateSearch();
+    const { api } = loadCandidateSearch();
     const values = Array.from({ length: 35 }, (_, index) => `生产部门${index + 1}`);
     const index = api.buildIndex(values, (value) => value);
 
@@ -55,8 +67,17 @@ describe("static candidate search helper", () => {
     expect(api.searchIndex<string>(index, "部", 30)).toEqual(values.slice(0, 30));
   });
 
+  it("filters single-character searches by contains while preserving original order", () => {
+    const { api } = loadCandidateSearch();
+    const values = ["生产部门1", "财务中心", "售后服务"];
+    const index = api.buildIndex(values, (value) => value);
+
+    expect(api.searchIndex<string>(index, "财", 30)).toEqual(["财务中心"]);
+    expect(api.searchIndex<string>(index, "售", 30)).toEqual(["售后服务"]);
+  });
+
   it("indexes only the caller-provided search text for object candidates", () => {
-    const api = loadCandidateSearch();
+    const { api } = loadCandidateSearch();
     const values = [
       { docNumber: "OA-001", label: "OA-001 | 2026-05-01 | 数控 | ERP: ERP-778" },
       { docNumber: "OA-002", label: "OA-002 | 2026-05-02 | 装备 | ERP: ERP-999" }
@@ -69,5 +90,12 @@ describe("static candidate search helper", () => {
     ]);
     expect(api.searchIndex<typeof values[number]>(index, "数控", 30)).toEqual([]);
     expect(api.searchIndex<typeof values[number]>(index, "ERP-778", 30)).toEqual([]);
+  });
+
+  it("returns an empty result for invalid index input", () => {
+    const { api } = loadCandidateSearch();
+
+    expect(api.searchIndex<string>(null, "财", 30)).toEqual([]);
+    expect(api.searchIndex<string>({}, "财务", 30)).toEqual([]);
   });
 });
