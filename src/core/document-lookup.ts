@@ -81,11 +81,9 @@ interface MaterialAccumulator {
   missingItemCodeRemark?: string;
 }
 
-const OA_MISSING_ITEM_CODE_KEY = "missing-item-code:oa";
-const ERP_MISSING_ITEM_CODE_KEY = "missing-item-code:erp";
-
-function materialPairKey(itemCode: string): string {
-  return `item-code:${itemCode}`;
+interface MaterialAggregation {
+  materials: Map<string, MaterialAccumulator>;
+  missingItemCodeRows: MaterialAccumulator[];
 }
 
 function appendText(current: string, value: unknown, separator = ","): string {
@@ -206,16 +204,8 @@ function collectUniqueText(rows: RawRow[], fieldName: string): Set<string> {
   return result;
 }
 
-function getOrCreateMaterial(
-  groups: Map<string, MaterialAccumulator>,
-  groupKey: string,
-  itemCode: string
-): MaterialAccumulator {
-  const existing = groups.get(groupKey);
-  if (existing) {
-    return existing;
-  }
-  const created: MaterialAccumulator = {
+function createMaterial(itemCode: string): MaterialAccumulator {
+  return {
     formNumbers: "",
     recordedCounterpartDocNumbers: "",
     dates: "",
@@ -227,22 +217,26 @@ function getOrCreateMaterial(
     quantity: zeroDecimal(),
     amount: zeroDecimal()
   };
-  groups.set(groupKey, created);
+}
+
+function getOrCreateMaterial(groups: Map<string, MaterialAccumulator>, itemCode: string): MaterialAccumulator {
+  const existing = groups.get(itemCode);
+  if (existing) {
+    return existing;
+  }
+  const created = createMaterial(itemCode);
+  groups.set(itemCode, created);
   return created;
 }
 
-function aggregateOaMaterials(rows: RawRow[]): Map<string, MaterialAccumulator> {
-  const result = new Map<string, MaterialAccumulator>();
+function aggregateOaMaterials(rows: RawRow[]): MaterialAggregation {
+  const result: MaterialAggregation = {
+    materials: new Map<string, MaterialAccumulator>(),
+    missingItemCodeRows: []
+  };
   for (const row of rows) {
     const itemCode = normalizeText(row["物料代码"]);
-    const target = getOrCreateMaterial(
-      result,
-      itemCode ? materialPairKey(itemCode) : OA_MISSING_ITEM_CODE_KEY,
-      itemCode
-    );
-    if (!itemCode) {
-      target.missingItemCodeRemark = "OA物料编码为空，无法配对";
-    }
+    const target = itemCode ? getOrCreateMaterial(result.materials, itemCode) : createMaterial("");
     target.formNumbers = appendText(target.formNumbers, row["表单编号"]);
     target.recordedCounterpartDocNumbers = appendText(target.recordedCounterpartDocNumbers, row["金蝶云单据编号"]);
     target.dates = appendText(target.dates, normalizeDateKey(row["申请日期"]));
@@ -254,22 +248,22 @@ function aggregateOaMaterials(rows: RawRow[]): Map<string, MaterialAccumulator> 
     }
     target.quantity = addDecimal(target.quantity, parseDecimal(row["数量"], "数量"));
     target.amount = addDecimal(target.amount, parseDecimal(row["实际预算金额mx"], "实际预算金额mx"));
+    if (!itemCode) {
+      target.missingItemCodeRemark = "OA物料编码为空，无法配对";
+      result.missingItemCodeRows.push(target);
+    }
   }
   return result;
 }
 
-function aggregateErpMaterials(rows: RawRow[]): Map<string, MaterialAccumulator> {
-  const result = new Map<string, MaterialAccumulator>();
+function aggregateErpMaterials(rows: RawRow[]): MaterialAggregation {
+  const result: MaterialAggregation = {
+    materials: new Map<string, MaterialAccumulator>(),
+    missingItemCodeRows: []
+  };
   for (const row of rows) {
     const itemCode = normalizeText(row["物料编码"]);
-    const target = getOrCreateMaterial(
-      result,
-      itemCode ? materialPairKey(itemCode) : ERP_MISSING_ITEM_CODE_KEY,
-      itemCode
-    );
-    if (!itemCode) {
-      target.missingItemCodeRemark = "ERP物料编码为空，无法配对";
-    }
+    const target = itemCode ? getOrCreateMaterial(result.materials, itemCode) : createMaterial("");
     target.formNumbers = appendText(target.formNumbers, row["单据编号"]);
     target.recordedCounterpartDocNumbers = appendText(target.recordedCounterpartDocNumbers, row["源单单号"]);
     target.dates = appendText(target.dates, normalizeDateKey(row["日期"]));
@@ -281,6 +275,10 @@ function aggregateErpMaterials(rows: RawRow[]): Map<string, MaterialAccumulator>
     }
     target.quantity = addDecimal(target.quantity, parseDecimal(row["实发数量"], "实发数量"));
     target.amount = addDecimal(target.amount, parseDecimal(row["总成本"], "总成本"));
+    if (!itemCode) {
+      target.missingItemCodeRemark = "ERP物料编码为空，无法配对";
+      result.missingItemCodeRows.push(target);
+    }
   }
   return result;
 }
@@ -323,9 +321,7 @@ function buildRows(
   const erpMaterials = aggregateErpMaterials(erpRows);
   const counterpartMissing = lookupType === "查OA表单编号" ? erpRows.length === 0 : oaRows.length === 0;
 
-  return unionMaterialCodes(oaMaterials, erpMaterials).map((itemCode) => {
-    const oa = oaMaterials.get(itemCode);
-    const erp = erpMaterials.get(itemCode);
+  function buildRow(oa: MaterialAccumulator | undefined, erp: MaterialAccumulator | undefined): DocumentLookupRow {
     const quantityDiff = subtractDecimal(oa?.quantity ?? zeroDecimal(), erp?.quantity ?? zeroDecimal());
     const amountDiff = subtractDecimal(oa?.amount ?? zeroDecimal(), erp?.amount ?? zeroDecimal());
     const displayedQuantityDiff = decimalToNumber2(quantityDiff);
@@ -361,7 +357,15 @@ function buildRows(
       amountDiff: decimalToNumber2(amountDiff),
       remark: rowMissingRemark
     };
-  });
+  }
+
+  const normalRows = unionMaterialCodes(oaMaterials.materials, erpMaterials.materials).map((itemCode) =>
+    buildRow(oaMaterials.materials.get(itemCode), erpMaterials.materials.get(itemCode))
+  );
+  const missingOaRows = oaMaterials.missingItemCodeRows.map((oa) => buildRow(oa, undefined));
+  const missingErpRows = erpMaterials.missingItemCodeRows.map((erp) => buildRow(undefined, erp));
+
+  return [...normalRows, ...missingOaRows, ...missingErpRows];
 }
 
 function buildOaLookup(input: DocumentLookupInput): DocumentLookupResult {

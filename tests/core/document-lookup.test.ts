@@ -188,6 +188,63 @@ describe("document lookup core", () => {
     }
   });
 
+  it("keeps each missing item-code source row separate instead of aggregating them", () => {
+    const result = buildDocumentLookupResult({
+      mode: "oa_form_number",
+      docNumber: "OA-001",
+      oaRows: [
+        oaRow({ 物料代码: "", 物料名称: "OA无编码物料A", 数量: 2, 实际预算金额mx: 20 }),
+        oaRow({ 物料代码: "", 物料名称: "OA无编码物料B", 数量: 5, 实际预算金额mx: 50 })
+      ],
+      erpRows: [
+        erpRow({ 物料编码: "", 物料名称: "ERP无编码物料A", 实发数量: 3, 总成本: 30 }),
+        erpRow({ 物料编码: "", 物料名称: "ERP无编码物料B", 实发数量: 7, 总成本: 70 })
+      ]
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.rows).toEqual([
+        expect.objectContaining({
+          oaItemName: "OA无编码物料A",
+          oaQuantity: 2,
+          oaAmount: 20,
+          erpItemName: "",
+          erpQuantity: 0,
+          erpAmount: 0,
+          remark: "OA物料编码为空，无法配对"
+        }),
+        expect.objectContaining({
+          oaItemName: "OA无编码物料B",
+          oaQuantity: 5,
+          oaAmount: 50,
+          erpItemName: "",
+          erpQuantity: 0,
+          erpAmount: 0,
+          remark: "OA物料编码为空，无法配对"
+        }),
+        expect.objectContaining({
+          oaItemName: "",
+          oaQuantity: 0,
+          oaAmount: 0,
+          erpItemName: "ERP无编码物料A",
+          erpQuantity: 3,
+          erpAmount: 30,
+          remark: "ERP物料编码为空，无法配对"
+        }),
+        expect.objectContaining({
+          oaItemName: "",
+          oaQuantity: 0,
+          oaAmount: 0,
+          erpItemName: "ERP无编码物料B",
+          erpQuantity: 7,
+          erpAmount: 70,
+          remark: "ERP物料编码为空，无法配对"
+        })
+      ]);
+    }
+  });
+
   it("keeps main OA materials when linked ERP document is missing", () => {
     const result = buildDocumentLookupResult({
       mode: "oa_form_number",
