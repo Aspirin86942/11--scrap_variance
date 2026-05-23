@@ -148,6 +148,26 @@ describe("output query runner", () => {
     expect(erpSummaryResult.rowCounts.summaryRows).toBe(0);
   });
 
+  it("returns OA no-result message for variance summary in OA direction", () => {
+    const data = generateBenchmarkData(30);
+
+    const oaSummaryResult = runOutputSheetQueryCore({
+      kind: "variance_summary",
+      oaRows: data.oaRows,
+      erpRows: data.erpRows,
+      queryState: makeQueryState({
+        company: "不存在公司",
+        queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+      }),
+      metrics: makeMetrics()
+    });
+
+    expect(oaSummaryResult.values).toBeNull();
+    expect(oaSummaryResult.noResultMessage).toBe("查询条件没有匹配到 OA 数据。");
+    expect(oaSummaryResult.rowCounts.summaryRows).toBe(0);
+    expect(oaSummaryResult.rowCounts.outputRows).toBe(1);
+  });
+
   it("rejects invalid query direction instead of silently selecting an output path", () => {
     const data = generateBenchmarkData(30);
 
