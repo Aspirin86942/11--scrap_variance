@@ -52,6 +52,7 @@ describe("WPS add-in generated bundle", () => {
 
   it("ships the static query dialog pages", () => {
     const queryHtml = readText("ui/query-dialog.html");
+    const candidateSearchScript = readText("ui/candidate-search.js");
     const queryScript = readText("ui/query-dialog.js");
     const lookupHtml = readText("ui/document-lookup-dialog.html");
     const lookupScript = readText("ui/document-lookup-dialog.js");
@@ -67,10 +68,16 @@ describe("WPS add-in generated bundle", () => {
     expect(queryHtml).toContain('id="btnQuery"');
     expect(queryHtml).toContain('id="btnClear"');
     expect(queryHtml).toContain('id="btnCancel"');
+    expect(queryHtml).toContain('src="./candidate-search.js"');
+    expect(queryHtml.indexOf('src="./candidate-search.js"')).toBeLessThan(queryHtml.indexOf('src="./query-dialog.js"'));
     expect(queryHtml).toContain('src="./query-dialog.js"');
     expect(queryHtml).toContain("autocomplete-field");
     expect(queryHtml).toContain("autocomplete-menu");
     expect(queryHtml).not.toContain("<datalist");
+    expect(candidateSearchScript).toContain("__SCRAP_VARIANCE_CANDIDATE_SEARCH__");
+    expect(candidateSearchScript).not.toContain("URLSearchParams");
+    expect(candidateSearchScript).not.toContain("require(");
+    expect(candidateSearchScript).not.toContain("process.");
     expect(queryScript).toContain("ScrapVarianceQueryDialogResult");
     expect(queryScript).toContain("ScrapVarianceQueryDialogInitialState:");
     expect(queryScript).toContain("readInitialState");

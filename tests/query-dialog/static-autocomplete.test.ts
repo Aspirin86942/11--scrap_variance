@@ -197,6 +197,7 @@ function loadQueryDialog(initialPayload?: unknown, outputKind = ""): {
     window: windowObject
   });
 
+  vm.runInContext(readFileSync(resolve(repoRoot, "ui/candidate-search.js"), "utf-8"), context);
   vm.runInContext(readFileSync(resolve(repoRoot, "ui/query-dialog.js"), "utf-8"), context);
 
   return {
@@ -343,6 +344,14 @@ describe("static query dialog autocomplete", () => {
     expect(hooks.getMatchedOptions("部门", suggestions)).toHaveLength(30);
     expect(hooks.getMatchedOptions("产部", suggestions).slice(0, 2)).toEqual(["生产部门1", "生产部门2"]);
     expect(hooks.getMatchedOptions("无匹配", suggestions)).toEqual([]);
+  });
+
+  it("uses the shared n-gram index for middle substring autocomplete", () => {
+    const { hooks } = loadQueryDialog();
+    const suggestions = ["生产部门1", "质量中心", "生产部门2", "售后服务"];
+
+    expect(hooks.getMatchedOptions("产部", suggestions)).toEqual(["生产部门1", "生产部门2"]);
+    expect(hooks.getMatchedOptions("量中", suggestions)).toEqual(["质量中心"]);
   });
 
   it("fills the input when a suggestion is clicked while preserving free text behavior", () => {

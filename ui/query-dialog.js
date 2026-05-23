@@ -5,6 +5,7 @@
   var MAX_VISIBLE_OPTIONS = 30;
   var hasSubmitted = false;
   var autocompleteDropdowns = [];
+  var candidateSearch = window.__SCRAP_VARIANCE_CANDIDATE_SEARCH__;
 
   function decodeQueryPart(value) {
     try {
@@ -121,6 +122,10 @@
     var index;
     var value;
 
+    if (candidateSearch && typeof candidateSearch.normalizeStringValues === "function") {
+      return candidateSearch.normalizeStringValues(input);
+    }
+
     if (!input || typeof input.length !== "number") {
       return [];
     }
@@ -149,11 +154,35 @@
     };
   }
 
-  function getMatchedOptions(value, suggestions) {
-    var query = String(value || "").trim();
+  function buildAutocompleteSource(suggestions) {
     var options = normalizeSuggestions(suggestions);
+    var source = {
+      options: options,
+      index: null
+    };
+
+    if (candidateSearch && typeof candidateSearch.buildIndex === "function") {
+      source.index = candidateSearch.buildIndex(options, function (option) {
+        return option;
+      });
+    }
+    return source;
+  }
+
+  function getMatchedOptionsFromSource(value, source) {
+    var query = String(value || "").trim();
+    var options = source && source.options && typeof source.options.length === "number" ? source.options : [];
     var matched = [];
     var index;
+
+    if (
+      source &&
+      source.index &&
+      candidateSearch &&
+      typeof candidateSearch.searchIndex === "function"
+    ) {
+      return candidateSearch.searchIndex(source.index, query, MAX_VISIBLE_OPTIONS);
+    }
 
     for (index = 0; index < options.length; index += 1) {
       if (!query || options[index].indexOf(query) !== -1) {
@@ -164,6 +193,10 @@
       }
     }
     return matched;
+  }
+
+  function getMatchedOptions(value, suggestions) {
+    return getMatchedOptionsFromSource(value, buildAutocompleteSource(suggestions));
   }
 
   function createAutocompleteDropdown() {
@@ -231,7 +264,7 @@
 
   function attachAutocomplete(inputId, suggestions) {
     var input = document.getElementById(inputId);
-    var options = normalizeSuggestions(suggestions);
+    var source = buildAutocompleteSource(suggestions);
     var dropdown;
 
     if (!input) {
@@ -240,10 +273,10 @@
 
     dropdown = createAutocompleteDropdown();
     input.addEventListener("input", function () {
-      renderAutocompleteOptions(dropdown, input, getMatchedOptions(input.value, options));
+      renderAutocompleteOptions(dropdown, input, getMatchedOptionsFromSource(input.value, source));
     });
     input.addEventListener("focus", function () {
-      renderAutocompleteOptions(dropdown, input, getMatchedOptions(input.value, options));
+      renderAutocompleteOptions(dropdown, input, getMatchedOptionsFromSource(input.value, source));
     });
     input.addEventListener("blur", function () {
       window.setTimeout(function () {
