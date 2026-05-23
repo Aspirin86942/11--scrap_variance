@@ -1,8 +1,17 @@
 import type Decimal from "decimal.js-light";
 import { ERP_DOC_COMPARE_HEADERS, OA_DOC_COMPARE_HEADERS } from "../constants";
-import type { DocCompareResult, DocCompareRow, OutputMatrix, OutputSheetKind, QueryFilters, RawRow } from "../types/scrap";
+import type {
+  DocCompareResult,
+  DocCompareRow,
+  DocCompareSummaryItem,
+  DocCompareSummaryMeta,
+  OutputMatrix,
+  OutputSheetKind,
+  QueryFilters,
+  RawRow
+} from "../types/scrap";
 import { normalizeDateKey } from "../utils/date";
-import { addDecimal, decimalToNumber2, parseDecimal, subtractDecimal, zeroDecimal } from "../utils/decimal";
+import { addDecimal, decimalToDecimal2, decimalToNumber2, parseDecimal, subtractDecimal, zeroDecimal } from "../utils/decimal";
 import { appendUniqueJoinedText, normalizeText } from "../utils/text";
 import { isDateInRange, matchesOrgFilters, parseFilters } from "./build-oa-rows";
 
@@ -350,6 +359,32 @@ function buildMaterialRows(
   return result;
 }
 
+function hasMaterialShapeMismatch(materialRows: DocCompareRow[]): boolean {
+  return materialRows.some(
+    (row) =>
+      (row.primaryQuantity === 0 && row.counterpartQuantity !== 0) ||
+      (row.primaryQuantity !== 0 && row.counterpartQuantity === 0)
+  );
+}
+
+function buildSummaryMeta(primary: DocAccumulator, counterpart: Pick<MatchedCounterpart, "quantity" | "amount">): DocCompareSummaryMeta {
+  const primaryQuantity = decimalToDecimal2(primary.quantity);
+  const primaryAmount = decimalToDecimal2(primary.amount);
+  const counterpartQuantity = decimalToDecimal2(counterpart.quantity);
+  const counterpartAmount = decimalToDecimal2(counterpart.amount);
+
+  return {
+    counterpartDocNumbers: [...primary.counterpartDocNumberSet],
+    hasMaterialShapeMismatch: false,
+    primaryQuantity,
+    primaryAmount,
+    counterpartQuantity,
+    counterpartAmount,
+    quantityDiff: subtractDecimal(primaryQuantity, counterpartQuantity),
+    amountDiff: subtractDecimal(primaryAmount, counterpartAmount)
+  };
+}
+
 function buildDocCompareResult(
   kind: DocCompareKind,
   primaryGroups: Map<string, DocAccumulator>,
@@ -357,19 +392,32 @@ function buildDocCompareResult(
 ): DocCompareResult {
   const summaryRows: DocCompareRow[] = [];
   const materialRowsBySummaryKey = new Map<string, DocCompareRow[]>();
+  const summaryItems: DocCompareSummaryItem[] = [];
 
   // 汇总行和物料行分开返回，宏层可以只写汇总，再按用户展开动作插入物料行。
   for (const primary of primaryGroups.values()) {
     const counterpart = buildMatchedCounterpart(primary, counterpartGroups);
     const summaryRow = buildDocCompareRow("汇总", primary, counterpart);
+    const summaryKey = makeSummaryKey(kind, summaryRow);
+    const materialRows = buildMaterialRows(primary, counterpart.materials);
+    const meta = buildSummaryMeta(primary, counterpart);
+    meta.hasMaterialShapeMismatch = hasMaterialShapeMismatch(materialRows);
+
     summaryRows.push(summaryRow);
-    materialRowsBySummaryKey.set(makeSummaryKey(kind, summaryRow), buildMaterialRows(primary, counterpart.materials));
+    materialRowsBySummaryKey.set(summaryKey, materialRows);
+    summaryItems.push({
+      summaryKey,
+      row: summaryRow,
+      materialRows,
+      meta
+    });
   }
 
   return {
     kind,
     summaryRows,
-    materialRowsBySummaryKey
+    materialRowsBySummaryKey,
+    summaryItems
   };
 }
 

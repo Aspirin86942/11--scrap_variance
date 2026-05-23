@@ -8,6 +8,7 @@ import {
   docCompareRowsToValues
 } from "../../src/core/doc-compare";
 import type { RawRow } from "../../src/types/scrap";
+import { decimalToNumber2 } from "../../src/utils/decimal";
 
 function sampleOaRows(): RawRow[] {
   return [
@@ -181,6 +182,38 @@ describe("document compare core", () => {
     ]);
   });
 
+  it("returns summary metadata without changing compare output rows", () => {
+    const filters = parseFilters({
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026-05-01",
+      endDate: "2026-05-31"
+    });
+
+    const result = buildOaDocCompare(sampleOaRows(), sampleErpRows(), filters);
+    const item = result.summaryItems[0];
+    if (!item) {
+      throw new Error("missing summary item");
+    }
+
+    expect(result.summaryItems).toHaveLength(1);
+    expect(item.summaryKey).toBeDefined();
+    expect(item.row).toEqual(result.summaryRows[0]);
+    expect(item.materialRows).toEqual(buildMaterialRowsForDocSummary(result, result.summaryRows[0]));
+    expect(item.meta.counterpartDocNumbers).toEqual(["ERP-778"]);
+    expect(item.meta.hasMaterialShapeMismatch).toBe(false);
+    expect(decimalToNumber2(item.meta.primaryQuantity)).toBe(10);
+    expect(decimalToNumber2(item.meta.primaryAmount)).toBe(100);
+    expect(decimalToNumber2(item.meta.counterpartQuantity)).toBe(9);
+    expect(decimalToNumber2(item.meta.counterpartAmount)).toBe(91);
+
+    expect(docCompareRowsToValues("oa_doc_compare", result.summaryRows)).toEqual([
+      [...OA_DOC_COMPARE_HEADERS],
+      ["汇总", "数控", "生产", "仓储", "2026-05-01", "OA-001", 10, 100, "ERP-778", 9, 91, 1, 9, "", "", ""]
+    ]);
+  });
+
   it("uses stable summary keys when one OA document maps to multiple ERP documents", () => {
     const oaRows: RawRow[] = [
       {
@@ -297,6 +330,49 @@ describe("document compare core", () => {
       ["物料", 2, 20, 2, 20, "MAT-B", "物料B"],
       ["物料", 3, 30, 3, 30, "MAT-D", "物料D"],
       ["物料", 0, 0, 4, 40, "MAT-X", "物料X"]
+    ]);
+  });
+
+  it("marks material shape mismatch in metadata when either side has a material-only row", () => {
+    const oaRows: RawRow[] = [
+      {
+        表单编号: "OA-MAT",
+        金蝶云单据编号: "ERP-MAT",
+        申请日期: "2026/5/3",
+        公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料代码: "MAT-OA",
+        物料名称: "OA物料",
+        数量: 2,
+        实际预算金额mx: 20
+      }
+    ];
+    const erpRows: RawRow[] = [
+      {
+        单据编号: "ERP-MAT",
+        日期: "2026/5/4",
+        源单单号: "OA-MAT",
+        区分公司简称: "数控",
+        一级部门: "生产",
+        二级部门: "仓储",
+        物料编码: "MAT-ERP",
+        物料名称: "ERP物料",
+        实发数量: 2,
+        总成本: 20
+      }
+    ];
+
+    const result = buildOaDocCompare(oaRows, erpRows, parseFilters());
+
+    expect(result.summaryItems[0]?.meta.hasMaterialShapeMismatch).toBe(true);
+    expect(result.summaryItems[0]?.materialRows.map((row) => [
+      row.itemCode,
+      row.primaryQuantity,
+      row.counterpartQuantity
+    ])).toEqual([
+      ["MAT-OA", 2, 0],
+      ["MAT-ERP", 0, 2]
     ]);
   });
 });

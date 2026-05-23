@@ -120,11 +120,30 @@ export interface DocCompareRow {
   remark: string;
 }
 
+export interface DocCompareSummaryMeta {
+  counterpartDocNumbers: string[];
+  hasMaterialShapeMismatch: boolean;
+  primaryQuantity: Decimal;
+  primaryAmount: Decimal;
+  counterpartQuantity: Decimal;
+  counterpartAmount: Decimal;
+  quantityDiff: Decimal;
+  amountDiff: Decimal;
+}
+
+export interface DocCompareSummaryItem {
+  summaryKey: string;
+  row: DocCompareRow;
+  materialRows: DocCompareRow[];
+  meta: DocCompareSummaryMeta;
+}
+
 // materialRowsBySummaryKey 让展开物料时能快速找到某张汇总单据下面的明细物料。
 export interface DocCompareResult {
   kind: Extract<OutputSheetKind, "oa_doc_compare" | "erp_doc_compare">;
   summaryRows: DocCompareRow[];
   materialRowsBySummaryKey: Map<string, DocCompareRow[]>;
+  summaryItems: DocCompareSummaryItem[];
 }
 
 // SummaryRow 只承载汇总页需要的聚合结果，不包含单据和物料层级字段。
