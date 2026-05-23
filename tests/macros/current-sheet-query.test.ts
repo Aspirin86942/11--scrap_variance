@@ -472,6 +472,33 @@ describe("current sheet query macro", () => {
     expect(oaCompareSheet.writes).toEqual([]);
   });
 
+  it("runCurrentSheetQuery keeps invalid direction as an error on the active summary sheet", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const detailSheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeRoot([oaSheet, erpSheet, detailSheet, oaCompareSheet, erpCompareSheet]);
+    root.ScrapVarianceRibbonState = {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31",
+      queryDirection: "坏方向" as typeof QUERY_DIRECTIONS.oaKingdeeToErp
+    };
+    setActiveSheet(root, detailSheet);
+
+    runCurrentSheetQuery(root);
+
+    expect(visibleWrites(detailSheet)).toContainEqual({
+      address: "A1:B1",
+      value: [["错误", "查询方向不正确：请填写 OA金蝶单号查ERP 或 ERP源单查OA"]]
+    });
+    expect(oaCompareSheet.writes).toEqual([]);
+    expect(erpCompareSheet.writes).toEqual([]);
+  });
+
   it("runCurrentSheetQuery writes variance summary output for the active summary sheet and respects ribbon direction", () => {
     const oaSheet = makeOaSheet([
       ["OA-001", "ERP-778", "2026/4/1", "其他公司", "其他部门", "其他二级", "MAT-A", "物料A", 10, 100]
