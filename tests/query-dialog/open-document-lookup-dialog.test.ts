@@ -85,6 +85,7 @@ describe("document lookup dialog bridge", () => {
     const suggestions = makeSuggestions();
     const runLookup = vi.fn();
     const reportError = vi.fn();
+    root.Application.PluginStorage.values.set(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY, "old result");
 
     openDocumentLookupDialogAndRun(root, suggestions, runLookup, reportError);
 
@@ -160,6 +161,68 @@ describe("document lookup dialog bridge", () => {
     expect(root.Application.PluginStorage.values.get(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY)).toBe("");
     expect(root.Application.PluginStorage.values.get(initialStateStorageKey("token-1"))).toBeUndefined();
     expect(runLookup).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("ignores dirty result values without running lookup or clearing storage", () => {
+    const dirtyValues: unknown[] = [
+      123,
+      "",
+      "   ",
+      "{",
+      JSON.stringify({ action: "query", selection: { mode: "oa_form_number", docNumber: "OA-001" } }),
+      JSON.stringify({ token: "token-1", action: "close", selection: { mode: "oa_form_number", docNumber: "OA-001" } })
+    ];
+
+    for (const dirtyValue of dirtyValues) {
+      const root = makeRoot();
+      const runLookup = vi.fn();
+      const reportError = vi.fn();
+      root.Application.PluginStorage.values.set(initialStateStorageKey("token-1"), "initial payload");
+      root.Application.PluginStorage.values.set(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY, dirtyValue);
+      const setItemSpy = vi.spyOn(root.Application.PluginStorage, "setItem");
+      const removeItemSpy = vi.spyOn(root.Application.PluginStorage, "removeItem");
+
+      expect(pollDocumentLookupDialogResult(root, "token-1", runLookup, reportError)).toBe(false);
+
+      expect(runLookup).not.toHaveBeenCalled();
+      expect(reportError).not.toHaveBeenCalled();
+      expect(root.Application.PluginStorage.values.get(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY)).toBe(dirtyValue);
+      expect(root.Application.PluginStorage.values.get(initialStateStorageKey("token-1"))).toBe("initial payload");
+      expect(setItemSpy).not.toHaveBeenCalled();
+      expect(removeItemSpy).not.toHaveBeenCalled();
+    }
+  });
+
+  it("falls back to clearing tokenized initial state with setItem when removeItem is unavailable", () => {
+    const root = makeRoot();
+    const runLookup = vi.fn();
+    const reportError = vi.fn();
+    Object.defineProperty(root.Application.PluginStorage, "removeItem", {
+      configurable: true,
+      value: undefined
+    });
+    root.Application.PluginStorage.setItem(initialStateStorageKey("token-1"), "initial payload");
+    root.Application.PluginStorage.setItem(
+      DOCUMENT_LOOKUP_DIALOG_RESULT_KEY,
+      JSON.stringify({
+        token: "token-1",
+        action: "query",
+        selection: {
+          mode: "erp_doc_number",
+          docNumber: "ERP-001"
+        }
+      })
+    );
+
+    expect(pollDocumentLookupDialogResult(root, "token-1", runLookup, reportError)).toBe(true);
+
+    expect(runLookup).toHaveBeenCalledWith({
+      mode: "erp_doc_number",
+      docNumber: "ERP-001"
+    });
+    expect(root.Application.PluginStorage.values.get(initialStateStorageKey("token-1"))).toBe("");
+    expect(root.Application.PluginStorage.values.get(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY)).toBe("");
     expect(reportError).not.toHaveBeenCalled();
   });
 
