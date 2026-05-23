@@ -21,6 +21,7 @@ import { clearPreviousToolOutput, saveOutputMetadata } from "../wps-api/output-m
 import { readSheetTable } from "../wps-api/read-sheet-data";
 import { ensureSheet, getSheetByName } from "../wps-api/workbook";
 import { rangeAddress, writeMatrixBulkOrChunks } from "../wps-api/write-results";
+import { notifyQueryCompleted, notifyQueryFailed, queryStartedAt } from "./query-feedback";
 
 type ReportError = (error: unknown) => void;
 type RunDocumentLookup = (selection: DocumentLookupSelection) => void;
@@ -82,6 +83,7 @@ function lookupTypeForSelection(selection: DocumentLookupSelection): DocumentLoo
 }
 
 export function runDocumentLookupWithSelection(root: ScrapVarianceGlobal, selection: DocumentLookupSelection): void {
+  const startedAt = queryStartedAt(root);
   try {
     const { oaRows, erpRows } = readSourceRows(root);
     const result = buildDocumentLookupResult({
@@ -97,8 +99,15 @@ export function runDocumentLookupWithSelection(root: ScrapVarianceGlobal, select
 
     clearPreviousToolOutput(sheet, "document_lookup");
     writeOutputWithMetadata(sheet, values);
+    notifyQueryCompleted(root, "单号查询", SHEET_NAMES.documentLookup, startedAt);
   } catch (error) {
-    safeWriteLookupError(root, error);
+    try {
+      safeWriteLookupError(root, error);
+    } catch (writeError) {
+      notifyQueryFailed(root, "单号查询", writeError, startedAt);
+      throw writeError;
+    }
+    notifyQueryFailed(root, "单号查询", error, startedAt);
   }
 }
 

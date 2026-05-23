@@ -12,6 +12,7 @@ import { runDocumentLookupWithSelection, startDocumentLookup } from "../../src/m
 type ShowDialogMock = ReturnType<
   typeof vi.fn<(url: string, title: string, width: number, height: number, modal: boolean) => unknown>
 >;
+type AlertMock = ReturnType<typeof vi.fn<(message: string) => void>>;
 
 function makeRoot(sheets: FakeSheet[]): ScrapVarianceGlobal & {
   Application: NonNullable<ScrapVarianceGlobal["Application"]> & {
@@ -44,6 +45,26 @@ function makeRoot(sheets: FakeSheet[]): ScrapVarianceGlobal & {
       ShowDialog: vi.fn<(url: string, title: string, width: number, height: number, modal: boolean) => unknown>()
     }
   };
+}
+
+function makeTimedRoot(
+  sheets: FakeSheet[],
+  nowValues: number[]
+): ReturnType<typeof makeRoot> & { alert: AlertMock; performance: { now: () => number } } {
+  const root = makeRoot(sheets) as ReturnType<typeof makeRoot> & {
+    alert: AlertMock;
+    performance: { now: () => number };
+  };
+  let index = 0;
+  root.alert = vi.fn<(message: string) => void>();
+  root.performance = {
+    now(): number {
+      const value = nowValues[Math.min(index, nowValues.length - 1)];
+      index += 1;
+      return value ?? 0;
+    }
+  };
+  return root;
 }
 
 function sheetNames(root: ScrapVarianceGlobal): string[] {
@@ -132,6 +153,18 @@ describe("document lookup macro", () => {
       address: "CB1:CC1",
       value: [["document_lookup", "A1:Z2"]]
     });
+  });
+
+  it("alerts after writing document lookup output", () => {
+    const root = makeTimedRoot([makeOaSheet(), makeErpSheet()], [10, 55.678]);
+
+    runDocumentLookupWithSelection(root, { mode: "oa_form_number", docNumber: "OA-001" });
+
+    const resultSheet = getResultSheet(root);
+    expect(visibleWrites(resultSheet).map((write) => write.address)).toEqual(["A1:Z2"]);
+    expect(root.alert).toHaveBeenCalledWith(
+      `单号查询已完成\n耗时：45.68 ms\n结果已写入：${SHEET_NAMES.documentLookup}`
+    );
   });
 
   it("reuses fixed result sheet and clears previous document_lookup metadata range", () => {
@@ -228,6 +261,34 @@ describe("document lookup macro", () => {
       address: "CB1:CC1",
       value: [["document_lookup", "A1:B1"]]
     });
+  });
+
+  it("writes document lookup error before alerting when lookup fails", () => {
+    const resultSheet = createFakeSheet(SHEET_NAMES.documentLookup);
+    resultSheet.rangeValues.set("CB1:CC1", [["document_lookup", "A1:Z9"]]);
+    const root = makeTimedRoot(
+      [
+        makeOaSheet([["OA-001", "ERP-778", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", "坏数量", 100]]),
+        makeErpSheet(),
+        resultSheet
+      ],
+      [10, 32.35]
+    );
+    root.alert.mockImplementation(() => {
+      expect(resultSheet.clears).toEqual(["A1:Z9"]);
+      expect(visibleWrites(resultSheet)).toEqual([
+        {
+          address: "A1:B1",
+          value: [["错误", expect.stringContaining("数量数值格式不正确")]]
+        }
+      ]);
+    });
+
+    runDocumentLookupWithSelection(root, { mode: "oa_form_number", docNumber: "OA-001" });
+
+    expect(root.alert).toHaveBeenCalledWith(
+      expect.stringMatching(/^单号查询已失败\n耗时：22\.35 ms\n错误：.*数量数值格式不正确/)
+    );
   });
 
   it("opens the dialog with source-derived suggestions", () => {

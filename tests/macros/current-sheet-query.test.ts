@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   ERP_DOC_COMPARE_HEADERS,
   ERP_REQUIRED_HEADERS,
@@ -18,6 +18,29 @@ function makeRoot(sheets: FakeSheet[]): ScrapVarianceGlobal {
   return {
     Application: createFakeApplication(sheets)
   };
+}
+
+type AlertMock = ReturnType<typeof vi.fn<(message: string) => void>>;
+
+interface TimedRoot extends ScrapVarianceGlobal {
+  alert: AlertMock;
+  performance: {
+    now: () => number;
+  };
+}
+
+function makeTimedRoot(sheets: FakeSheet[], nowValues: number[]): TimedRoot {
+  const root = makeRoot(sheets) as TimedRoot;
+  let index = 0;
+  root.alert = vi.fn<(message: string) => void>();
+  root.performance = {
+    now(): number {
+      const value = nowValues[Math.min(index, nowValues.length - 1)];
+      index += 1;
+      return value ?? 0;
+    }
+  };
+  return root;
 }
 
 function sheetNames(root: ScrapVarianceGlobal): string[] {
@@ -264,6 +287,60 @@ describe("current sheet query macro", () => {
       address: "CB2:CG2",
       value: [["数控", "", "", "", "", QUERY_DIRECTIONS.oaKingdeeToErp]]
     });
+  });
+
+  it("runCurrentSheetQueryWithState alerts after writing OA compare output", () => {
+    const oaSheet = makeOaSheet();
+    const erpSheet = makeErpSheet();
+    const summarySheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeTimedRoot([oaSheet, erpSheet, summarySheet, oaCompareSheet, erpCompareSheet], [100, 123.456]);
+    setActiveSheet(root, oaCompareSheet);
+
+    runCurrentSheetQueryWithState(root, {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31",
+      queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+    });
+
+    expect(visibleWrites(oaCompareSheet).map((write) => write.address)).toEqual(["A1:P2"]);
+    expect(root.alert).toHaveBeenCalledWith(
+      `查询已完成\n耗时：23.46 ms\n结果已写入：${SHEET_NAMES.oaDocCompare}`
+    );
+  });
+
+  it("runCurrentSheetQueryWithState writes an error before alerting when the OA source sheet is missing", () => {
+    const erpSheet = makeErpSheet();
+    const summarySheet = makeOutputSheet(SHEET_NAMES.varianceSummary);
+    const oaCompareSheet = makeOutputSheet(SHEET_NAMES.oaDocCompare);
+    const erpCompareSheet = makeOutputSheet(SHEET_NAMES.erpDocCompare);
+    const root = makeTimedRoot([erpSheet, summarySheet, oaCompareSheet, erpCompareSheet], [10, 32.35]);
+    setActiveSheet(root, oaCompareSheet);
+    root.alert.mockImplementation(() => {
+      expect(visibleWrites(oaCompareSheet)).toEqual([
+        {
+          address: "A1:B1",
+          value: [["错误", `找不到工作表：${SHEET_NAMES.oa}`]]
+        }
+      ]);
+    });
+
+    runCurrentSheetQueryWithState(root, {
+      company: "数控",
+      dept1: "生产",
+      dept2: "仓储",
+      startDate: "2026/5/1",
+      endDate: "2026/5/31",
+      queryDirection: QUERY_DIRECTIONS.oaKingdeeToErp
+    });
+
+    expect(root.alert).toHaveBeenCalledWith(
+      `查询已失败\n耗时：22.35 ms\n错误：找不到工作表：${SHEET_NAMES.oa}`
+    );
   });
 
   it("runCurrentSheetQueryWithState writes OA perspective variance summary for the active summary sheet", () => {

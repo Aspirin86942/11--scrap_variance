@@ -387,7 +387,17 @@ const app=getApplication(root2);const sheets=getSheets(app);for(let index=1;inde
 sheet.Name)===sheetName){return sheet}}return null}function getSheetByName(sheetName,root2){const sheet=findSheetByName(sheetName,root2);if(!sheet){throw new Error(
 `\u627E\u4E0D\u5230\u5DE5\u4F5C\u8868\uFF1A${sheetName}`)}return sheet}function ensureSheet(sheetName,root2){const existingSheet=findSheetByName(sheetName,root2);
 if(existingSheet){return existingSheet}const sheets=getSheets(getApplication(root2));if(typeof sheets.Add!=="function"){throw new Error("\u5F53\u524D\u5DE5\u4F5C\u7C3F\u4E0D\u652F\u6301\u65B0\u589E\u5DE5\u4F5C\u8868\u3002")}
-const sheet=sheets.Add();sheet.Name=sheetName;return sheet}function errorMessage4(error){return error instanceof Error?error.message:String(error)}function matrixWidth3(values){return values.reduce((width,row)=>Math.max(
+const sheet=sheets.Add();sheet.Name=sheetName;return sheet}function nowMs(root2=globalThis){var _a;const timerRoot=root2;if(typeof((_a=timerRoot.performance)==null?void 0:_a.now)==="function"){return timerRoot.performance.
+now()}return Date.now()}function runtimeRoot(root2){return root2!=null?root2:globalThis}function queryFeedbackErrorMessage(error){return error instanceof Error?error.message:String(error)}
+function formatElapsedMs(value){return Math.max(0,value).toFixed(2)}function showUserMessage(root2,message){var _a;const targetRoot=runtimeRoot(root2);if(typeof targetRoot.
+alert==="function"){targetRoot.alert(message);return}if(typeof((_a=targetRoot.console)==null?void 0:_a.error)==="function"){targetRoot.console.error(message)}}function queryStartedAt(root2){
+return nowMs(runtimeRoot(root2))}function notifyQueryCompleted(root2,label,outputSheetName,startedAt){const targetRoot=runtimeRoot(root2);const elapsed=nowMs(targetRoot)-
+startedAt;showUserMessage(targetRoot,`${label}\u5DF2\u5B8C\u6210
+\u8017\u65F6\uFF1A${formatElapsedMs(elapsed)} ms
+\u7ED3\u679C\u5DF2\u5199\u5165\uFF1A${outputSheetName}`)}function notifyQueryFailed(root2,label,error,startedAt){const targetRoot=runtimeRoot(root2);const elapsed=nowMs(
+targetRoot)-startedAt;showUserMessage(targetRoot,`${label}\u5DF2\u5931\u8D25
+\u8017\u65F6\uFF1A${formatElapsedMs(elapsed)} ms
+\u9519\u8BEF\uFF1A${queryFeedbackErrorMessage(error)}`)}function errorMessage4(error){return error instanceof Error?error.message:String(error)}function matrixWidth3(values){return values.reduce((width,row)=>Math.max(
 width,row.length),0)}function readSourceRows(root2){const oaSheet=getSheetByName(SHEET_NAMES.oa,root2);const erpSheet=getSheetByName(SHEET_NAMES.erp,root2);const oaTable=readSheetTable(
 oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,MAX_HEADER_SCAN_ROWS);const erpTable=readSheetTable(erpSheet,[...ERP_REQUIRED_HEADERS],MIN_ERP_HEADER_MATCH_COUNT,
 MAX_HEADER_SCAN_ROWS);return{oaRows:oaTable.rows,erpRows:erpTable.rows}}function writeOutputWithMetadata(sheet,values){const width=matrixWidth3(values);if(values.
@@ -396,9 +406,11 @@ sheet,{kind:"document_lookup",rangeAddress:address})}function safeWriteLookupErr
 documentLookup,root2);clearPreviousToolOutput(sheet,"document_lookup");writeOutputWithMetadata(sheet,[["\u9519\u8BEF",message]])}catch(writeError){throw new Error(
 `\u5355\u53F7\u67E5\u8BE2\u5931\u8D25\uFF1A${message}\uFF1B\u9519\u8BEF\u4FE1\u606F\u5199\u5165\u4E5F\u5931\u8D25\uFF1A${errorMessage4(writeError)}`)}}function lookupTypeForSelection(selection){
 return selection.mode==="erp_doc_number"?"\u67E5ERP\u5355\u636E\u7F16\u53F7":"\u67E5OA\u8868\u5355\u7F16\u53F7"}function runDocumentLookupWithSelection(root2,selection){
-try{const{oaRows,erpRows}=readSourceRows(root2);const result=buildDocumentLookupResult({mode:selection.mode,docNumber:selection.docNumber,oaRows,erpRows});const sheet=ensureSheet(
-SHEET_NAMES.documentLookup,root2);const values=result.ok?documentLookupRowsToValues(result.rows,lookupTypeForSelection(selection)):[["\u63D0\u793A",result.message]];
-clearPreviousToolOutput(sheet,"document_lookup");writeOutputWithMetadata(sheet,values)}catch(error){safeWriteLookupError(root2,error)}}function startDocumentLookup(root2,reportError,runLookup){
+const startedAt=queryStartedAt(root2);try{const{oaRows,erpRows}=readSourceRows(root2);const result=buildDocumentLookupResult({mode:selection.mode,docNumber:selection.
+docNumber,oaRows,erpRows});const sheet=ensureSheet(SHEET_NAMES.documentLookup,root2);const values=result.ok?documentLookupRowsToValues(result.rows,lookupTypeForSelection(
+selection)):[["\u63D0\u793A",result.message]];clearPreviousToolOutput(sheet,"document_lookup");writeOutputWithMetadata(sheet,values);notifyQueryCompleted(root2,
+"\u5355\u53F7\u67E5\u8BE2",SHEET_NAMES.documentLookup,startedAt)}catch(error){try{safeWriteLookupError(root2,error)}catch(writeError){notifyQueryFailed(root2,"\u5355\
+\u53F7\u67E5\u8BE2",writeError,startedAt);throw writeError}notifyQueryFailed(root2,"\u5355\u53F7\u67E5\u8BE2",error,startedAt)}}function startDocumentLookup(root2,reportError,runLookup){
 let suggestions;try{const{oaRows,erpRows}=readSourceRows(root2);suggestions=buildDocumentLookupSuggestions(oaRows,erpRows)}catch(error){safeWriteLookupError(root2,
 error);throw error}const lookupRunner=runLookup!=null?runLookup:(selection=>runDocumentLookupWithSelection(root2,selection));openDocumentLookupDialogAndRun(root2,
 suggestions,lookupRunner,reportError)}function parseFilters(input={}){const source=input!=null?input:{};const filters={company:normalizeText(source.company),dept1:normalizeText(source.dept1),dept2:normalizeText(
@@ -548,8 +560,7 @@ null,rowCounts:{sourceRows,summaryRows:compareResult.summaryRows.length,outputRo
 oaRows,erpRows,filters,{metrics,note,includeSummaryItems:false});const materialRows=countMaterialRows(compareResult);const values=metrics.measure("build_erp_doc\
 _compare_matrix",{inputRows:compareResult.summaryRows.length,outputRows:outputRowsFor,note},()=>compareResult.summaryRows.length===0?null:docCompareRowsToValues(
 "erp_doc_compare",compareResult.summaryRows));return{kind,values,noResultMessage:values===null?"\u67E5\u8BE2\u6761\u4EF6\u6CA1\u6709\u5339\u914D\u5230 ERP \u6570\u636E\u3002":
-null,rowCounts:{sourceRows,summaryRows:compareResult.summaryRows.length,outputRows:outputRowsFor(values),materialRows}}}return unsupportedOutputKind(kind)}function nowMs(root2=globalThis){var _a;const timerRoot=root2;if(typeof((_a=timerRoot.performance)==null?void 0:_a.now)==="function"){return timerRoot.performance.
-now()}return Date.now()}function errorMessage6(error){return error instanceof Error?error.message:String(error)}function resolveOutputRows(value,outputRows){if(typeof outputRows==="fun\
+null,rowCounts:{sourceRows,summaryRows:compareResult.summaryRows.length,outputRows:outputRowsFor(values),materialRows}}}return unsupportedOutputKind(kind)}function errorMessage6(error){return error instanceof Error?error.message:String(error)}function resolveOutputRows(value,outputRows){if(typeof outputRows==="fun\
 ction"){try{return{outputRows:outputRows(value)}}catch(error){return{outputRows:0,note:`outputRows \u7EDF\u8BA1\u5931\u8D25\uFF1A${errorMessage6(error)}`}}}if(typeof outputRows===
 "number"&&Number.isFinite(outputRows)){return{outputRows}}return{outputRows:0}}function roundMs(value){return Number(value.toFixed(2))}function makeStageMetric(name,inputRows,outputRows,timeMs,memoryBefore,memoryAfter,note){
 return{name,inputRows:inputRows!=null?inputRows:0,outputRows,timeMs:roundMs(timeMs),memoryBefore,memoryAfter,heapDeltaMb:memoryDeltaMb(memoryBefore,memoryAfter),
@@ -624,11 +635,13 @@ oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,MAX_HEADER_SCAN_ROWS)
 MAX_HEADER_SCAN_ROWS);return{oaRows:oaTable.rows,erpRows:erpTable.rows}}function safeWriteCurrentSheetError(sheet,kind,message,queryState){try{clearPreviousToolOutput(sheet,kind,kind==="variance_summary"?["legacy_detail"]:[]);writeOutputWithMetadata2(
 sheet,kind,[["\u9519\u8BEF",message]],queryState)}catch(writeError){throw new Error(`\u67E5\u8BE2\u6267\u884C\u5931\u8D25\uFF1A${message}\uFF1B\u9519\u8BEF\u4FE1\u606F\u5199\u5165\u4E5F\u5931\u8D25\uFF1A${errorMessage8(
 writeError)}`)}}function runCurrentSheetQueryWithState(root2,queryState){var _a,_b;setupOutputSheets(root2);const activeSheet=getActiveSheet(root2);const kind=detectOutputSheetKind(
-activeSheet.Name);if(!kind){throw new Error(unsupportedOutputSheetMessage())}try{const{oaRows,erpRows}=readSourceRows2(root2);const result=runOutputSheetQueryCore(
-{kind,oaRows,erpRows,queryState,metrics:createMetricsRecorder(root2!=null?root2:globalThis)});clearPreviousToolOutput(activeSheet,kind,kind==="variance_summary"?
-["legacy_detail"]:[]);writeOutputWithMetadata2(activeSheet,kind,(_b=result.values)!=null?_b:[[(_a=result.noResultMessage)!=null?_a:"\u67E5\u8BE2\u6761\u4EF6\u6CA1\u6709\u5339\u914D\u5230\u6570\u636E\u3002"]],
-queryState)}catch(error){safeWriteCurrentSheetError(activeSheet,kind,errorMessage8(error),queryState)}}function readOutputFilters(sheet){const savedState=readOutputQueryState(
-sheet);if(!savedState){throw new Error("\u5F53\u524D\u8F93\u51FA\u8868\u7F3A\u5C11\u67E5\u8BE2\u6761\u4EF6\u8BB0\u5F55\uFF0C\u8BF7\u5148\u5728\u5F53\u524D\u9875\u91CD\u65B0\u6267\u884C\u67E5\u8BE2\u3002")}
+activeSheet.Name);if(!kind){throw new Error(unsupportedOutputSheetMessage())}const startedAt=queryStartedAt(root2);try{const{oaRows,erpRows}=readSourceRows2(root2);
+const result=runOutputSheetQueryCore({kind,oaRows,erpRows,queryState,metrics:createMetricsRecorder(root2!=null?root2:globalThis)});clearPreviousToolOutput(activeSheet,
+kind,kind==="variance_summary"?["legacy_detail"]:[]);writeOutputWithMetadata2(activeSheet,kind,(_b=result.values)!=null?_b:[[(_a=result.noResultMessage)!=null?_a:
+"\u67E5\u8BE2\u6761\u4EF6\u6CA1\u6709\u5339\u914D\u5230\u6570\u636E\u3002"]],queryState);notifyQueryCompleted(root2,"\u67E5\u8BE2",activeSheet.Name,startedAt)}catch(error){
+try{safeWriteCurrentSheetError(activeSheet,kind,errorMessage8(error),queryState)}catch(writeError){notifyQueryFailed(root2,"\u67E5\u8BE2",writeError,startedAt);
+throw writeError}notifyQueryFailed(root2,"\u67E5\u8BE2",error,startedAt)}}function readOutputFilters(sheet){const savedState=readOutputQueryState(sheet);if(!savedState){
+throw new Error("\u5F53\u524D\u8F93\u51FA\u8868\u7F3A\u5C11\u67E5\u8BE2\u6761\u4EF6\u8BB0\u5F55\uFF0C\u8BF7\u5148\u5728\u5F53\u524D\u9875\u91CD\u65B0\u6267\u884C\u67E5\u8BE2\u3002")}
 return parseFilters(savedState)}function readCellText(sheet,row,column){var _a,_b;const range=sheet.Range(`${column}${row}`);const matrix=normalizeMatrix((_a=range.
 Value2)!=null?_a:range.Value);return normalizeText((_b=matrix[0])==null?void 0:_b[0])}function countMaterialRowsBelow(sheet,summaryRowNumber){let count=0;for(let row=summaryRowNumber+
 1;row<summaryRowNumber+1e5;row+=1){if(readCellText(sheet,row,"A")!=="\u7269\u6599"){break}count+=1}return count}function readOutputRangeValues(sheet,startRow,rowCount,columnCount){
@@ -717,13 +730,13 @@ erp,root2);const headerIssues=[];const oaTable=readPrecheckTable("OA",oaSheet,[.
 "ERP",erpSheet,[...ERP_REQUIRED_HEADERS],MIN_ERP_HEADER_MATCH_COUNT,headerIssues);issues=headerIssues.length>0?headerIssues:buildPrecheckIssues(oaTable,erpTable)}catch(error){
 issues=[buildSystemErrorIssue(error)]}writePrecheckResults(issues,root2)}var EMPTY_QUERY_DIALOG_SUGGESTIONS={company:[],dept1:[],dept2:[]};function createEmptyQueryDialogSuggestions(){return{company:[],dept1:[],dept2:[]}}function pickColumnText(rows,header){
 return rows.map(row=>normalizeText(row[header])).filter(value=>value.length>0)}function uniqueSorted(values){return[...new Set(values)].sort((left,right)=>left.
-localeCompare(right,"zh-CN"))}function buildQueryDialogSuggestions(root2){var _a,_b;const runtimeRoot=root2!=null?root2:globalThis;try{const oaSheet=getSheetByName(
-SHEET_NAMES.oa,runtimeRoot);const erpSheet=getSheetByName(SHEET_NAMES.erp,runtimeRoot);const oaTable=readSheetTable(oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,
+localeCompare(right,"zh-CN"))}function buildQueryDialogSuggestions(root2){var _a,_b;const runtimeRoot2=root2!=null?root2:globalThis;try{const oaSheet=getSheetByName(
+SHEET_NAMES.oa,runtimeRoot2);const erpSheet=getSheetByName(SHEET_NAMES.erp,runtimeRoot2);const oaTable=readSheetTable(oaSheet,[...OA_REQUIRED_HEADERS],MIN_OA_HEADER_MATCH_COUNT,
 MAX_HEADER_SCAN_ROWS);const erpTable=readSheetTable(erpSheet,[...ERP_REQUIRED_HEADERS],MIN_ERP_HEADER_MATCH_COUNT,MAX_HEADER_SCAN_ROWS);return{company:uniqueSorted(
 [...pickColumnText(oaTable.rows,"\u516C\u53F8\u7B80\u79F0"),...pickColumnText(erpTable.rows,"\u533A\u5206\u516C\u53F8\u7B80\u79F0")]),dept1:uniqueSorted([...pickColumnText(
 oaTable.rows,"\u4E00\u7EA7\u90E8\u95E8"),...pickColumnText(erpTable.rows,"\u4E00\u7EA7\u90E8\u95E8")]),dept2:uniqueSorted([...pickColumnText(oaTable.rows,"\u4E8C\u7EA7\u90E8\u95E8"),
-...pickColumnText(erpTable.rows,"\u4E8C\u7EA7\u90E8\u95E8")])}}catch(error){(_b=(_a=runtimeRoot.console)==null?void 0:_a.error)==null?void 0:_b.call(_a,"\u8BFB\u53D6\u67E5\u8BE2\u5019\u9009\u5931\
-\u8D25\uFF0C\u67E5\u8BE2\u5F39\u7A97\u5C06\u4E0D\u663E\u793A\u8865\u5168\u4E0B\u62C9\u3002",error);return createEmptyQueryDialogSuggestions()}}function normalizeQueryDialogState(input={}){const source=input!=null?input:{};const queryState={company:normalizeText(source.company),dept1:normalizeText(source.
+...pickColumnText(erpTable.rows,"\u4E8C\u7EA7\u90E8\u95E8")])}}catch(error){(_b=(_a=runtimeRoot2.console)==null?void 0:_a.error)==null?void 0:_b.call(_a,"\u8BFB\u53D6\u67E5\u8BE2\u5019\u9009\
+\u5931\u8D25\uFF0C\u67E5\u8BE2\u5F39\u7A97\u5C06\u4E0D\u663E\u793A\u8865\u5168\u4E0B\u62C9\u3002",error);return createEmptyQueryDialogSuggestions()}}function normalizeQueryDialogState(input={}){const source=input!=null?input:{};const queryState={company:normalizeText(source.company),dept1:normalizeText(source.
 dept1),dept2:normalizeText(source.dept2),startDate:normalizeText(source.startDate),endDate:normalizeText(source.endDate),queryDirection:parseQueryDirection(normalizeText(
 source.queryDirection)||DEFAULT_QUERY_DIRECTION)};parseFilters(queryState);return queryState}var QUERY_DIALOG_RESULT_KEY="ScrapVarianceQueryDialogResult";var QUERY_DIALOG_INITIAL_STATE_KEY_PREFIX="ScrapVarianceQueryDialogInitialState:";var QUERY_DIALOG_TIMEOUT_MS=5*
 60*1e3;var QUERY_DIALOG_POLL_MS=250;function errorMessage10(error){return error instanceof Error?error.message:String(error)}function getStorage2(root2){var _a;

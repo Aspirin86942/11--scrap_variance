@@ -35,6 +35,7 @@ import { rangeAddress, writeMatrixBulkOrChunks } from "../wps-api/write-results"
 import { normalizeMatrix } from "../utils/matrix";
 import { normalizeText } from "../utils/text";
 import { setupOutputSheets } from "./output-sheets";
+import { notifyQueryCompleted, notifyQueryFailed, queryStartedAt } from "./query-feedback";
 
 interface SourceRows {
   oaRows: RawRow[];
@@ -145,6 +146,7 @@ export function runCurrentSheetQueryWithState(root: ScrapVarianceGlobal | undefi
     throw new Error(unsupportedOutputSheetMessage());
   }
 
+  const startedAt = queryStartedAt(root);
   try {
     const { oaRows, erpRows } = readSourceRows(root);
     const result = runOutputSheetQueryCore({
@@ -158,8 +160,15 @@ export function runCurrentSheetQueryWithState(root: ScrapVarianceGlobal | undefi
     clearPreviousToolOutput(activeSheet, kind, kind === "variance_summary" ? ["legacy_detail"] : []);
     // 成功或无结果都保存本次条件，下一次打开弹窗才能恢复当前输出页自己的状态。
     writeOutputWithMetadata(activeSheet, kind, result.values ?? [[result.noResultMessage ?? "查询条件没有匹配到数据。"]], queryState);
+    notifyQueryCompleted(root, "查询", activeSheet.Name, startedAt);
   } catch (error) {
-    safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error), queryState);
+    try {
+      safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error), queryState);
+    } catch (writeError) {
+      notifyQueryFailed(root, "查询", writeError, startedAt);
+      throw writeError;
+    }
+    notifyQueryFailed(root, "查询", error, startedAt);
   }
 }
 
