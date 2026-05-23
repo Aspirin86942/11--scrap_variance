@@ -1,17 +1,22 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ButtonActionRegistry } from "../../src/actions/button-actions";
-import { reportRuntimeError } from "../../src/main";
+import { SHEET_NAMES } from "../../src/constants";
+import { createDefaultButtonActions, createWpsRibbon, reportRuntimeError } from "../../src/main";
 import { createRibbonHandlers, getControlId } from "../../src/ribbon/handlers";
 import type { ScrapVarianceGlobal } from "../../src/types/wps";
+import { createFakeApplication } from "../wps-api/fakes";
 
 const root = globalThis as ScrapVarianceGlobal;
 let originalAlert: ScrapVarianceGlobal["alert"];
+let originalApplication: ScrapVarianceGlobal["Application"];
 let originalConsole: ScrapVarianceGlobal["console"];
 
 beforeEach(() => {
   originalAlert = root.alert;
+  originalApplication = root.Application;
   originalConsole = root.console;
   delete root.alert;
+  delete root.Application;
   delete root.console;
 });
 
@@ -20,6 +25,12 @@ afterEach(() => {
     root.alert = originalAlert;
   } else {
     delete root.alert;
+  }
+
+  if (originalApplication) {
+    root.Application = originalApplication;
+  } else {
+    delete root.Application;
   }
 
   if (originalConsole) {
@@ -35,6 +46,7 @@ describe("WPS ribbon entrypoint", () => {
       btnPrecheck: { name: "runPrecheck", run: vi.fn() },
       btnSetupOutputSheets: { name: "setupOutputSheets", run: vi.fn() },
       btnQueryCurrentSheet: { name: "queryCurrentSheet", run: vi.fn() },
+      btnLookupDocument: { name: "lookupDocument", run: vi.fn() },
       btnToggleMaterialRows: { name: "toggleMaterialRows", run: vi.fn() },
       btnPerformanceDiagnostics: { name: "runDiagnostics", run: vi.fn() },
       ...overrides
@@ -62,12 +74,14 @@ describe("WPS ribbon entrypoint", () => {
     ribbon.OnAction({ Id: "btnPrecheck" });
     ribbon.OnAction({ id: "btnSetupOutputSheets" });
     ribbon.OnAction({ ID: "btnQueryCurrentSheet" });
+    ribbon.OnAction({ Id: "btnLookupDocument" });
     ribbon.OnAction({ Id: "btnToggleMaterialRows" });
     ribbon.OnAction({ Id: "btnPerformanceDiagnostics" });
 
     expect(buttonActions.btnPrecheck.run).toHaveBeenCalledOnce();
     expect(buttonActions.btnSetupOutputSheets.run).toHaveBeenCalledOnce();
     expect(buttonActions.btnQueryCurrentSheet.run).toHaveBeenCalledOnce();
+    expect(buttonActions.btnLookupDocument.run).toHaveBeenCalledOnce();
     expect(buttonActions.btnToggleMaterialRows.run).toHaveBeenCalledOnce();
     expect(buttonActions.btnPerformanceDiagnostics.run).toHaveBeenCalledOnce();
     expect(reportError).not.toHaveBeenCalled();
@@ -159,6 +173,19 @@ describe("WPS ribbon entrypoint", () => {
       startDate: "2099/1/1",
       endDate: "2099/12/31"
     });
+  });
+
+  it("createDefaultButtonActions wires document lookup through the runtime error reporter", () => {
+    const alert = vi.fn();
+    const runtimeRoot = root;
+    runtimeRoot.alert = alert;
+    runtimeRoot.Application = createFakeApplication([]);
+    const actions = createDefaultButtonActions(runtimeRoot);
+    const ribbon = createWpsRibbon(runtimeRoot, actions);
+
+    ribbon.OnAction({ Id: "btnLookupDocument" });
+
+    expect(alert).toHaveBeenCalledWith(`找不到工作表：${SHEET_NAMES.oa}`);
   });
 
   it("reportRuntimeError calls alert when alert is a function", () => {

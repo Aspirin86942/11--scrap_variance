@@ -47,6 +47,7 @@ describe("WPS add-in generated bundle", () => {
     expect(xml).toContain('id="btnQueryCurrentSheet"');
     expect(xml).toContain('id="btnLookupDocument"');
     expect(xml).toContain('id="btnToggleMaterialRows"');
+    expect(xml).toContain('id="btnPerformanceDiagnostics"');
   });
 
   it("ships the static query dialog pages", () => {
