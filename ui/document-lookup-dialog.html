@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <title>单据查询</title>
+    <style>
+      body {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 18px;
+        font-family: "Microsoft YaHei", Arial, sans-serif;
+        color: #1f2933;
+        background: #f7f8fa;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 10px 12px;
+        align-items: center;
+      }
+
+      .field-label {
+        font-size: 14px;
+        text-align: right;
+      }
+
+      .mode-group {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        min-height: 30px;
+        margin: 0;
+        padding: 0;
+        border: 0;
+      }
+
+      .mode-option {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 14px;
+        white-space: nowrap;
+        cursor: pointer;
+      }
+
+      .mode-option input {
+        margin: 0;
+      }
+
+      .text-input {
+        box-sizing: border-box;
+        width: 100%;
+        height: 30px;
+        border: 1px solid #c9d1d9;
+        border-radius: 4px;
+        padding: 4px 8px;
+        font-size: 14px;
+        background: #fff;
+      }
+
+      .lookup-field {
+        position: relative;
+        width: 100%;
+      }
+
+      .autocomplete-menu {
+        position: absolute;
+        z-index: 1000;
+        box-sizing: border-box;
+        display: none;
+        max-height: 220px;
+        overflow-y: auto;
+        border: 1px solid #c9d1d9;
+        border-radius: 4px;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(31, 41, 51, 0.14);
+      }
+
+      .autocomplete-option {
+        box-sizing: border-box;
+        min-height: 28px;
+        padding: 5px 8px;
+        font-size: 14px;
+        line-height: 18px;
+        cursor: pointer;
+      }
+
+      .autocomplete-option:hover,
+      .autocomplete-option.active {
+        background: #e6f4ef;
+      }
+
+      .actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 18px;
+      }
+
+      button {
+        min-width: 72px;
+        height: 30px;
+        border: 1px solid #9aa4b2;
+        border-radius: 4px;
+        background: #fff;
+        cursor: pointer;
+      }
+
+      button.primary {
+        border-color: #087f5b;
+        background: #099268;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <form id="lookupForm">
+      <div class="grid">
+        <div id="lookupModeLabel" class="field-label">查询类型</div>
+        <fieldset class="mode-group" aria-labelledby="lookupModeLabel">
+          <label class="mode-option">
+            <input type="radio" name="lookupMode" value="oa_form_number" checked>
+            <span>查 OA 表单编号</span>
+          </label>
+          <label class="mode-option">
+            <input type="radio" name="lookupMode" value="erp_doc_number">
+            <span>查 ERP 单据编号</span>
+          </label>
+        </fieldset>
+
+        <label class="field-label" for="documentKeyword">单号</label>
+        <div class="lookup-field">
+          <input id="documentKeyword" class="text-input" name="documentKeyword" autocomplete="off">
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="btnQuery" class="primary" type="submit">查询</button>
+        <button id="btnClear" type="button">清空</button>
+        <button id="btnCancel" type="button">取消</button>
+      </div>
+    </form>
+    <script src="./document-lookup-dialog.js"></script>
+  </body>
+</html>
