@@ -29,6 +29,10 @@ interface SourceRows {
   erpRows: RawRow[];
 }
 
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function matrixWidth(values: OutputMatrix): number {
   return values.reduce((width, row) => Math.max(width, row.length), 0);
 }
@@ -61,19 +65,34 @@ function writeOutputWithMetadata(sheet: WpsSheet, values: OutputMatrix): void {
   saveOutputMetadata(sheet, { kind: "document_lookup", rangeAddress: address });
 }
 
-export function runDocumentLookupWithSelection(root: ScrapVarianceGlobal, selection: DocumentLookupSelection): void {
-  const { oaRows, erpRows } = readSourceRows(root);
-  const result = buildDocumentLookupResult({
-    mode: selection.mode,
-    docNumber: selection.docNumber,
-    oaRows,
-    erpRows
-  });
-  const sheet = ensureSheet(SHEET_NAMES.documentLookup, root);
-  const values = result.ok ? documentLookupRowsToValues(result.rows) : [["提示", result.message]];
+function safeWriteLookupError(root: ScrapVarianceGlobal, error: unknown): void {
+  const message = errorMessage(error);
+  try {
+    const sheet = ensureSheet(SHEET_NAMES.documentLookup, root);
+    clearPreviousToolOutput(sheet, "document_lookup");
+    writeOutputWithMetadata(sheet, [["错误", message]]);
+  } catch (writeError) {
+    throw new Error(`单号查询失败：${message}；错误信息写入也失败：${errorMessage(writeError)}`);
+  }
+}
 
-  clearPreviousToolOutput(sheet, "document_lookup");
-  writeOutputWithMetadata(sheet, values);
+export function runDocumentLookupWithSelection(root: ScrapVarianceGlobal, selection: DocumentLookupSelection): void {
+  try {
+    const { oaRows, erpRows } = readSourceRows(root);
+    const result = buildDocumentLookupResult({
+      mode: selection.mode,
+      docNumber: selection.docNumber,
+      oaRows,
+      erpRows
+    });
+    const sheet = ensureSheet(SHEET_NAMES.documentLookup, root);
+    const values = result.ok ? documentLookupRowsToValues(result.rows) : [["提示", result.message]];
+
+    clearPreviousToolOutput(sheet, "document_lookup");
+    writeOutputWithMetadata(sheet, values);
+  } catch (error) {
+    safeWriteLookupError(root, error);
+  }
 }
 
 export function startDocumentLookup(

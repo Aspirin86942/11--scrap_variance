@@ -171,6 +171,30 @@ describe("document lookup macro", () => {
     });
   });
 
+  it("clears stale document lookup output and writes an error when lookup fails", () => {
+    const resultSheet = createFakeSheet(SHEET_NAMES.documentLookup);
+    resultSheet.rangeValues.set("CB1:CC1", [["document_lookup", "A1:Z9"]]);
+    const root = makeRoot([
+      makeOaSheet([["OA-001", "ERP-778", "2026/5/1", "数控", "生产", "仓储", "MAT-A", "物料A", "坏数量", 100]]),
+      makeErpSheet(),
+      resultSheet
+    ]);
+
+    expect(() => runDocumentLookupWithSelection(root, { mode: "oa_form_number", docNumber: "OA-001" })).not.toThrow();
+
+    expect(resultSheet.clears).toEqual(["A1:Z9"]);
+    expect(visibleWrites(resultSheet)).toEqual([
+      {
+        address: "A1:B1",
+        value: [["错误", expect.stringContaining("数量数值格式不正确")]]
+      }
+    ]);
+    expect(resultSheet.writes).toContainEqual({
+      address: "CB1:CC1",
+      value: [["document_lookup", "A1:B1"]]
+    });
+  });
+
   it("opens the dialog with source-derived suggestions", () => {
     vi.useFakeTimers();
     const root = makeRoot([makeOaSheet(), makeErpSheet()]);
