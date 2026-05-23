@@ -97,6 +97,10 @@ describe("WPS add-in generated bundle", () => {
     expect(lookupHtml).toContain('id="lookupForm"');
     expect(lookupHtml).toContain('name="lookupMode"');
     expect(lookupHtml).toContain('id="documentKeyword"');
+    expect(lookupHtml).toContain('src="./candidate-search.js"');
+    expect(lookupHtml.indexOf('src="./candidate-search.js"')).toBeLessThan(
+      lookupHtml.indexOf('src="./document-lookup-dialog.js"')
+    );
     expect(lookupHtml).toContain('src="./document-lookup-dialog.js"');
     expect(lookupScript).toContain("ScrapVarianceDocumentLookupDialogResult");
     expect(lookupScript).toContain("ScrapVarianceDocumentLookupInitialState:");

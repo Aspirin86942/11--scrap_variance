@@ -4,12 +4,13 @@
   var MODE_OA = "oa_form_number";
   var MODE_ERP = "erp_doc_number";
   var MAX_VISIBLE_OPTIONS = 30;
+  var candidateSearch = window.__SCRAP_VARIANCE_CANDIDATE_SEARCH__;
   var hasSubmitted = false;
   var selectedCandidate = null;
   var dropdown = null;
-  var suggestionsByMode = {
-    oa: [],
-    erp: []
+  var suggestionSourcesByMode = {
+    oa: { options: [], index: null },
+    erp: { options: [], index: null }
   };
 
   function decodeQueryPart(value) {
@@ -146,28 +147,51 @@
     return parsed;
   }
 
-  function readSuggestions() {
+  function buildSuggestionSource(suggestions) {
+    var options = normalizeSuggestions(suggestions);
+    var source = {
+      options: options,
+      index: null
+    };
+
+    if (candidateSearch && typeof candidateSearch.buildIndex === "function") {
+      source.index = candidateSearch.buildIndex(options, function (suggestion) {
+        return suggestion.docNumber;
+      });
+    }
+    return source;
+  }
+
+  function readSuggestionSources() {
     var payload = readInitialPayload();
     var suggestions = payload && payload.suggestions ? payload.suggestions : {};
 
     return {
-      oa: normalizeSuggestions(suggestions.oa),
-      erp: normalizeSuggestions(suggestions.erp)
+      oa: buildSuggestionSource(suggestions.oa),
+      erp: buildSuggestionSource(suggestions.erp)
     };
   }
 
-  function getMatchedSuggestions(value, suggestions) {
+  function getMatchedSuggestionsFromSource(value, source) {
     var query = String(value || "").trim();
-    var options = normalizeSuggestions(suggestions);
+    var options = source && source.options && typeof source.options.length === "number" ? source.options : [];
     var matched = [];
     var index;
     var suggestion;
+
+    if (
+      source &&
+      source.index &&
+      candidateSearch &&
+      typeof candidateSearch.searchIndex === "function"
+    ) {
+      return candidateSearch.searchIndex(source.index, query, MAX_VISIBLE_OPTIONS);
+    }
 
     for (index = 0; index < options.length; index += 1) {
       suggestion = options[index];
       if (
         !query ||
-        suggestion.label.indexOf(query) !== -1 ||
         suggestion.docNumber.indexOf(query) !== -1
       ) {
         matched.push(suggestion);
@@ -177,6 +201,10 @@
       }
     }
     return matched;
+  }
+
+  function getMatchedSuggestions(value, suggestions) {
+    return getMatchedSuggestionsFromSource(value, buildSuggestionSource(suggestions));
   }
 
   function getModeInputs() {
@@ -195,7 +223,7 @@
   }
 
   function suggestionsForMode(mode) {
-    return mode === MODE_ERP ? suggestionsByMode.erp : suggestionsByMode.oa;
+    return mode === MODE_ERP ? suggestionSourcesByMode.erp : suggestionSourcesByMode.oa;
   }
 
   function createDropdown() {
@@ -250,7 +278,7 @@
 
     element = getDropdown();
     hideDropdown();
-    options = getMatchedSuggestions(input.value, suggestionsForMode(getLookupMode()));
+    options = getMatchedSuggestionsFromSource(input.value, suggestionsForMode(getLookupMode()));
     if (!options.length) {
       return;
     }
@@ -365,7 +393,7 @@
     var modeInputs = getModeInputs();
     var index;
 
-    suggestionsByMode = readSuggestions();
+    suggestionSourcesByMode = readSuggestionSources();
 
     if (input) {
       input.addEventListener("input", function () {

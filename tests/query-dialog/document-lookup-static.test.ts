@@ -16,9 +16,18 @@ interface DocumentLookupSuggestion {
 }
 
 interface LoadOptions {
+  loadCandidateSearch?: boolean;
   getItemThrows?: boolean;
   setItemThrows?: boolean;
   storageUnavailable?: boolean;
+}
+
+interface CandidateSearchStub {
+  buildIndex(
+    values: DocumentLookupSuggestion[],
+    getSearchText: (value: DocumentLookupSuggestion) => string
+  ): unknown;
+  searchIndex(index: unknown, query: string, limit: number): DocumentLookupSuggestion[];
 }
 
 interface DialogHarness {
@@ -193,6 +202,7 @@ function loadDocumentLookupDialog(initialPayload?: unknown, options: LoadOptions
 
   const windowObject = {
     __SCRAP_VARIANCE_DOCUMENT_LOOKUP_DIALOG_TESTS__: hooks,
+    __SCRAP_VARIANCE_CANDIDATE_SEARCH__: undefined as CandidateSearchStub | undefined,
     addEventListener(type: string, listener: WindowListener): void {
       const listeners = windowListeners.get(type) ?? [];
       listeners.push(listener);
@@ -211,6 +221,7 @@ function loadDocumentLookupDialog(initialPayload?: unknown, options: LoadOptions
   } as {
     Application?: { PluginStorage: typeof pluginStorage };
     __SCRAP_VARIANCE_DOCUMENT_LOOKUP_DIALOG_TESTS__: DocumentLookupHooks;
+    __SCRAP_VARIANCE_CANDIDATE_SEARCH__?: CandidateSearchStub;
     addEventListener(type: string, listener: WindowListener): void;
     close(): void;
     location: { search: string };
@@ -229,6 +240,9 @@ function loadDocumentLookupDialog(initialPayload?: unknown, options: LoadOptions
     window: windowObject
   });
 
+  if (options.loadCandidateSearch !== false) {
+    vm.runInContext(readFileSync(resolve(repoRoot, "ui/candidate-search.js"), "utf-8"), context);
+  }
   vm.runInContext(readFileSync(resolve(repoRoot, "ui/document-lookup-dialog.js"), "utf-8"), context);
 
   return {
@@ -253,7 +267,7 @@ function loadDocumentLookupDialog(initialPayload?: unknown, options: LoadOptions
 }
 
 describe("static document lookup dialog", () => {
-  it("filters matched suggestions by substring", () => {
+  it("matches OA and ERP candidates by doc number substring", () => {
     const { hooks } = loadDocumentLookupDialog();
 
     expect(
@@ -266,6 +280,60 @@ describe("static document lookup dialog", () => {
       { label: "OA 报废申请 OA-001", docNumber: "OA-001" },
       { label: "ERP 入库单", docNumber: "ERP-001" }
     ]);
+  });
+
+  it("matches partial OA doc numbers without relying on the label", () => {
+    const { hooks } = loadDocumentLookupDialog();
+
+    expect(
+      hooks.getMatchedSuggestions("A-00", [
+        { label: "OA 报废申请 2026-05-01 数控 ERP-001", docNumber: "OA-001" },
+        { label: "OA 报废申请 2026-05-02 机加 ERP-002", docNumber: "OA-002" },
+        { label: "ERP 报废单 2026-05-03 数控 OA-003", docNumber: "ERP-003" }
+      ])
+    ).toEqual([
+      { label: "OA 报废申请 2026-05-01 数控 ERP-001", docNumber: "OA-001" },
+      { label: "OA 报废申请 2026-05-02 机加 ERP-002", docNumber: "OA-002" }
+    ]);
+  });
+
+  it("does not match OA candidates by date, company, department, or opposite doc number in labels", () => {
+    const { hooks } = loadDocumentLookupDialog();
+    const oaSuggestions = [
+      { label: "2026-05-01 数控 一部 OA-001 对方 ERP-001", docNumber: "OA-001" },
+      { label: "2026-05-02 装配 二部 OA-002 对方 ERP-002", docNumber: "OA-002" }
+    ];
+
+    expect(hooks.getMatchedSuggestions("2026-05-01", oaSuggestions)).toEqual([]);
+    expect(hooks.getMatchedSuggestions("数控", oaSuggestions)).toEqual([]);
+    expect(hooks.getMatchedSuggestions("一部", oaSuggestions)).toEqual([]);
+    expect(hooks.getMatchedSuggestions("ERP-002", oaSuggestions)).toEqual([]);
+  });
+
+  it("falls back to docNumber-only matching when the shared search helper is unavailable", () => {
+    const { hooks } = loadDocumentLookupDialog(undefined, { loadCandidateSearch: false });
+    const oaSuggestions = [
+      { label: "2026-05-01 数控 一部 OA-001 对方 ERP-001", docNumber: "OA-001" },
+      { label: "2026-05-02 装配 二部 OA-002 对方 ERP-002", docNumber: "OA-002" }
+    ];
+
+    expect(hooks.getMatchedSuggestions("A-00", oaSuggestions)).toEqual(oaSuggestions);
+    expect(hooks.getMatchedSuggestions("2026-05-01", oaSuggestions)).toEqual([]);
+    expect(hooks.getMatchedSuggestions("数控", oaSuggestions)).toEqual([]);
+    expect(hooks.getMatchedSuggestions("ERP-002", oaSuggestions)).toEqual([]);
+  });
+
+  it("keeps the original candidate order and caps empty-query results at 30", () => {
+    const { hooks } = loadDocumentLookupDialog();
+    const suggestions = Array.from({ length: 35 }, (_, index) => {
+      var docNumber = "OA-" + String(index + 1).padStart(3, "0");
+      return {
+        label: "OA 报废申请 " + docNumber,
+        docNumber: docNumber
+      };
+    });
+
+    expect(hooks.getMatchedSuggestions("", suggestions)).toEqual(suggestions.slice(0, 30));
   });
 
   it("rejects submit when keyword matches text but no candidate was selected", () => {
