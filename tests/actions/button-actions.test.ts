@@ -12,6 +12,7 @@ describe("button action registry", () => {
       runPrecheck: vi.fn(),
       setupOutputSheets: vi.fn(),
       queryCurrentSheet: vi.fn(),
+      lookupDocument: vi.fn(),
       toggleMaterialRows: vi.fn(),
       runDiagnostics: vi.fn()
     };
@@ -22,12 +23,14 @@ describe("button action registry", () => {
       "btnPrecheck",
       "btnSetupOutputSheets",
       "btnQueryCurrentSheet",
+      "btnLookupDocument",
       "btnToggleMaterialRows",
       "btnPerformanceDiagnostics"
     ]);
     expect(actions.btnPrecheck.name).toBe("runPrecheck");
     expect(actions.btnSetupOutputSheets.name).toBe("setupOutputSheets");
     expect(actions.btnQueryCurrentSheet.name).toBe("queryCurrentSheet");
+    expect(actions.btnLookupDocument.name).toBe("lookupDocument");
     expect(actions.btnToggleMaterialRows.name).toBe("toggleMaterialRows");
     expect(actions.btnPerformanceDiagnostics.name).toBe("runDiagnostics");
   });

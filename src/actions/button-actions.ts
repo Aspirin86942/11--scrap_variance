@@ -17,6 +17,7 @@ export interface ButtonActionRunners {
   runPrecheck(): unknown | Promise<unknown>;
   setupOutputSheets(): unknown | Promise<unknown>;
   queryCurrentSheet(): unknown | Promise<unknown>;
+  lookupDocument(): unknown | Promise<unknown>;
   toggleMaterialRows(): unknown | Promise<unknown>;
   runDiagnostics(): unknown | Promise<unknown>;
 }
@@ -39,6 +40,10 @@ export function createButtonActions(runners: ButtonActionRunners): ButtonActionR
     btnQueryCurrentSheet: {
       name: "queryCurrentSheet",
       run: runners.queryCurrentSheet
+    },
+    btnLookupDocument: {
+      name: "lookupDocument",
+      run: runners.lookupDocument
     },
     btnToggleMaterialRows: {
       name: "toggleMaterialRows",

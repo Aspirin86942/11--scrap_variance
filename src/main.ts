@@ -1,4 +1,5 @@
 import { createButtonActions, type ButtonActionRegistry } from "./actions/button-actions";
+import { startDocumentLookup } from "./macros/document-lookup";
 import { runPerformanceDiagnostics } from "./macros/performance-diagnostics";
 import { runCurrentSheetQueryWithState, toggleMaterialRows } from "./macros/current-sheet-query";
 import { setupOutputSheets } from "./macros/output-sheets";
@@ -28,6 +29,7 @@ export function createDefaultButtonActions(root: ScrapVarianceGlobal): ButtonAct
     setupOutputSheets: () => setupOutputSheets(root),
     queryCurrentSheet: () =>
       openQueryDialogAndRun(root, (state) => runCurrentSheetQueryWithState(root, state), reportRuntimeError),
+    lookupDocument: () => startDocumentLookup(root, reportRuntimeError),
     toggleMaterialRows: () => toggleMaterialRows(root),
     runDiagnostics: () => runPerformanceDiagnostics(root)
   });

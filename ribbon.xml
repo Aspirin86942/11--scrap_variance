@@ -7,6 +7,7 @@
           <button id="btnPrecheck" label="预验证数据" size="large" onAction="ribbon.OnAction" />
           <button id="btnSetupOutputSheets" label="初始化输出表" size="large" onAction="ribbon.OnAction" />
           <button id="btnQueryCurrentSheet" label="查询当前页" size="large" onAction="ribbon.OnAction" />
+          <button id="btnLookupDocument" label="查单号" size="large" onAction="ribbon.OnAction" />
           <button id="btnToggleMaterialRows" label="展开物料" size="large" onAction="ribbon.OnAction" />
           <button id="btnPerformanceDiagnostics" label="性能诊断" size="large" onAction="ribbon.OnAction" />
         </group>

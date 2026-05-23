@@ -45,43 +45,55 @@ describe("WPS add-in generated bundle", () => {
     expect(xml).toContain('id="btnPrecheck"');
     expect(xml).toContain('id="btnSetupOutputSheets"');
     expect(xml).toContain('id="btnQueryCurrentSheet"');
+    expect(xml).toContain('id="btnLookupDocument"');
     expect(xml).toContain('id="btnToggleMaterialRows"');
   });
 
-  it("ships the static query dialog page", () => {
-    const html = readText("ui/query-dialog.html");
-    const script = readText("ui/query-dialog.js");
+  it("ships the static query dialog pages", () => {
+    const queryHtml = readText("ui/query-dialog.html");
+    const queryScript = readText("ui/query-dialog.js");
+    const lookupHtml = readText("ui/document-lookup-dialog.html");
+    const lookupScript = readText("ui/document-lookup-dialog.js");
 
-    expect(html).toContain('id="company"');
-    expect(html).toContain('id="dept1"');
-    expect(html).toContain('id="dept2"');
-    expect(html).toContain('id="startDate"');
-    expect(html).toContain('id="endDate"');
-    expect(html).toContain('name="queryDirection"');
-    expect(html).toContain('type="radio"');
-    expect(html).not.toContain("<select");
-    expect(html).toContain('id="btnQuery"');
-    expect(html).toContain('id="btnClear"');
-    expect(html).toContain('id="btnCancel"');
-    expect(html).toContain('src="./query-dialog.js"');
-    expect(html).toContain("autocomplete-field");
-    expect(html).toContain("autocomplete-menu");
-    expect(html).not.toContain("<datalist");
-    expect(script).toContain("ScrapVarianceQueryDialogResult");
-    expect(script).toContain("ScrapVarianceQueryDialogInitialState:");
-    expect(script).toContain("readInitialState");
-    expect(script).toContain("initializeForm");
-    expect(script).toContain("getQueryParam");
-    expect(script).toContain("normalizeSuggestions");
-    expect(script).toContain("attachAutocomplete");
-    expect(script).toContain("MAX_VISIBLE_OPTIONS");
-    expect(script).toContain("__SCRAP_VARIANCE_QUERY_DIALOG_TESTS__");
-    expect(script).not.toContain("URLSearchParams");
-    expect(script).toContain("getOutputKind");
-    expect(script).toContain("setDirectionEnabled");
-    expect(script).toContain("OA金蝶单号查ERP");
-    expect(script).toContain("ERP源单查OA");
-    expect(script).toContain("beforeunload");
+    expect(queryHtml).toContain('id="company"');
+    expect(queryHtml).toContain('id="dept1"');
+    expect(queryHtml).toContain('id="dept2"');
+    expect(queryHtml).toContain('id="startDate"');
+    expect(queryHtml).toContain('id="endDate"');
+    expect(queryHtml).toContain('name="queryDirection"');
+    expect(queryHtml).toContain('type="radio"');
+    expect(queryHtml).not.toContain("<select");
+    expect(queryHtml).toContain('id="btnQuery"');
+    expect(queryHtml).toContain('id="btnClear"');
+    expect(queryHtml).toContain('id="btnCancel"');
+    expect(queryHtml).toContain('src="./query-dialog.js"');
+    expect(queryHtml).toContain("autocomplete-field");
+    expect(queryHtml).toContain("autocomplete-menu");
+    expect(queryHtml).not.toContain("<datalist");
+    expect(queryScript).toContain("ScrapVarianceQueryDialogResult");
+    expect(queryScript).toContain("ScrapVarianceQueryDialogInitialState:");
+    expect(queryScript).toContain("readInitialState");
+    expect(queryScript).toContain("initializeForm");
+    expect(queryScript).toContain("getQueryParam");
+    expect(queryScript).toContain("normalizeSuggestions");
+    expect(queryScript).toContain("attachAutocomplete");
+    expect(queryScript).toContain("MAX_VISIBLE_OPTIONS");
+    expect(queryScript).toContain("__SCRAP_VARIANCE_QUERY_DIALOG_TESTS__");
+    expect(queryScript).not.toContain("URLSearchParams");
+    expect(queryScript).toContain("getOutputKind");
+    expect(queryScript).toContain("setDirectionEnabled");
+    expect(queryScript).toContain("OA金蝶单号查ERP");
+    expect(queryScript).toContain("ERP源单查OA");
+    expect(queryScript).toContain("beforeunload");
+
+    expect(lookupHtml).toContain('id="lookupForm"');
+    expect(lookupHtml).toContain('name="lookupMode"');
+    expect(lookupHtml).toContain('id="documentKeyword"');
+    expect(lookupHtml).toContain('src="./document-lookup-dialog.js"');
+    expect(lookupScript).toContain("ScrapVarianceDocumentLookupDialogResult");
+    expect(lookupScript).toContain("ScrapVarianceDocumentLookupInitialState:");
+    expect(lookupScript).toContain("__SCRAP_VARIANCE_DOCUMENT_LOOKUP_DIALOG_TESTS__");
+    expect(lookupScript).not.toContain("URLSearchParams");
   });
 
   it("registers every ribbon onAction callback through the WPS entrypoint", () => {
@@ -132,6 +144,7 @@ describe("WPS add-in generated bundle", () => {
     expect(searchableSource).toContain("btnPrecheck");
     expect(searchableSource).toContain("btnSetupOutputSheets");
     expect(searchableSource).toContain("btnQueryCurrentSheet");
+    expect(searchableSource).toContain("btnLookupDocument");
     expect(searchableSource).toContain("btnToggleMaterialRows");
     expect(searchableSource).toContain("__WPS_RUN_ALL_BUTTON_TESTS__");
     expect(handlers).toContain("getButtonAction");
