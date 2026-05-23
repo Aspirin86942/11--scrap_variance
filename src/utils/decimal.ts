@@ -42,7 +42,12 @@ export function subtractDecimal(left: Decimal, right: Decimal): Decimal {
   return left.minus(right);
 }
 
+export function decimalToDecimal2(value: Decimal): Decimal {
+  // 内部汇总需要继续沿用对外展示的两位小数口径，但不应该再从展示行字符串反解析。
+  return value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP);
+}
+
 export function decimalToNumber2(value: Decimal): number {
   // 对外展示统一保留两位并四舍五入，避免不同输出路径各自定义金额/数量精度。
-  return Number(value.toDecimalPlaces(2, Decimal.ROUND_HALF_UP).toString());
+  return Number(decimalToDecimal2(value).toString());
 }

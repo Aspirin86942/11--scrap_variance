@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeDateKey } from "../../src/utils/date";
-import { addDecimal, decimalToNumber2, parseDecimal } from "../../src/utils/decimal";
+import { addDecimal, decimalToDecimal2, decimalToNumber2, parseDecimal } from "../../src/utils/decimal";
 import { hasAnyNonBlankRow, normalizeMatrix } from "../../src/utils/matrix";
 import { appendUniqueJoinedText, isBlankValue, normalizeText } from "../../src/utils/text";
 
@@ -49,6 +49,13 @@ describe("decimal utilities", () => {
 
     expect(decimalToNumber2(addDecimal(left, right))).toBe(0.3);
     expect(decimalToNumber2(parseDecimal("1,234.567", "金额"))).toBe(1234.57);
+  });
+
+  it("returns a rounded Decimal without converting through display text", () => {
+    const rounded = decimalToDecimal2(parseDecimal("1.005", "数量"));
+
+    expect(rounded.toString()).toBe("1.01");
+    expect(decimalToNumber2(rounded)).toBe(1.01);
   });
 
   it("rejects malformed numeric text", () => {
