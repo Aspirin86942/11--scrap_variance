@@ -26,6 +26,8 @@ export interface DocumentLookupInput {
   erpRows: RawRow[] | null | undefined;
 }
 
+export type DocumentLookupSelection = Pick<DocumentLookupInput, "mode" | "docNumber">;
+
 export interface DocumentLookupRow {
   rowType: "物料";
   lookupType: DocumentLookupTypeLabel;
