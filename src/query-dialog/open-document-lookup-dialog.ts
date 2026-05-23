@@ -52,8 +52,13 @@ function safeReportError(reportError: ReportError, error: unknown): void {
 }
 
 function clearDocumentLookupDialogResult(root: ScrapVarianceGlobal, token?: string): void {
+  if (token === undefined) {
+    getStorage(root).setItem(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY, "");
+    return;
+  }
+
   const result = readDocumentLookupDialogResult(root);
-  if (result && (!token || result.token !== token)) {
+  if (result && result.token !== token) {
     return;
   }
 

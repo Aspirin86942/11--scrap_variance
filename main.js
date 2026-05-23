@@ -163,24 +163,26 @@ erp_doc_number",docNumber:group.docNumber,label:buildSuggestionLabel([group.docN
 function collectRowsByExactText(rows,fieldName,expected){const normalizedExpected=normalizeText(expected);return(rows!=null?rows:[]).filter(row=>normalizeText(row[fieldName])===
 normalizedExpected)}function collectRowsByAnyText(rows,fieldName,expectedValues){return(rows!=null?rows:[]).filter(row=>expectedValues.has(normalizeText(row[fieldName])))}
 function collectUniqueText(rows,fieldName){const result=new Set;for(const row of rows){const value=normalizeText(row[fieldName]);if(value){result.add(value)}}return result}
-function createMaterial(itemCode){return{formNumbers:"",recordedCounterpartDocNumbers:"",dates:"",companies:"",dept1:"",dept2:"",itemCode,itemName:"",quantity:zeroDecimal(),
-amount:zeroDecimal()}}function getOrCreateMaterial(groups,itemCode){const existing=groups.get(itemCode);if(existing){return existing}const created=createMaterial(
-itemCode);groups.set(itemCode,created);return created}function aggregateOaMaterials(rows){const result={materials:new Map,missingItemCodeRows:[]};for(const row of rows){
-const itemCode=normalizeText(row["\u7269\u6599\u4EE3\u7801"]);const target=itemCode?getOrCreateMaterial(result.materials,itemCode):createMaterial("");target.formNumbers=
-appendText(target.formNumbers,row["\u8868\u5355\u7F16\u53F7"]);target.recordedCounterpartDocNumbers=appendText(target.recordedCounterpartDocNumbers,row["\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7"]);
-target.dates=appendText(target.dates,normalizeDateKey(row["\u7533\u8BF7\u65E5\u671F"]));target.companies=appendText(target.companies,row["\u516C\u53F8\u7B80\u79F0"]);
+function splitRowsByCounterpartPresence(rows,counterpartFieldName,existingCounterpartDocNumbers){const result={existingCounterpartRows:[],missingCounterpartRows:[]};
+for(const row of rows){const counterpartDocNumber=normalizeText(row[counterpartFieldName]);if(counterpartDocNumber&&existingCounterpartDocNumbers.has(counterpartDocNumber)){
+result.existingCounterpartRows.push(row)}else{result.missingCounterpartRows.push(row)}}return result}function createMaterial(itemCode){return{formNumbers:"",recordedCounterpartDocNumbers:"",
+dates:"",companies:"",dept1:"",dept2:"",itemCode,itemName:"",quantity:zeroDecimal(),amount:zeroDecimal()}}function getOrCreateMaterial(groups,itemCode){const existing=groups.
+get(itemCode);if(existing){return existing}const created=createMaterial(itemCode);groups.set(itemCode,created);return created}function aggregateOaMaterials(rows){
+const result={materials:new Map,missingItemCodeRows:[]};for(const row of rows){const itemCode=normalizeText(row["\u7269\u6599\u4EE3\u7801"]);const target=itemCode?
+getOrCreateMaterial(result.materials,itemCode):createMaterial("");target.formNumbers=appendText(target.formNumbers,row["\u8868\u5355\u7F16\u53F7"]);target.recordedCounterpartDocNumbers=
+appendText(target.recordedCounterpartDocNumbers,row["\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7"]);target.dates=appendText(target.dates,normalizeDateKey(row["\u7533\u8BF7\
+\u65E5\u671F"]));target.companies=appendText(target.companies,row["\u516C\u53F8\u7B80\u79F0"]);target.dept1=appendText(target.dept1,row["\u4E00\u7EA7\u90E8\u95E8"]);
+target.dept2=appendText(target.dept2,row["\u4E8C\u7EA7\u90E8\u95E8"]);if(!target.itemName){target.itemName=normalizeText(row["\u7269\u6599\u540D\u79F0"])}target.
+quantity=addDecimal(target.quantity,parseDecimal2(row["\u6570\u91CF"],"\u6570\u91CF"));target.amount=addDecimal(target.amount,parseDecimal2(row["\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"],
+"\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"));if(!itemCode){target.missingItemCodeRemark="OA\u7269\u6599\u7F16\u7801\u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u914D\u5BF9";result.
+missingItemCodeRows.push(target)}}return result}function aggregateErpMaterials(rows){const result={materials:new Map,missingItemCodeRows:[]};for(const row of rows){
+const itemCode=normalizeText(row["\u7269\u6599\u7F16\u7801"]);const target=itemCode?getOrCreateMaterial(result.materials,itemCode):createMaterial("");target.formNumbers=
+appendText(target.formNumbers,row["\u5355\u636E\u7F16\u53F7"]);target.recordedCounterpartDocNumbers=appendText(target.recordedCounterpartDocNumbers,row["\u6E90\u5355\u5355\u53F7"]);
+target.dates=appendText(target.dates,normalizeDateKey(row["\u65E5\u671F"]));target.companies=appendText(target.companies,row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"]);
 target.dept1=appendText(target.dept1,row["\u4E00\u7EA7\u90E8\u95E8"]);target.dept2=appendText(target.dept2,row["\u4E8C\u7EA7\u90E8\u95E8"]);if(!target.itemName){
-target.itemName=normalizeText(row["\u7269\u6599\u540D\u79F0"])}target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u6570\u91CF"],"\u6570\u91CF"));target.
-amount=addDecimal(target.amount,parseDecimal2(row["\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"],"\u5B9E\u9645\u9884\u7B97\u91D1\u989Dmx"));if(!itemCode){target.missingItemCodeRemark=
-"OA\u7269\u6599\u7F16\u7801\u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u914D\u5BF9";result.missingItemCodeRows.push(target)}}return result}function aggregateErpMaterials(rows){
-const result={materials:new Map,missingItemCodeRows:[]};for(const row of rows){const itemCode=normalizeText(row["\u7269\u6599\u7F16\u7801"]);const target=itemCode?
-getOrCreateMaterial(result.materials,itemCode):createMaterial("");target.formNumbers=appendText(target.formNumbers,row["\u5355\u636E\u7F16\u53F7"]);target.recordedCounterpartDocNumbers=
-appendText(target.recordedCounterpartDocNumbers,row["\u6E90\u5355\u5355\u53F7"]);target.dates=appendText(target.dates,normalizeDateKey(row["\u65E5\u671F"]));target.
-companies=appendText(target.companies,row["\u533A\u5206\u516C\u53F8\u7B80\u79F0"]);target.dept1=appendText(target.dept1,row["\u4E00\u7EA7\u90E8\u95E8"]);target.
-dept2=appendText(target.dept2,row["\u4E8C\u7EA7\u90E8\u95E8"]);if(!target.itemName){target.itemName=normalizeText(row["\u7269\u6599\u540D\u79F0"])}target.quantity=
-addDecimal(target.quantity,parseDecimal2(row["\u5B9E\u53D1\u6570\u91CF"],"\u5B9E\u53D1\u6570\u91CF"));target.amount=addDecimal(target.amount,parseDecimal2(row["\
-\u603B\u6210\u672C"],"\u603B\u6210\u672C"));if(!itemCode){target.missingItemCodeRemark="ERP\u7269\u6599\u7F16\u7801\u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u914D\u5BF9";result.
-missingItemCodeRows.push(target)}}return result}function unionMaterialCodes(left,right){return[...new Set([...left.keys(),...right.keys()])]}function remarkFor(oa,erp,displayedQuantityDiff){
+target.itemName=normalizeText(row["\u7269\u6599\u540D\u79F0"])}target.quantity=addDecimal(target.quantity,parseDecimal2(row["\u5B9E\u53D1\u6570\u91CF"],"\u5B9E\u53D1\u6570\u91CF"));
+target.amount=addDecimal(target.amount,parseDecimal2(row["\u603B\u6210\u672C"],"\u603B\u6210\u672C"));if(!itemCode){target.missingItemCodeRemark="ERP\u7269\u6599\u7F16\u7801\u4E3A\u7A7A\uFF0C\u65E0\u6CD5\u914D\u5BF9";
+result.missingItemCodeRows.push(target)}}return result}function unionMaterialCodes(left,right){return[...new Set([...left.keys(),...right.keys()])]}function remarkFor(oa,erp,displayedQuantityDiff){
 if(oa==null?void 0:oa.missingItemCodeRemark){return oa.missingItemCodeRemark}if(erp==null?void 0:erp.missingItemCodeRemark){return erp.missingItemCodeRemark}if(oa&&
 !erp){return"ERP\u7F3A\u5C11\u8BE5\u7269\u6599"}if(!oa&&erp){return"OA\u7F3A\u5C11\u8BE5\u7269\u6599"}if(!oa||!erp){return""}return displayedQuantityDiff===0?"\u6570\
 \u91CF\u4E00\u81F4":"\u6570\u91CF\u4E0D\u540C"}function buildRows(lookupType,matchedDocNumber,oaRows,erpRows,missingCounterpartRemark){const oaMaterials=aggregateOaMaterials(
@@ -200,32 +202,38 @@ erp==null?void 0:erp.itemCode)!=null?_u:"",erpItemName:(_v=erp==null?void 0:erp.
 null?_w:zeroDecimal()),erpAmount:decimalToNumber2((_x=erp==null?void 0:erp.amount)!=null?_x:zeroDecimal()),quantityDiff:displayedQuantityDiff,amountDiff:decimalToNumber2(
 amountDiff),remark:rowMissingRemark}}const normalRows=unionMaterialCodes(oaMaterials.materials,erpMaterials.materials).map(itemCode=>buildRow(oaMaterials.materials.
 get(itemCode),erpMaterials.materials.get(itemCode)));const missingOaRows=oaMaterials.missingItemCodeRows.map(oa=>buildRow(oa,void 0));const missingErpRows=erpMaterials.
-missingItemCodeRows.map(erp=>buildRow(void 0,erp));return[...normalRows,...missingOaRows,...missingErpRows]}function buildOaLookup(input){const oaRows=collectRowsByExactText(
+missingItemCodeRows.map(erp=>buildRow(void 0,erp));return[...normalRows,...missingOaRows,...missingErpRows]}function buildOaLookup(input){var _a;const oaRows=collectRowsByExactText(
 input.oaRows,"\u8868\u5355\u7F16\u53F7",input.docNumber);if(oaRows.length===0){return{ok:false,message:`\u672A\u627E\u5230OA\u8868\u5355\u7F16\u53F7\uFF1A${input.
-docNumber}`}}const erpDocNumbers=collectUniqueText(oaRows,"\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7");const erpRows=collectRowsByAnyText(input.erpRows,"\u5355\u636E\u7F16\u53F7",
-erpDocNumbers);return{ok:true,rows:buildRows("\u67E5OA\u8868\u5355\u7F16\u53F7",input.docNumber,oaRows,erpRows,"\u672A\u627E\u5230\u5BF9\u5E94ERP\u5355\u636E")}}
-function buildErpLookup(input){const erpRows=collectRowsByExactText(input.erpRows,"\u5355\u636E\u7F16\u53F7",input.docNumber);if(erpRows.length===0){return{ok:false,
-message:`\u672A\u627E\u5230ERP\u5355\u636E\u7F16\u53F7\uFF1A${input.docNumber}`}}const oaFormNumbers=collectUniqueText(erpRows,"\u6E90\u5355\u5355\u53F7");const oaRows=collectRowsByAnyText(
-input.oaRows,"\u8868\u5355\u7F16\u53F7",oaFormNumbers);return{ok:true,rows:buildRows("\u67E5ERP\u5355\u636E\u7F16\u53F7",input.docNumber,oaRows,erpRows,"\u672A\u627E\u5230\u5BF9\u5E94OA\
-\u5355\u636E")}}function buildDocumentLookupResult(input){return input.mode==="oa_form_number"?buildOaLookup(input):buildErpLookup(input)}function documentLookupRowsToValues(rows){
+docNumber}`}}const existingErpDocNumbers=collectUniqueText((_a=input.erpRows)!=null?_a:[],"\u5355\u636E\u7F16\u53F7");const{existingCounterpartRows,missingCounterpartRows}=splitRowsByCounterpartPresence(
+oaRows,"\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7",existingErpDocNumbers);const erpDocNumbers=collectUniqueText(existingCounterpartRows,"\u91D1\u8776\u4E91\u5355\u636E\u7F16\u53F7");
+const erpRows=collectRowsByAnyText(input.erpRows,"\u5355\u636E\u7F16\u53F7",erpDocNumbers);return{ok:true,rows:[...buildRows("\u67E5OA\u8868\u5355\u7F16\u53F7",
+input.docNumber,existingCounterpartRows,erpRows,"\u672A\u627E\u5230\u5BF9\u5E94ERP\u5355\u636E"),...buildRows("\u67E5OA\u8868\u5355\u7F16\u53F7",input.docNumber,
+missingCounterpartRows,[],"\u672A\u627E\u5230\u5BF9\u5E94ERP\u5355\u636E")]}}function buildErpLookup(input){var _a;const erpRows=collectRowsByExactText(input.erpRows,
+"\u5355\u636E\u7F16\u53F7",input.docNumber);if(erpRows.length===0){return{ok:false,message:`\u672A\u627E\u5230ERP\u5355\u636E\u7F16\u53F7\uFF1A${input.docNumber}`}}
+const existingOaFormNumbers=collectUniqueText((_a=input.oaRows)!=null?_a:[],"\u8868\u5355\u7F16\u53F7");const{existingCounterpartRows,missingCounterpartRows}=splitRowsByCounterpartPresence(
+erpRows,"\u6E90\u5355\u5355\u53F7",existingOaFormNumbers);const oaFormNumbers=collectUniqueText(existingCounterpartRows,"\u6E90\u5355\u5355\u53F7");const oaRows=collectRowsByAnyText(
+input.oaRows,"\u8868\u5355\u7F16\u53F7",oaFormNumbers);return{ok:true,rows:[...buildRows("\u67E5ERP\u5355\u636E\u7F16\u53F7",input.docNumber,oaRows,existingCounterpartRows,
+"\u672A\u627E\u5230\u5BF9\u5E94OA\u5355\u636E"),...buildRows("\u67E5ERP\u5355\u636E\u7F16\u53F7",input.docNumber,[],missingCounterpartRows,"\u672A\u627E\u5230\u5BF9\u5E94OA\u5355\u636E")]}}
+function buildDocumentLookupResult(input){return input.mode==="oa_form_number"?buildOaLookup(input):buildErpLookup(input)}function documentLookupRowsToValues(rows){
 return[[...DOCUMENT_LOOKUP_HEADERS],...(rows!=null?rows:[]).map(row=>[row.rowType,row.lookupType,row.matchedDocNumber,row.oaFormNumber,row.oaRecordedErpDocNumber,
 row.oaDate,row.oaCompany,row.oaDept1,row.oaDept2,row.oaItemCode,row.oaItemName,row.oaQuantity,row.oaAmount,row.erpDocNumber,row.erpRecordedOaFormNumber,row.erpDate,
 row.erpCompany,row.erpDept1,row.erpDept2,row.erpItemCode,row.erpItemName,row.erpQuantity,row.erpAmount,row.quantityDiff,row.amountDiff,row.remark])]}var DOCUMENT_LOOKUP_DIALOG_RESULT_KEY="ScrapVarianceDocumentLookupDialogResult";var DOCUMENT_LOOKUP_INITIAL_STATE_KEY_PREFIX="ScrapVarianceDocumentLookupInitial\
 State:";var DOCUMENT_LOOKUP_DIALOG_TIMEOUT_MS=5*60*1e3;var DOCUMENT_LOOKUP_DIALOG_POLL_MS=250;function isRecord(value){return typeof value==="object"&&value!==null}
 function isDocumentLookupMode(value){return value==="oa_form_number"||value==="erp_doc_number"}function getStorage(root2){var _a;const storage=(_a=root2.Application)==
 null?void 0:_a.PluginStorage;if(!storage){throw new Error("\u5F53\u524D WPS \u73AF\u5883\u4E0D\u652F\u6301 PluginStorage\uFF0C\u65E0\u6CD5\u6253\u5F00\u5355\u53F7\u67E5\u8BE2\u5F39\u7A97\u3002")}
-return storage}function safeReportError(reportError,error){try{reportError(error)}catch(e){}}function clearDocumentLookupDialogResult(root2,token){const result=readDocumentLookupDialogResult(
-root2);if(result&&(!token||result.token!==token)){return}getStorage(root2).setItem(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY,"")}function buildDocumentLookupInitialStateKey(token){
-return`${DOCUMENT_LOOKUP_INITIAL_STATE_KEY_PREFIX}${token}`}function clearDocumentLookupInitialState(root2,token){const storage=getStorage(root2);const key=buildDocumentLookupInitialStateKey(
-token);if(typeof storage.removeItem==="function"){storage.removeItem(key);return}storage.setItem(key,"")}function writeDocumentLookupInitialState(root2,token,suggestions){
-const payload={token,suggestions};getStorage(root2).setItem(buildDocumentLookupInitialStateKey(token),JSON.stringify(payload))}function readDocumentLookupDialogResult(root2){
-const raw=getStorage(root2).getItem(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY);if(typeof raw!=="string"||!raw.trim()){return null}try{const parsed=JSON.parse(raw);if(!isRecord(
-parsed)){return null}if(typeof parsed.token!=="string"||parsed.action!=="query"&&parsed.action!=="cancel"){return null}return{token:parsed.token,action:parsed.action,
-selection:parsed.selection}}catch(e){return null}}function normalizeDocumentLookupSelection(selection){if(!isRecord(selection)){return null}if(!isDocumentLookupMode(
-selection.mode)||typeof selection.docNumber!=="string"){return null}const docNumber=selection.docNumber.trim();if(!docNumber){return null}return{mode:selection.
-mode,docNumber}}function createDialogToken(){return`${Date.now()}-${Math.random().toString(36).slice(2)}`}function buildDialogUrl(token){var _a;const base=typeof((_a=
-globalThis.location)==null?void 0:_a.href)==="string"?globalThis.location.href:"http://127.0.0.1:3889/index.html";const url=new URL("ui/document-lookup-dialog.h\
-tml",base);url.searchParams.set("token",token);return url.toString()}function buildDialogTimeoutError(){return new Error("\u5355\u53F7\u67E5\u8BE2\u5F39\u7A97\u8D85\u65F6\uFF1A\u6CA1\u6709\u6536\u5230\u67E5\u8BE2\u6216\u53D6\u6D88\u7ED3\u679C\uFF0C\u8BF7\u5173\u95ED\u5F39\u7A97\u540E\u91CD\u8BD5\u3002")}
+return storage}function safeReportError(reportError,error){try{reportError(error)}catch(e){}}function clearDocumentLookupDialogResult(root2,token){if(token===void 0){
+getStorage(root2).setItem(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY,"");return}const result=readDocumentLookupDialogResult(root2);if(result&&result.token!==token){return}
+getStorage(root2).setItem(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY,"")}function buildDocumentLookupInitialStateKey(token){return`${DOCUMENT_LOOKUP_INITIAL_STATE_KEY_PREFIX}${token}`}
+function clearDocumentLookupInitialState(root2,token){const storage=getStorage(root2);const key=buildDocumentLookupInitialStateKey(token);if(typeof storage.removeItem===
+"function"){storage.removeItem(key);return}storage.setItem(key,"")}function writeDocumentLookupInitialState(root2,token,suggestions){const payload={token,suggestions};
+getStorage(root2).setItem(buildDocumentLookupInitialStateKey(token),JSON.stringify(payload))}function readDocumentLookupDialogResult(root2){const raw=getStorage(
+root2).getItem(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY);if(typeof raw!=="string"||!raw.trim()){return null}try{const parsed=JSON.parse(raw);if(!isRecord(parsed)){return null}
+if(typeof parsed.token!=="string"||parsed.action!=="query"&&parsed.action!=="cancel"){return null}return{token:parsed.token,action:parsed.action,selection:parsed.
+selection}}catch(e){return null}}function normalizeDocumentLookupSelection(selection){if(!isRecord(selection)){return null}if(!isDocumentLookupMode(selection.mode)||
+typeof selection.docNumber!=="string"){return null}const docNumber=selection.docNumber.trim();if(!docNumber){return null}return{mode:selection.mode,docNumber}}function createDialogToken(){
+return`${Date.now()}-${Math.random().toString(36).slice(2)}`}function buildDialogUrl(token){var _a;const base=typeof((_a=globalThis.location)==null?void 0:_a.href)===
+"string"?globalThis.location.href:"http://127.0.0.1:3889/index.html";const url=new URL("ui/document-lookup-dialog.html",base);url.searchParams.set("token",token);
+return url.toString()}function buildDialogTimeoutError(){return new Error("\u5355\u53F7\u67E5\u8BE2\u5F39\u7A97\u8D85\u65F6\uFF1A\u6CA1\u6709\u6536\u5230\u67E5\u8BE2\u6216\u53D6\u6D88\u7ED3\u679C\uFF0C\u8BF7\u5173\u95ED\u5F39\u7A97\u540E\u91CD\u8BD5\u3002")}
 function buildInvalidSelectionError(){return new Error("\u5355\u53F7\u67E5\u8BE2\u7ED3\u679C\u65E0\u6548\uFF1A\u8BF7\u91CD\u65B0\u9009\u62E9\u5355\u53F7\u3002")}
 function pollDocumentLookupDialogResult(root2,token,runLookup,reportError){const result=readDocumentLookupDialogResult(root2);if(!result||result.token!==token){
 return false}try{clearDocumentLookupDialogResult(root2,token);clearDocumentLookupInitialState(root2,token)}catch(error){safeReportError(reportError,error);return true}
@@ -379,8 +387,9 @@ documentLookup,root2);clearPreviousToolOutput(sheet,"document_lookup");writeOutp
 try{const{oaRows,erpRows}=readSourceRows(root2);const result=buildDocumentLookupResult({mode:selection.mode,docNumber:selection.docNumber,oaRows,erpRows});const sheet=ensureSheet(
 SHEET_NAMES.documentLookup,root2);const values=result.ok?documentLookupRowsToValues(result.rows):[["\u63D0\u793A",result.message]];clearPreviousToolOutput(sheet,
 "document_lookup");writeOutputWithMetadata(sheet,values)}catch(error){safeWriteLookupError(root2,error)}}function startDocumentLookup(root2,reportError,runLookup){
-const{oaRows,erpRows}=readSourceRows(root2);const suggestions=buildDocumentLookupSuggestions(oaRows,erpRows);const lookupRunner=runLookup!=null?runLookup:(selection=>runDocumentLookupWithSelection(
-root2,selection));openDocumentLookupDialogAndRun(root2,suggestions,lookupRunner,reportError)}function parseFilters(input={}){const source=input!=null?input:{};const filters={company:normalizeText(source.company),dept1:normalizeText(source.dept1),dept2:normalizeText(
+let suggestions;try{const{oaRows,erpRows}=readSourceRows(root2);suggestions=buildDocumentLookupSuggestions(oaRows,erpRows)}catch(error){safeWriteLookupError(root2,
+error);throw error}const lookupRunner=runLookup!=null?runLookup:(selection=>runDocumentLookupWithSelection(root2,selection));openDocumentLookupDialogAndRun(root2,
+suggestions,lookupRunner,reportError)}function parseFilters(input={}){const source=input!=null?input:{};const filters={company:normalizeText(source.company),dept1:normalizeText(source.dept1),dept2:normalizeText(
 source.dept2),startDate:normalizeDateKey(source.startDate),endDate:normalizeDateKey(source.endDate)};if(filters.startDate&&filters.endDate&&filters.startDate>filters.
 endDate){throw new Error(`\u5F00\u59CB\u65E5\u671F\u4E0D\u80FD\u665A\u4E8E\u7ED3\u675F\u65E5\u671F\uFF1A${filters.startDate} > ${filters.endDate}`)}return filters}
 function isDateInRange(dateKey,filters){const activeFilters=filters!=null?filters:parseFilters();if(!dateKey){return false}if(activeFilters.startDate&&dateKey<activeFilters.

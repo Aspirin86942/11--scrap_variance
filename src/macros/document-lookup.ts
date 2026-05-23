@@ -100,8 +100,15 @@ export function startDocumentLookup(
   reportError: ReportError,
   runLookup?: RunDocumentLookup
 ): void {
-  const { oaRows, erpRows } = readSourceRows(root);
-  const suggestions = buildDocumentLookupSuggestions(oaRows, erpRows);
+  let suggestions: ReturnType<typeof buildDocumentLookupSuggestions>;
+  try {
+    const { oaRows, erpRows } = readSourceRows(root);
+    suggestions = buildDocumentLookupSuggestions(oaRows, erpRows);
+  } catch (error) {
+    safeWriteLookupError(root, error);
+    throw error;
+  }
+
   const lookupRunner = runLookup ?? ((selection: DocumentLookupSelection) => runDocumentLookupWithSelection(root, selection));
 
   openDocumentLookupDialogAndRun(root, suggestions, lookupRunner, reportError);

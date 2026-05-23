@@ -231,8 +231,10 @@ describe("document lookup macro", () => {
     expect(reportError).not.toHaveBeenCalled();
   });
 
-  it("throws before opening the dialog when source sheets are missing", () => {
-    const root = makeRoot([makeErpSheet()]);
+  it("writes a fixed error result before rethrowing when startup source sheets are missing", () => {
+    const resultSheet = createFakeSheet(SHEET_NAMES.documentLookup);
+    resultSheet.rangeValues.set("CB1:CC1", [["document_lookup", "A1:Z9"]]);
+    const root = makeRoot([makeErpSheet(), resultSheet]);
     const runLookup = vi.fn();
     const reportError = vi.fn();
 
@@ -241,6 +243,46 @@ describe("document lookup macro", () => {
     );
 
     expect(root.Application.ShowDialog).not.toHaveBeenCalled();
+    expect(resultSheet.clears).toEqual(["A1:Z9"]);
+    expect(visibleWrites(resultSheet)).toEqual([
+      {
+        address: "A1:B1",
+        value: [["错误", expect.stringContaining("找不到工作表")]]
+      }
+    ]);
+    expect(resultSheet.writes).toContainEqual({
+      address: "CB1:CC1",
+      value: [["document_lookup", "A1:B1"]]
+    });
+    expect(runLookup).not.toHaveBeenCalled();
+    expect(reportError).not.toHaveBeenCalled();
+  });
+
+  it("writes a fixed error result before rethrowing when startup suggestions cannot be built", () => {
+    const resultSheet = createFakeSheet(SHEET_NAMES.documentLookup);
+    resultSheet.rangeValues.set("CB1:CC1", [["document_lookup", "A1:Z9"]]);
+    const root = makeRoot([
+      makeOaSheet([["OA-001", "ERP-778", "坏日期", "数控", "生产", "仓储", "MAT-A", "物料A", 10, 100]]),
+      makeErpSheet(),
+      resultSheet
+    ]);
+    const runLookup = vi.fn();
+    const reportError = vi.fn();
+
+    expect(() => startDocumentLookup(root, reportError, runLookup)).toThrow("日期格式不正确：坏日期");
+
+    expect(root.Application.ShowDialog).not.toHaveBeenCalled();
+    expect(resultSheet.clears).toEqual(["A1:Z9"]);
+    expect(visibleWrites(resultSheet)).toEqual([
+      {
+        address: "A1:B1",
+        value: [["错误", expect.stringContaining("日期格式不正确")]]
+      }
+    ]);
+    expect(resultSheet.writes).toContainEqual({
+      address: "CB1:CC1",
+      value: [["document_lookup", "A1:B1"]]
+    });
     expect(runLookup).not.toHaveBeenCalled();
     expect(reportError).not.toHaveBeenCalled();
   });

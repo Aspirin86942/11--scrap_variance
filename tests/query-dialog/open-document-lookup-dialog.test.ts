@@ -85,7 +85,14 @@ describe("document lookup dialog bridge", () => {
     const suggestions = makeSuggestions();
     const runLookup = vi.fn();
     const reportError = vi.fn();
-    root.Application.PluginStorage.values.set(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY, "old result");
+    root.Application.PluginStorage.values.set(
+      DOCUMENT_LOOKUP_DIALOG_RESULT_KEY,
+      JSON.stringify({
+        token: "old-token",
+        action: "query",
+        selection: { mode: "oa_form_number", docNumber: "OA-OLD" }
+      })
+    );
 
     openDocumentLookupDialogAndRun(root, suggestions, runLookup, reportError);
 

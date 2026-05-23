@@ -88,6 +88,11 @@ interface MaterialAggregation {
   missingItemCodeRows: MaterialAccumulator[];
 }
 
+interface CounterpartSplit {
+  existingCounterpartRows: RawRow[];
+  missingCounterpartRows: RawRow[];
+}
+
 function appendText(current: string, value: unknown, separator = ","): string {
   return appendUniqueJoinedText(current, normalizeText(value), separator);
 }
@@ -203,6 +208,28 @@ function collectUniqueText(rows: RawRow[], fieldName: string): Set<string> {
       result.add(value);
     }
   }
+  return result;
+}
+
+function splitRowsByCounterpartPresence(
+  rows: RawRow[],
+  counterpartFieldName: string,
+  existingCounterpartDocNumbers: Set<string>
+): CounterpartSplit {
+  const result: CounterpartSplit = {
+    existingCounterpartRows: [],
+    missingCounterpartRows: []
+  };
+
+  for (const row of rows) {
+    const counterpartDocNumber = normalizeText(row[counterpartFieldName]);
+    if (counterpartDocNumber && existingCounterpartDocNumbers.has(counterpartDocNumber)) {
+      result.existingCounterpartRows.push(row);
+    } else {
+      result.missingCounterpartRows.push(row);
+    }
+  }
+
   return result;
 }
 
@@ -376,9 +403,22 @@ function buildOaLookup(input: DocumentLookupInput): DocumentLookupResult {
     return { ok: false, message: `未找到OA表单编号：${input.docNumber}` };
   }
 
-  const erpDocNumbers = collectUniqueText(oaRows, "金蝶云单据编号");
+  const existingErpDocNumbers = collectUniqueText(input.erpRows ?? [], "单据编号");
+  const { existingCounterpartRows, missingCounterpartRows } = splitRowsByCounterpartPresence(
+    oaRows,
+    "金蝶云单据编号",
+    existingErpDocNumbers
+  );
+  const erpDocNumbers = collectUniqueText(existingCounterpartRows, "金蝶云单据编号");
   const erpRows = collectRowsByAnyText(input.erpRows, "单据编号", erpDocNumbers);
-  return { ok: true, rows: buildRows("查OA表单编号", input.docNumber, oaRows, erpRows, "未找到对应ERP单据") };
+
+  return {
+    ok: true,
+    rows: [
+      ...buildRows("查OA表单编号", input.docNumber, existingCounterpartRows, erpRows, "未找到对应ERP单据"),
+      ...buildRows("查OA表单编号", input.docNumber, missingCounterpartRows, [], "未找到对应ERP单据")
+    ]
+  };
 }
 
 function buildErpLookup(input: DocumentLookupInput): DocumentLookupResult {
@@ -387,9 +427,22 @@ function buildErpLookup(input: DocumentLookupInput): DocumentLookupResult {
     return { ok: false, message: `未找到ERP单据编号：${input.docNumber}` };
   }
 
-  const oaFormNumbers = collectUniqueText(erpRows, "源单单号");
+  const existingOaFormNumbers = collectUniqueText(input.oaRows ?? [], "表单编号");
+  const { existingCounterpartRows, missingCounterpartRows } = splitRowsByCounterpartPresence(
+    erpRows,
+    "源单单号",
+    existingOaFormNumbers
+  );
+  const oaFormNumbers = collectUniqueText(existingCounterpartRows, "源单单号");
   const oaRows = collectRowsByAnyText(input.oaRows, "表单编号", oaFormNumbers);
-  return { ok: true, rows: buildRows("查ERP单据编号", input.docNumber, oaRows, erpRows, "未找到对应OA单据") };
+
+  return {
+    ok: true,
+    rows: [
+      ...buildRows("查ERP单据编号", input.docNumber, oaRows, existingCounterpartRows, "未找到对应OA单据"),
+      ...buildRows("查ERP单据编号", input.docNumber, [], missingCounterpartRows, "未找到对应OA单据")
+    ]
+  };
 }
 
 export function buildDocumentLookupResult(input: DocumentLookupInput): DocumentLookupResult {

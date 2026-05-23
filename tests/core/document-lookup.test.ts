@@ -264,6 +264,68 @@ describe("document lookup core", () => {
     }
   });
 
+  it("keeps missing ERP document rows separate when only some OA linked ERP documents exist", () => {
+    const result = buildDocumentLookupResult({
+      mode: "oa_form_number",
+      docNumber: "OA-001",
+      oaRows: [
+        oaRow({ 物料代码: "MAT-A", 物料名称: "物料A", 金蝶云单据编号: "ERP-001", 数量: 1, 实际预算金额mx: 10 }),
+        oaRow({ 物料代码: "MAT-B", 物料名称: "物料B", 金蝶云单据编号: "ERP-MISSING", 数量: 2, 实际预算金额mx: 20 })
+      ],
+      erpRows: [erpRow({ 单据编号: "ERP-001", 物料编码: "MAT-A", 物料名称: "物料A", 实发数量: 1, 总成本: 10 })]
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.rows).toEqual([
+        expect.objectContaining({
+          oaItemCode: "MAT-A",
+          erpItemCode: "MAT-A",
+          remark: "数量一致"
+        }),
+        expect.objectContaining({
+          oaItemCode: "MAT-B",
+          erpItemCode: "",
+          erpDocNumber: "",
+          erpQuantity: 0,
+          erpAmount: 0,
+          remark: "未找到对应ERP单据"
+        })
+      ]);
+    }
+  });
+
+  it("keeps missing OA form rows separate when only some ERP linked OA forms exist", () => {
+    const result = buildDocumentLookupResult({
+      mode: "erp_doc_number",
+      docNumber: "ERP-001",
+      oaRows: [oaRow({ 表单编号: "OA-001", 物料代码: "MAT-A", 物料名称: "物料A", 数量: 1, 实际预算金额mx: 10 })],
+      erpRows: [
+        erpRow({ 物料编码: "MAT-A", 物料名称: "物料A", 源单单号: "OA-001", 实发数量: 1, 总成本: 10 }),
+        erpRow({ 物料编码: "MAT-B", 物料名称: "物料B", 源单单号: "OA-MISSING", 实发数量: 2, 总成本: 20 })
+      ]
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.rows).toEqual([
+        expect.objectContaining({
+          oaItemCode: "MAT-A",
+          erpItemCode: "MAT-A",
+          remark: "数量一致"
+        }),
+        expect.objectContaining({
+          oaItemCode: "",
+          oaFormNumber: "",
+          oaQuantity: 0,
+          oaAmount: 0,
+          erpItemCode: "MAT-B",
+          remark: "未找到对应OA单据"
+        })
+      ]);
+    }
+  });
+
   it("returns a readable no-result message when the selected main document disappears", () => {
     expect(
       buildDocumentLookupResult({
