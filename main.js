@@ -223,11 +223,12 @@ function buildDocumentLookupResult(input){return input.mode==="oa_form_number"?b
 oaFormNumber,row.oaRecordedErpDocNumber,row.oaDate,row.oaCompany,row.oaDept1,row.oaDept2,row.oaItemCode,row.oaItemName,row.oaQuantity,row.oaAmount]}function erpSideValues(row){
 return[row.erpDocNumber,row.erpRecordedOaFormNumber,row.erpDate,row.erpCompany,row.erpDept1,row.erpDept2,row.erpItemCode,row.erpItemName,row.erpQuantity,row.erpAmount]}
 function leftMinusRight(left,right,leftFieldName,rightFieldName){return decimalToNumber2(subtractDecimal(parseDecimal2(left,leftFieldName),parseDecimal2(right,rightFieldName)))}
-function documentLookupRowsToValues(rows){var _a;const outputRows=rows!=null?rows:[];const erpLeft=((_a=outputRows[0])==null?void 0:_a.lookupType)==="\u67E5ERP\u5355\u636E\u7F16\u53F7";
-const headers=erpLeft?DOCUMENT_LOOKUP_ERP_LEFT_HEADERS:DOCUMENT_LOOKUP_OA_LEFT_HEADERS;return[[...headers],...outputRows.map(row=>{const leftSide=erpLeft?erpSideValues(
-row):oaSideValues(row);const rightSide=erpLeft?oaSideValues(row):erpSideValues(row);const quantityDiff=erpLeft?leftMinusRight(row.erpQuantity,row.oaQuantity,"ER\
-P\u6570\u91CF","OA\u6570\u91CF"):row.quantityDiff;const amountDiff=erpLeft?leftMinusRight(row.erpAmount,row.oaAmount,"ERP\u91D1\u989D","OA\u91D1\u989D"):row.amountDiff;
-return[row.rowType,row.lookupType,row.matchedDocNumber,...leftSide,...rightSide,quantityDiff,amountDiff,row.remark]})]}var DOCUMENT_LOOKUP_DIALOG_RESULT_KEY="ScrapVarianceDocumentLookupDialogResult";var DOCUMENT_LOOKUP_INITIAL_STATE_KEY_PREFIX="ScrapVarianceDocumentLookupInitial\
+function documentLookupRowsToValues(rows,lookupType){var _a;const outputRows=rows!=null?rows:[];const resolvedLookupType=lookupType!=null?lookupType:(_a=outputRows[0])==
+null?void 0:_a.lookupType;const erpLeft=resolvedLookupType==="\u67E5ERP\u5355\u636E\u7F16\u53F7";const headers=erpLeft?DOCUMENT_LOOKUP_ERP_LEFT_HEADERS:DOCUMENT_LOOKUP_OA_LEFT_HEADERS;
+return[[...headers],...outputRows.map(row=>{const leftSide=erpLeft?erpSideValues(row):oaSideValues(row);const rightSide=erpLeft?oaSideValues(row):erpSideValues(
+row);const quantityDiff=erpLeft?leftMinusRight(row.erpQuantity,row.oaQuantity,"ERP\u6570\u91CF","OA\u6570\u91CF"):row.quantityDiff;const amountDiff=erpLeft?leftMinusRight(
+row.erpAmount,row.oaAmount,"ERP\u91D1\u989D","OA\u91D1\u989D"):row.amountDiff;return[row.rowType,row.lookupType,row.matchedDocNumber,...leftSide,...rightSide,quantityDiff,
+amountDiff,row.remark]})]}var DOCUMENT_LOOKUP_DIALOG_RESULT_KEY="ScrapVarianceDocumentLookupDialogResult";var DOCUMENT_LOOKUP_INITIAL_STATE_KEY_PREFIX="ScrapVarianceDocumentLookupInitial\
 State:";var DOCUMENT_LOOKUP_DIALOG_TIMEOUT_MS=5*60*1e3;var DOCUMENT_LOOKUP_DIALOG_POLL_MS=250;function isRecord(value){return typeof value==="object"&&value!==null}
 function isDocumentLookupMode(value){return value==="oa_form_number"||value==="erp_doc_number"}function getStorage(root2){var _a;const storage=(_a=root2.Application)==
 null?void 0:_a.PluginStorage;if(!storage){throw new Error("\u5F53\u524D WPS \u73AF\u5883\u4E0D\u652F\u6301 PluginStorage\uFF0C\u65E0\u6CD5\u6253\u5F00\u5355\u53F7\u67E5\u8BE2\u5F39\u7A97\u3002")}
@@ -393,10 +394,11 @@ MAX_HEADER_SCAN_ROWS);return{oaRows:oaTable.rows,erpRows:erpTable.rows}}function
 length===0||width===0){return}const address=rangeAddress(1,1,values.length,width);writeMatrixBulkOrChunks(sheet,1,1,values,WRITE_CHUNK_ROWS);saveOutputMetadata(
 sheet,{kind:"document_lookup",rangeAddress:address})}function safeWriteLookupError(root2,error){const message=errorMessage4(error);try{const sheet=ensureSheet(SHEET_NAMES.
 documentLookup,root2);clearPreviousToolOutput(sheet,"document_lookup");writeOutputWithMetadata(sheet,[["\u9519\u8BEF",message]])}catch(writeError){throw new Error(
-`\u5355\u53F7\u67E5\u8BE2\u5931\u8D25\uFF1A${message}\uFF1B\u9519\u8BEF\u4FE1\u606F\u5199\u5165\u4E5F\u5931\u8D25\uFF1A${errorMessage4(writeError)}`)}}function runDocumentLookupWithSelection(root2,selection){
+`\u5355\u53F7\u67E5\u8BE2\u5931\u8D25\uFF1A${message}\uFF1B\u9519\u8BEF\u4FE1\u606F\u5199\u5165\u4E5F\u5931\u8D25\uFF1A${errorMessage4(writeError)}`)}}function lookupTypeForSelection(selection){
+return selection.mode==="erp_doc_number"?"\u67E5ERP\u5355\u636E\u7F16\u53F7":"\u67E5OA\u8868\u5355\u7F16\u53F7"}function runDocumentLookupWithSelection(root2,selection){
 try{const{oaRows,erpRows}=readSourceRows(root2);const result=buildDocumentLookupResult({mode:selection.mode,docNumber:selection.docNumber,oaRows,erpRows});const sheet=ensureSheet(
-SHEET_NAMES.documentLookup,root2);const values=result.ok?documentLookupRowsToValues(result.rows):[["\u63D0\u793A",result.message]];clearPreviousToolOutput(sheet,
-"document_lookup");writeOutputWithMetadata(sheet,values)}catch(error){safeWriteLookupError(root2,error)}}function startDocumentLookup(root2,reportError,runLookup){
+SHEET_NAMES.documentLookup,root2);const values=result.ok?documentLookupRowsToValues(result.rows,lookupTypeForSelection(selection)):[["\u63D0\u793A",result.message]];
+clearPreviousToolOutput(sheet,"document_lookup");writeOutputWithMetadata(sheet,values)}catch(error){safeWriteLookupError(root2,error)}}function startDocumentLookup(root2,reportError,runLookup){
 let suggestions;try{const{oaRows,erpRows}=readSourceRows(root2);suggestions=buildDocumentLookupSuggestions(oaRows,erpRows)}catch(error){safeWriteLookupError(root2,
 error);throw error}const lookupRunner=runLookup!=null?runLookup:(selection=>runDocumentLookupWithSelection(root2,selection));openDocumentLookupDialogAndRun(root2,
 suggestions,lookupRunner,reportError)}function parseFilters(input={}){const source=input!=null?input:{};const filters={company:normalizeText(source.company),dept1:normalizeText(source.dept1),dept2:normalizeText(

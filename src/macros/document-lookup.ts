@@ -11,7 +11,8 @@ import {
   buildDocumentLookupResult,
   buildDocumentLookupSuggestions,
   documentLookupRowsToValues,
-  type DocumentLookupSelection
+  type DocumentLookupSelection,
+  type DocumentLookupTypeLabel
 } from "../core/document-lookup";
 import type { OutputMatrix, RawRow } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
@@ -76,6 +77,10 @@ function safeWriteLookupError(root: ScrapVarianceGlobal, error: unknown): void {
   }
 }
 
+function lookupTypeForSelection(selection: DocumentLookupSelection): DocumentLookupTypeLabel {
+  return selection.mode === "erp_doc_number" ? "查ERP单据编号" : "查OA表单编号";
+}
+
 export function runDocumentLookupWithSelection(root: ScrapVarianceGlobal, selection: DocumentLookupSelection): void {
   try {
     const { oaRows, erpRows } = readSourceRows(root);
@@ -86,7 +91,9 @@ export function runDocumentLookupWithSelection(root: ScrapVarianceGlobal, select
       erpRows
     });
     const sheet = ensureSheet(SHEET_NAMES.documentLookup, root);
-    const values = result.ok ? documentLookupRowsToValues(result.rows) : [["提示", result.message]];
+    const values = result.ok
+      ? documentLookupRowsToValues(result.rows, lookupTypeForSelection(selection))
+      : [["提示", result.message]];
 
     clearPreviousToolOutput(sheet, "document_lookup");
     writeOutputWithMetadata(sheet, values);

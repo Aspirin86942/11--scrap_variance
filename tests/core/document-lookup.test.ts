@@ -399,6 +399,36 @@ describe("document lookup core", () => {
     }
   });
 
+  it("defaults missing lookup rows to the OA-left worksheet header order", () => {
+    expect(documentLookupRowsToValues(undefined)[0]?.slice(3, 13)).toEqual([
+      "OA表单编号",
+      "OA记录的ERP单号",
+      "OA申请日期",
+      "OA公司简称",
+      "OA一级部门",
+      "OA二级部门",
+      "OA物料编码",
+      "OA物料名称",
+      "OA数量",
+      "OA金额"
+    ]);
+  });
+
+  it("uses an explicit ERP lookup type to choose the ERP-left header for empty rows", () => {
+    expect(documentLookupRowsToValues([], "查ERP单据编号")[0]?.slice(3, 13)).toEqual([
+      "ERP单据编号",
+      "ERP记录的OA单号",
+      "ERP日期",
+      "ERP公司简称",
+      "ERP一级部门",
+      "ERP二级部门",
+      "ERP物料编码",
+      "ERP物料名称",
+      "ERP数量",
+      "ERP金额"
+    ]);
+  });
+
   it("converts ERP lookup rows to the ERP-left worksheet order with left-minus-right differences", () => {
     const result = buildDocumentLookupResult({
       mode: "erp_doc_number",

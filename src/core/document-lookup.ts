@@ -485,9 +485,13 @@ function leftMinusRight(left: number, right: number, leftFieldName: string, righ
   );
 }
 
-export function documentLookupRowsToValues(rows: DocumentLookupRow[] | null | undefined): OutputMatrix {
+export function documentLookupRowsToValues(
+  rows: DocumentLookupRow[] | null | undefined,
+  lookupType?: DocumentLookupTypeLabel
+): OutputMatrix {
   const outputRows = rows ?? [];
-  const erpLeft = outputRows[0]?.lookupType === "查ERP单据编号";
+  const resolvedLookupType = lookupType ?? outputRows[0]?.lookupType;
+  const erpLeft = resolvedLookupType === "查ERP单据编号";
   const headers = erpLeft ? DOCUMENT_LOOKUP_ERP_LEFT_HEADERS : DOCUMENT_LOOKUP_OA_LEFT_HEADERS;
 
   return [
