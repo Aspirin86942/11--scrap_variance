@@ -3,7 +3,11 @@
 import { execSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { runQueryCorePipeline } from "../core/query-pipeline";
+import {
+  runOutputSheetQueryCore,
+  type OutputQueryRowCounts,
+  type RunnableOutputSheetKind
+} from "../core/output-query-runner";
 import { generateBenchmarkData } from "../perf/benchmark-data";
 import { UNKNOWN_MEMORY, type MemoryValue } from "../perf/memory";
 import { createMetricsRecorder, type StageMetric } from "../perf/metrics";
@@ -13,23 +17,24 @@ export interface BenchCliOptions {
   writeJson: boolean;
 }
 
-export interface DatasetBenchResult {
-  name: string;
-  oaRows: number;
-  erpRows: number;
-  resultRows: {
-    oaGroups: number;
-    erpForOaGroups: number;
-    erpOnlyGroups: number;
-    detailRows: number;
-    summaryRows: number;
-  };
+const BENCH_OUTPUT_KINDS: RunnableOutputSheetKind[] = ["variance_summary", "oa_doc_compare", "erp_doc_compare"];
+
+export interface OutputBenchResult {
+  kind: RunnableOutputSheetKind;
+  resultRows: OutputQueryRowCounts;
   stages: StageMetric[];
   total: {
     name: "total";
     timeMs: number;
     maxStageHeapDeltaMb: MemoryValue;
   };
+}
+
+export interface DatasetBenchResult {
+  name: string;
+  oaRows: number;
+  erpRows: number;
+  outputs: OutputBenchResult[];
 }
 
 export interface BenchReport {
@@ -106,33 +111,38 @@ export function maxStageHeapDelta(stages: StageMetric[]): MemoryValue {
 export function buildBenchReport(scales: number[], options: Pick<BenchCliOptions, "writeJson">): BenchReport {
   const datasets: DatasetBenchResult[] = [];
 
-  // 每个 scale 都重新生成数据和 metrics recorder，保证不同规模之间的阶段数据互不污染。
+  // 每个 scale 只生成一次固定数据，再让三种输出页各自记录阶段，便于横向比较。
   for (const scale of scales) {
-    const metrics = createMetricsRecorder();
-    const data = metrics.measure(
-      "generate_data",
-      { inputRows: scale, outputRows: (value) => value.oaRows.length + value.erpRows.length },
-      () => generateBenchmarkData(scale)
-    );
-    const result = runQueryCorePipeline(data.oaRows, data.erpRows, data.filters, metrics);
+    const data = generateBenchmarkData(scale);
+    const outputs: OutputBenchResult[] = [];
+
+    for (const kind of BENCH_OUTPUT_KINDS) {
+      const metrics = createMetricsRecorder();
+      const result = runOutputSheetQueryCore({
+        kind,
+        oaRows: data.oaRows,
+        erpRows: data.erpRows,
+        queryState: { ...data.filters, queryDirection: "OA金蝶单号查ERP" },
+        metrics
+      });
+
+      outputs.push({
+        kind,
+        resultRows: result.rowCounts,
+        stages: metrics.stages,
+        total: {
+          name: "total",
+          timeMs: metricSum(metrics.stages),
+          maxStageHeapDeltaMb: maxStageHeapDelta(metrics.stages)
+        }
+      });
+    }
 
     datasets.push({
       name: data.name,
       oaRows: data.oaRows.length,
       erpRows: data.erpRows.length,
-      resultRows: {
-        oaGroups: result.oaGroupedRows.size,
-        erpForOaGroups: result.erpRowsForOa.size,
-        erpOnlyGroups: result.erpOnlyRows.size,
-        detailRows: result.detailRows.length,
-        summaryRows: result.summaryRows.length
-      },
-      stages: metrics.stages,
-      total: {
-        name: "total",
-        timeMs: metricSum(metrics.stages),
-        maxStageHeapDeltaMb: maxStageHeapDelta(metrics.stages)
-      }
+      outputs
     });
   }
 
@@ -152,17 +162,19 @@ export function buildBenchReport(scales: number[], options: Pick<BenchCliOptions
 }
 
 export function renderBenchTable(report: BenchReport): string {
-  const lines = ["dataset     stage                  input_rows time_ms   heap_delta_mb_or_max"];
+  const lines = ["dataset     output           stage                         input_rows time_ms   heap_delta_mb_or_max"];
   for (const dataset of report.datasets) {
-    for (const stage of dataset.stages) {
+    for (const output of dataset.outputs) {
+      for (const stage of output.stages) {
+        lines.push(
+          `${dataset.name.padEnd(11)} ${output.kind.padEnd(16)} ${stage.name.padEnd(29)} ${String(stage.inputRows).padEnd(9)} ${String(stage.timeMs).padEnd(9)} ${String(stage.heapDeltaMb)}`
+        );
+      }
+      // 汇总行使用该输出页看到的源数据总行数，便于和各阶段性能结果快速对齐。
       lines.push(
-        `${dataset.name.padEnd(11)} ${stage.name.padEnd(22)} ${String(stage.inputRows).padEnd(9)} ${String(stage.timeMs).padEnd(9)} ${String(stage.heapDeltaMb)}`
+        `${dataset.name.padEnd(11)} ${output.kind.padEnd(16)} ${output.total.name.padEnd(29)} ${String(output.resultRows.sourceRows).padEnd(9)} ${String(output.total.timeMs).padEnd(9)} ${String(output.total.maxStageHeapDeltaMb)}`
       );
     }
-    // 汇总行使用输入总行数，便于和各阶段性能结果快速对齐。
-    lines.push(
-      `${dataset.name.padEnd(11)} ${dataset.total.name.padEnd(22)} ${String(dataset.oaRows + dataset.erpRows).padEnd(9)} ${String(dataset.total.timeMs).padEnd(9)} ${String(dataset.total.maxStageHeapDeltaMb)}`
-    );
   }
   return lines.join("\n");
 }

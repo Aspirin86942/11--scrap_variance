@@ -40,26 +40,58 @@ describe("query benchmark CLI helpers", () => {
     expect(() => parseBenchArgs(["--scale", "0"])).toThrow("--scale 只能是 default、stress 或正整数");
   });
 
-  it("builds a report for a small deterministic dataset", () => {
+  it("builds output-scoped reports for a small deterministic dataset", () => {
     const report = buildBenchReport([20], { writeJson: false });
+    const dataset = report.datasets[0];
 
     expect(report.datasets).toHaveLength(1);
-    expect(report.datasets[0]?.name).toBe("20");
-    expect(report.datasets[0]?.resultRows.detailRows).toBeGreaterThan(0);
-    expect(report.datasets[0]?.stages.map((stage) => stage.name)).toContain("build_output_matrix");
-    expect(report.datasets[0]?.total).toHaveProperty("maxStageHeapDeltaMb");
-    expect(report.datasets[0]?.total).not.toHaveProperty("heapDeltaMb");
+    expect(dataset?.name).toBe("20");
+    expect(dataset?.outputs.map((output) => output.kind)).toEqual([
+      "variance_summary",
+      "oa_doc_compare",
+      "erp_doc_compare"
+    ]);
+
+    const stageNamesByOutput = new Map(
+      dataset?.outputs.map((output) => [output.kind, output.stages.map((stage) => stage.name)])
+    );
+    expect(stageNamesByOutput.get("variance_summary")).toEqual([
+      "build_variance_summary_rows",
+      "build_variance_summary_matrix"
+    ]);
+    expect(stageNamesByOutput.get("oa_doc_compare")).toEqual([
+      "build_oa_doc_compare_rows",
+      "build_oa_doc_compare_matrix"
+    ]);
+    expect(stageNamesByOutput.get("erp_doc_compare")).toEqual([
+      "build_erp_doc_compare_rows",
+      "build_erp_doc_compare_matrix"
+    ]);
+
+    for (const output of dataset?.outputs ?? []) {
+      expect(output.resultRows.sourceRows).toBe((dataset?.oaRows ?? 0) + (dataset?.erpRows ?? 0));
+      expect(output.resultRows.outputRows).toBeGreaterThan(0);
+      expect(output.total).toHaveProperty("maxStageHeapDeltaMb");
+      expect(output.total).not.toHaveProperty("heapDeltaMb");
+    }
   });
 
-  it("renders a readable benchmark table", () => {
+  it("renders a readable output-scoped benchmark table", () => {
     const report = buildBenchReport([20], { writeJson: false });
     const table = renderBenchTable(report);
 
     expect(table).toContain("dataset");
+    expect(table).toContain("output");
     expect(table).toContain("input_rows");
     expect(table).toContain("heap_delta_mb_or_max");
     expect(table).not.toContain("rows      time_ms");
-    expect(table).toContain("build_oa_rows");
+    expect(table).toContain("variance_summary");
+    expect(table).toContain("oa_doc_compare");
+    expect(table).toContain("erp_doc_compare");
+    expect(table).toContain("build_variance_summary_rows");
+    expect(table).toContain("build_oa_doc_compare_rows");
+    expect(table).toContain("build_erp_doc_compare_rows");
+    expect(table).not.toContain("generate_data");
     expect(table).toContain("total");
   });
 
