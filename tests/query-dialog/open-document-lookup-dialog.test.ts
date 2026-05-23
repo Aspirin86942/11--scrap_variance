@@ -254,6 +254,35 @@ describe("document lookup dialog bridge", () => {
     expect(root.Application.PluginStorage.values.get(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY)).toBe("");
   });
 
+  it("does not leak reportError failures while reporting an invalid submitted selection", () => {
+    const root = makeRoot();
+    const runLookup = vi.fn();
+    const reportError = vi.fn(() => {
+      throw new Error("report failed");
+    });
+    root.Application.PluginStorage.setItem(initialStateStorageKey("token-1"), "initial payload");
+    root.Application.PluginStorage.setItem(
+      DOCUMENT_LOOKUP_DIALOG_RESULT_KEY,
+      JSON.stringify({
+        token: "token-1",
+        action: "query",
+        selection: {
+          mode: "oa_form_number",
+          docNumber: "   "
+        }
+      })
+    );
+
+    expect(() => {
+      expect(pollDocumentLookupDialogResult(root, "token-1", runLookup, reportError)).toBe(true);
+    }).not.toThrow();
+
+    expect(runLookup).not.toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(root.Application.PluginStorage.values.get(initialStateStorageKey("token-1"))).toBeUndefined();
+    expect(root.Application.PluginStorage.values.get(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY)).toBe("");
+  });
+
   it("clears tokenized initial state when ShowDialog throws synchronously", () => {
     vi.useFakeTimers();
     const root = makeRoot();
@@ -319,6 +348,67 @@ describe("document lookup dialog bridge", () => {
     );
     expect(root.Application.PluginStorage.values.get(initialStateStorageKey(token))).toBeUndefined();
     expect(root.Application.PluginStorage.values.get(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY)).toBe("");
+  });
+
+  it("does not clear another token result when an older dialog times out", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-05-23T00:00:00Z"));
+    const root = makeRoot();
+    const suggestions = makeSuggestions();
+    const runLookup = vi.fn();
+    const reportError = vi.fn();
+
+    openDocumentLookupDialogAndRun(root, suggestions, runLookup, reportError);
+    const token = readTokenFromShowDialog(root);
+    const otherTokenResult = JSON.stringify({
+      token: "token-2",
+      action: "query",
+      selection: { mode: "erp_doc_number", docNumber: "ERP-001" }
+    });
+    root.Application.PluginStorage.values.set(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY, otherTokenResult);
+
+    vi.advanceTimersByTime(5 * 60 * 1000 + 250);
+
+    expect(runLookup).not.toHaveBeenCalled();
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(root.Application.PluginStorage.values.get(initialStateStorageKey(token))).toBeUndefined();
+    expect(root.Application.PluginStorage.values.get(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY)).toBe(otherTokenResult);
+  });
+
+  it("clears the polling interval when result cleanup fails while consuming a matching token", () => {
+    vi.useFakeTimers();
+    const root = makeRoot();
+    const suggestions = makeSuggestions();
+    const cleanupError = new Error("cleanup failed");
+    const runLookup = vi.fn();
+    const reportError = vi.fn();
+
+    openDocumentLookupDialogAndRun(root, suggestions, runLookup, reportError);
+    const token = readTokenFromShowDialog(root);
+    root.Application.PluginStorage.values.set(
+      DOCUMENT_LOOKUP_DIALOG_RESULT_KEY,
+      JSON.stringify({
+        token,
+        action: "query",
+        selection: { mode: "oa_form_number", docNumber: "OA-001" }
+      })
+    );
+    root.Application.PluginStorage.setItem = vi.fn((key: string, value: unknown) => {
+      if (key === DOCUMENT_LOOKUP_DIALOG_RESULT_KEY && value === "") {
+        throw cleanupError;
+      }
+      root.Application.PluginStorage.values.set(key, value);
+    });
+
+    expect(() => vi.advanceTimersByTime(250)).not.toThrow();
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(reportError).toHaveBeenCalledWith(cleanupError);
+    expect(runLookup).not.toHaveBeenCalled();
+
+    vi.advanceTimersByTime(1000);
+
+    expect(reportError).toHaveBeenCalledOnce();
+    expect(runLookup).not.toHaveBeenCalled();
   });
 
   it("throws when PluginStorage is unavailable", () => {

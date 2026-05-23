@@ -43,7 +43,20 @@ function getStorage(root: ScrapVarianceGlobal): WpsPluginStorage {
   return storage;
 }
 
-function clearDocumentLookupDialogResult(root: ScrapVarianceGlobal): void {
+function safeReportError(reportError: ReportError, error: unknown): void {
+  try {
+    reportError(error);
+  } catch {
+    // 上报错误本身失败时，不能让轮询定时器继续抛未捕获异常。
+  }
+}
+
+function clearDocumentLookupDialogResult(root: ScrapVarianceGlobal, token?: string): void {
+  const result = readDocumentLookupDialogResult(root);
+  if (result && (!token || result.token !== token)) {
+    return;
+  }
+
   getStorage(root).setItem(DOCUMENT_LOOKUP_DIALOG_RESULT_KEY, "");
 }
 
@@ -150,22 +163,28 @@ export function pollDocumentLookupDialogResult(
     return false;
   }
 
-  clearDocumentLookupDialogResult(root);
-  clearDocumentLookupInitialState(root, token);
+  try {
+    clearDocumentLookupDialogResult(root, token);
+    clearDocumentLookupInitialState(root, token);
+  } catch (error) {
+    safeReportError(reportError, error);
+    return true;
+  }
+
   if (result.action === "cancel") {
     return true;
   }
 
   const selection = normalizeDocumentLookupSelection(result.selection);
   if (!selection) {
-    reportError(buildInvalidSelectionError());
+    safeReportError(reportError, buildInvalidSelectionError());
     return true;
   }
 
   try {
     runLookup(selection);
   } catch (error) {
-    reportError(error);
+    safeReportError(reportError, error);
   }
   return true;
 }
@@ -195,16 +214,26 @@ export function openDocumentLookupDialogAndRun(
 
   const startedAt = Date.now();
   const timer = globalThis.setInterval(() => {
-    if (pollDocumentLookupDialogResult(root, token, runLookup, reportError)) {
-      globalThis.clearInterval(timer);
-      return;
-    }
+    try {
+      if (pollDocumentLookupDialogResult(root, token, runLookup, reportError)) {
+        globalThis.clearInterval(timer);
+        return;
+      }
 
-    if (Date.now() - startedAt >= DOCUMENT_LOOKUP_DIALOG_TIMEOUT_MS) {
+      if (Date.now() - startedAt >= DOCUMENT_LOOKUP_DIALOG_TIMEOUT_MS) {
+        globalThis.clearInterval(timer);
+        try {
+          clearDocumentLookupDialogResult(root, token);
+          clearDocumentLookupInitialState(root, token);
+        } catch (error) {
+          safeReportError(reportError, error);
+          return;
+        }
+        safeReportError(reportError, buildDialogTimeoutError());
+      }
+    } catch (error) {
       globalThis.clearInterval(timer);
-      clearDocumentLookupDialogResult(root);
-      clearDocumentLookupInitialState(root, token);
-      reportError(buildDialogTimeoutError());
+      safeReportError(reportError, error);
     }
   }, DOCUMENT_LOOKUP_DIALOG_POLL_MS);
 }
