@@ -13,12 +13,10 @@ import {
   buildOaDocCompare,
   docCompareRowsToValues
 } from "../core/doc-compare";
-import {
-  buildDepartmentVarianceSummaryRows,
-  departmentVarianceSummaryRowsToValues
-} from "../core/department-variance-summary";
 import { parseFilters } from "../core/build-oa-rows";
+import { runOutputSheetQueryCore } from "../core/output-query-runner";
 import { detectOutputSheetKind, unsupportedOutputSheetMessage } from "../core/output-sheets";
+import { createMetricsRecorder } from "../perf/metrics";
 import { getRibbonState } from "../ribbon/state";
 import type { OutputMatrix, OutputSheetKind, QueryFilters, RawRow, RibbonQueryState } from "../types/scrap";
 import type { ScrapVarianceGlobal, WpsSheet } from "../types/wps";
@@ -88,67 +86,6 @@ function readSourceRows(root?: ScrapVarianceGlobal): SourceRows {
   };
 }
 
-function buildVarianceSummaryValues(
-  oaRows: RawRow[],
-  erpRows: RawRow[],
-  filters: QueryFilters,
-  queryDirection: RibbonQueryState["queryDirection"]
-):
-  | { values: OutputMatrix; noResultMessage: null }
-  | { values: null; noResultMessage: string } {
-  const summaryRows = buildDepartmentVarianceSummaryRows(oaRows, erpRows, filters, queryDirection);
-
-  if (summaryRows.length === 0) {
-    return {
-      values: null,
-      noResultMessage:
-        // 无结果提示要跟查询方向一致，用户才能知道是 OA 侧还是 ERP 侧条件没有命中。
-        queryDirection === "ERP源单查OA"
-          ? "查询条件没有匹配到 ERP 数据。"
-          : "查询条件没有匹配到 OA 数据。"
-    };
-  }
-
-  return {
-    values: departmentVarianceSummaryRowsToValues(summaryRows),
-    noResultMessage: null
-  };
-}
-
-function buildOaDocCompareValues(oaRows: RawRow[], erpRows: RawRow[], filters: QueryFilters):
-  | { values: OutputMatrix; noResultMessage: null }
-  | { values: null; noResultMessage: string } {
-  const result = buildOaDocCompare(oaRows, erpRows, filters);
-  if (result.summaryRows.length === 0) {
-    return {
-      values: null,
-      noResultMessage: "查询条件没有匹配到 OA 数据。"
-    };
-  }
-
-  return {
-    values: docCompareRowsToValues("oa_doc_compare", result.summaryRows),
-    noResultMessage: null
-  };
-}
-
-function buildErpDocCompareValues(oaRows: RawRow[], erpRows: RawRow[], filters: QueryFilters):
-  | { values: OutputMatrix; noResultMessage: null }
-  | { values: null; noResultMessage: string } {
-  const result = buildErpDocCompare(oaRows, erpRows, filters);
-  if (result.summaryRows.length === 0) {
-    return {
-      values: null,
-      noResultMessage: "查询条件没有匹配到 ERP 数据。"
-    };
-  }
-
-  return {
-    values: docCompareRowsToValues("erp_doc_compare", result.summaryRows),
-    noResultMessage: null
-  };
-}
-
 function safeWriteCurrentSheetError(
   sheet: WpsSheet,
   kind: OutputSheetKind,
@@ -191,19 +128,18 @@ export function runCurrentSheetQueryWithState(root: ScrapVarianceGlobal | undefi
   }
 
   try {
-    const filters = parseFilters(queryState);
     const { oaRows, erpRows } = readSourceRows(root);
-    // 三张输出页共享查询条件格式，但刷新时只处理当前页，避免一次查询覆盖其他输出页。
-    const result =
-      kind === "variance_summary"
-        ? buildVarianceSummaryValues(oaRows, erpRows, filters, queryState.queryDirection)
-        : kind === "oa_doc_compare"
-          ? buildOaDocCompareValues(oaRows, erpRows, filters)
-          : buildErpDocCompareValues(oaRows, erpRows, filters);
+    const result = runOutputSheetQueryCore({
+      kind,
+      oaRows,
+      erpRows,
+      queryState,
+      metrics: createMetricsRecorder(root ?? globalThis)
+    });
 
     clearPreviousToolOutput(activeSheet, kind, kind === "variance_summary" ? ["legacy_detail"] : []);
     // 成功或无结果都保存本次条件，下一次打开弹窗才能恢复当前输出页自己的状态。
-    writeOutputWithMetadata(activeSheet, kind, result.values ?? [[result.noResultMessage]], queryState);
+    writeOutputWithMetadata(activeSheet, kind, result.values ?? [[result.noResultMessage ?? "查询条件没有匹配到数据。"]], queryState);
   } catch (error) {
     safeWriteCurrentSheetError(activeSheet, kind, errorMessage(error), queryState);
   }
